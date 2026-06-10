@@ -1,11 +1,15 @@
 import json
+import logging
 from typing import List, Optional, Union
+
+from theflow.settings import settings as flowsettings
 
 from kotaemon.base import Document
 
 from .base import BaseDocumentStore
 
 MAX_DOCS_TO_GET = 10**4
+logger = logging.getLogger(__name__)
 
 
 class LanceDBDocumentStore(BaseDocumentStore):
@@ -22,6 +26,31 @@ class LanceDBDocumentStore(BaseDocumentStore):
         self.db_uri = path
         self.collection_name = collection_name
         self.db_connection = lancedb.connect(self.db_uri)  # type: ignore
+        self.fts_tokenizer_name = getattr(
+            flowsettings, "KH_LANCEDB_FTS_TOKENIZER", "de_stem"
+        )
+        self.fts_language = getattr(flowsettings, "KH_LANCEDB_FTS_LANGUAGE", "German")
+
+    def _create_fts_index(self, document_collection):
+        """Create/refresh the full-text index with configurable language support."""
+
+        try:
+            document_collection.create_fts_index(
+                "text",
+                language=self.fts_language,
+                replace=True,
+            )
+        except TypeError:
+            logger.debug(
+                "LanceDB create_fts_index does not support language=; "
+                "falling back to tokenizer_name=%s",
+                self.fts_tokenizer_name,
+            )
+            document_collection.create_fts_index(
+                "text",
+                tokenizer_name=self.fts_tokenizer_name,
+                replace=True,
+            )
 
     def add(
         self,
@@ -53,11 +82,7 @@ class LanceDBDocumentStore(BaseDocumentStore):
                 document_collection.add(data)
 
         if refresh_indices:
-            document_collection.create_fts_index(
-                "text",
-                tokenizer_name="en_stem",
-                replace=True,
-            )
+            self._create_fts_index(document_collection)
 
     def query(
         self, query: str, top_k: int = 10, doc_ids: Optional[list] = None
@@ -137,11 +162,7 @@ class LanceDBDocumentStore(BaseDocumentStore):
         document_collection.delete(query_filter)
 
         if refresh_indices:
-            document_collection.create_fts_index(
-                "text",
-                tokenizer_name="en_stem",
-                replace=True,
-            )
+            self._create_fts_index(document_collection)
 
     def drop(self):
         """Drop the document store"""

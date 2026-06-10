@@ -8,12 +8,17 @@ from theflow.settings import settings as flowsettings
 
 from kotaemon.base import BaseComponent, Document, Param
 from kotaemon.indices.extractors import BaseDocParser
-from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
+from kotaemon.indices.splitters import (
+    BaseSplitter,
+    TokenSplitter,
+    UniversityPDFChunker,
+)
 from kotaemon.loaders import (
     AdobeReader,
     AzureAIDocumentIntelligenceLoader,
     DirectoryReader,
     DoclingReader,
+    DoclingStructuredPDFReader,
     HtmlReader,
     MathpixPDFReader,
     MhtmlReader,
@@ -67,17 +72,21 @@ class DocumentIngestor(BaseComponent):
         - docx, doc
 
     Args:
-        pdf_mode: mode for pdf extraction, one of "normal", "mathpix", "ocr"
+        pdf_mode: mode for pdf extraction, one of "normal", "mathpix", "ocr",
+            "multimodal", "university"
             - normal: parse pdf text
             - mathpix: parse pdf text using mathpix
             - ocr: parse pdf image using flax
+            - multimodal: parse PDF with Adobe extraction
+            - university: parse PDF with Docling structural elements and university chunking
         doc_parsers: list of document parsers to parse the document
         text_splitter: splitter to split the document into text nodes
         override_file_extractors: override file extractors for specific file extensions
             The default file extractors are stored in `KH_DEFAULT_FILE_EXTRACTORS`
     """
 
-    pdf_mode: str = "normal"  # "normal", "mathpix", "ocr", "multimodal"
+    # "normal", "mathpix", "ocr", "multimodal", "university"
+    pdf_mode: str = "normal"
     doc_parsers: list[BaseDocParser] = Param(default_callback=lambda _: [])
     text_splitter: BaseSplitter = TokenSplitter.withx(
         chunk_size=1024,
@@ -101,6 +110,8 @@ class DocumentIngestor(BaseComponent):
             file_extractors[".pdf"] = OCRReader()
         elif self.pdf_mode == "multimodal":
             file_extractors[".pdf"] = AdobeReader()
+        elif self.pdf_mode == "university":
+            file_extractors[".pdf"] = DoclingStructuredPDFReader()
         else:
             file_extractors[".pdf"] = MathpixPDFReader()
 
@@ -125,7 +136,13 @@ class DocumentIngestor(BaseComponent):
 
         documents = self._get_reader(input_files=file_paths)()
         print(f"Read {len(file_paths)} files into {len(documents)} documents.")
-        nodes = self.text_splitter(documents)
+
+        splitter = (
+            UniversityPDFChunker()
+            if self.pdf_mode == "university"
+            else self.text_splitter
+        )
+        nodes = splitter(documents)
         print(f"Transform {len(documents)} documents into {len(nodes)} nodes.")
         self.log_progress(".num_docs", num_docs=len(nodes))
 
