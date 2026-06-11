@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import re
 import statistics
 import sys
 from pathlib import Path
@@ -56,12 +57,27 @@ def assert_sanity(chunks) -> None:
             assert child.metadata.get(key), f"child missing {key}"
 
     assert all(p.metadata.get("index_role") == "parent" for p in parents), "invalid parent role"
+    assert not [p for p in parents if p.metadata.get("chunk_id")], "parent has child chunk_id"
 
     for child in children:
         if child.metadata.get("doc_type") in {"general_regulation", "exam_regulation", "amendment"}:
             title = child.metadata.get("section_title") or ""
             if title.startswith("§"):
                 assert title in child.text, "regulation child lost § title"
+            real_starts = re.findall(r"(?m)^§\s*\d+", child.text or "")
+            assert len(real_starts) <= 1, (
+                "regulation child contains multiple real section starts: "
+                f"{child.metadata.get('source_file')} {title} {real_starts}"
+            )
+            if child.metadata.get("section_id") == "§ 8" and (
+                "Prüfende, Beisitzende, Aufsichtsführende" in child.text
+            ):
+                assert (
+                    child.metadata.get("section_title")
+                    == "§ 8 Prüfende, Beisitzende, Aufsichtsführende"
+                ), "two-line § 8 title was not joined"
+            if title.startswith("§") and "PRÜFUNGSORGANE" in (child.metadata.get("major_heading") or ""):
+                assert "Hauptüberschrift: III. PRÜFUNGSORGANE" in child.text
         if child.metadata.get("chunk_type") == "table":
             assert "|" in child.text and "---" in child.text, "table chunk lost markdown syntax"
         if child.metadata.get("doc_type") == "module_catalog":
@@ -72,6 +88,21 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
     children = [d for d in chunks if d.metadata.get("index_role") == "child"]
     parents = [d for d in chunks if d.metadata.get("index_role") == "parent"]
     counts = [int(d.metadata.get("token_count") or 0) for d in children]
+    required = ["parent_id", "source_file", "doc_type", "chunk_id"]
+    missing_metadata = {
+        key: sum(1 for d in children if not d.metadata.get(key)) for key in required
+    }
+    missing_metadata.update(
+        {
+            "page_label_start/end": sum(
+                1
+                for d in children
+                if d.metadata.get("page_label_start") is None
+                and d.metadata.get("page_label_end") is None
+            ),
+            "token_count": sum(1 for d in children if not d.metadata.get("token_count")),
+        }
+    )
     return {
         "file_name": file_name,
         "doc_type": children[0].metadata.get("doc_type") if children else None,
@@ -82,10 +113,14 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
         "max_token_count": max(counts) if counts else 0,
         "empty_chunks_count": sum(1 for d in children if not (d.text or "").strip()),
         "chunks_over_max_size": sum(1 for d in children if int(d.metadata.get("token_count") or 0) > chunker.max_child_size),
+        "missing_metadata": missing_metadata,
         "chunks_without_page_metadata": sum(
             1
             for d in children
             if d.metadata.get("page_label_start") is None and d.metadata.get("page_label_end") is None
+        ),
+        "parent_docs_embeddable_count": sum(
+            1 for d in parents if d.metadata.get("index_role") != "parent"
         ),
     }
 
@@ -119,7 +154,7 @@ def main() -> int:
             "children={num_child_chunks} | tokens min/avg/max="
             "{min_token_count}/{avg_token_count}/{max_token_count} | "
             "empty={empty_chunks_count} | over_max={chunks_over_max_size} | "
-            "no_page={chunks_without_page_metadata}".format(**stats)
+            "no_page={chunks_without_page_metadata} | missing={missing_metadata}".format(**stats)
         )
 
     summary_path = OUT_DIR / "_summary.json"

@@ -54,6 +54,52 @@ def test_regulation_chunks_preserve_section_title_and_required_metadata():
     assert child.metadata["section_title"].startswith("§ 1")
     assert child.metadata["section_title"] in child.text
     assert "Dokument: PO_BSc_Test.pdf" in child.text
+    assert child.metadata["doc_family"] == "exam_regulation"
+    assert child.metadata["page_label_start"] == 1
+    assert child.metadata["page_label_end"] == 1
+    assert child.metadata["token_count"] > 0
+
+
+def test_regulation_two_line_title_and_major_heading_are_preserved():
+    docs = [
+        structured_doc("Prüfungsordnung", 0, "heading"),
+        structured_doc("III. PRÜFUNGSORGANE", 1, "heading"),
+        structured_doc("§ 8", 2),
+        structured_doc("Prüfende, Beisitzende, Aufsichtsführende", 3),
+        structured_doc("(1) Der Prüfungsausschuss bestellt Prüfende.", 4),
+        structured_doc("§ 9 Prüfungsausschuss\n(1) Der Prüfungsausschuss entscheidet.", 5),
+    ]
+
+    chunks = UniversityPDFChunker(max_child_size=80).run(docs)
+    children = [d for d in chunks if d.metadata["index_role"] == "child"]
+    section_8 = [d for d in children if d.metadata.get("section_id") == "§ 8"]
+    assert section_8
+    assert all(
+        d.metadata["section_title"]
+        == "§ 8 Prüfende, Beisitzende, Aufsichtsführende"
+        for d in section_8
+    )
+    assert all(d.metadata["major_heading"] == "III. PRÜFUNGSORGANE" for d in section_8)
+    assert "Hauptüberschrift: III. PRÜFUNGSORGANE" in section_8[0].text
+    assert not any("§ 9 Prüfungsausschuss" in d.text for d in section_8)
+
+
+def test_regulation_child_never_contains_two_real_section_starts():
+    docs = [
+        structured_doc(
+            "Prüfungsordnung\n§ 8\nPrüfende, Beisitzende, Aufsichtsführende\n"
+            "(1) Inhalt zu § 8.\n§ 9 Prüfungsausschuss\n(1) Inhalt zu § 9.",
+            0,
+        )
+    ]
+
+    chunks = UniversityPDFChunker(max_child_size=500).run(docs)
+    children = [d for d in chunks if d.metadata["index_role"] == "child"]
+
+    assert {d.metadata["section_id"] for d in children} == {"§ 8", "§ 9"}
+    for child in children:
+        assert len(__import__("re").findall(r"(?m)^§\s*\d+", child.text)) <= 1
+    assert not any("§ 8" in d.text and "§ 9" in d.text for d in children)
 
 
 def test_table_chunks_keep_markdown_syntax():
@@ -83,6 +129,26 @@ def test_module_chunks_include_module_title():
     assert children
     assert children[0].metadata["doc_type"] == "module_catalog"
     assert children[0].metadata["module_title"] == "Data Analytics"
+
+
+def test_long_module_splits_into_deterministic_sections_with_metadata():
+    docs = [
+        structured_doc("Modul: Data Analytics", 0, "heading", file_name="Module_DataCompetence.pdf"),
+        structured_doc("Modulnummer: D3B-101", 1, file_name="Module_DataCompetence.pdf"),
+        structured_doc("ECTS 6\nSemester: 2", 2, file_name="Module_DataCompetence.pdf"),
+        structured_doc("Inhalte\n" + "Datenanalyse. " * 120, 3, file_name="Module_DataCompetence.pdf"),
+        structured_doc("Kompetenzen\n" + "Kompetenzaufbau. " * 120, 4, file_name="Module_DataCompetence.pdf"),
+        structured_doc("Prüfung\nKlausur", 5, file_name="Module_DataCompetence.pdf"),
+    ]
+    chunks = UniversityPDFChunker(max_child_size=120, target_child_size=80).run(docs)
+    children = [d for d in chunks if d.metadata.get("index_role") == "child"]
+
+    assert children
+    assert {d.metadata.get("module_title") for d in children} == {"Data Analytics"}
+    assert {d.metadata.get("module_number") for d in children} == {"D3B-101"}
+    assert {d.metadata.get("ects") for d in children} == {"6"}
+    assert any(d.metadata.get("module_section") == "contents" for d in children)
+    assert any(d.metadata.get("module_section") == "competencies" for d in children)
 
 
 def test_vector_indexing_does_not_embed_parent_docs():

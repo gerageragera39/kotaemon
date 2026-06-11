@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -20,6 +21,7 @@ if str(SRC) not in sys.path:
 
 from ktem.evaluation import find_default_dataset_path, run_evaluation  # noqa: E402
 from ktem.main import App  # noqa: E402
+from kotaemon.indices.ingests import DocumentIngestor  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
@@ -51,13 +53,54 @@ def parse_args() -> argparse.Namespace:
         default="eval_results",
         help="Directory for CSV/JSON artifacts.",
     )
+    parser.add_argument(
+        "--index-documents-dir",
+        default=os.environ.get("UNIVERSITY_RAG_DOCUMENTS_DIR", ""),
+        help=(
+            "Optional university PDF directory to ingest before evaluation. "
+            "Use dataset/documents for the D3B corpus."
+        ),
+    )
+    parser.add_argument(
+        "--pdf-mode",
+        default=os.environ.get("UNIVERSITY_RAG_PDF_MODE", "university"),
+        choices=["normal", "mathpix", "ocr", "multimodal", "university"],
+        help="PDF ingestion mode for --index-documents-dir preflight.",
+    )
     return parser.parse_args()
+
+
+def preflight_university_ingest(documents_dir: str, pdf_mode: str) -> None:
+    if not documents_dir:
+        return
+    pdfs = sorted(Path(documents_dir).expanduser().resolve().glob("*.pdf"))
+    if not pdfs:
+        raise FileNotFoundError(f"No PDFs found in --index-documents-dir={documents_dir}")
+    if pdf_mode != "university":
+        raise ValueError(
+            "The university dataset must be ingested with pdf_mode='university' "
+            f"(got {pdf_mode!r})."
+        )
+
+    print(
+        f"Preflight ingesting {len(pdfs)} PDFs with pdf_mode=university "
+        "(DoclingStructuredPDFReader + UniversityPDFChunker)",
+        flush=True,
+    )
+    chunks = DocumentIngestor(pdf_mode="university").run(pdfs)
+    parents = sum(1 for doc in chunks if doc.metadata.get("index_role") == "parent")
+    children = sum(1 for doc in chunks if doc.metadata.get("index_role") == "child")
+    print(
+        f"University ingest preflight complete: parents={parents}, children={children}",
+        flush=True,
+    )
 
 
 def main() -> int:
     args = parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    preflight_university_ingest(args.index_documents_dir, args.pdf_mode)
 
     app = App()
     settings = app.default_settings.flatten()

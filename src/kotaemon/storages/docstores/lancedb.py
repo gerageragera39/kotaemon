@@ -60,11 +60,16 @@ class LanceDBDocumentStore(BaseDocumentStore):
         **kwargs,
     ):
         """Load documents into lancedb storage."""
+        if isinstance(docs, Document):
+            docs = [docs]
+        if isinstance(ids, str):
+            ids = [ids]
         doc_ids = ids if ids else [doc.doc_id for doc in docs]
         data: list[dict[str, str]] | None = [
             {
                 "id": doc_id,
                 "text": doc.text,
+                "index_role": str(doc.metadata.get("index_role") or "child"),
                 "attributes": json.dumps(doc.metadata),
             }
             for doc_id, doc in zip(doc_ids, docs)
@@ -87,26 +92,19 @@ class LanceDBDocumentStore(BaseDocumentStore):
     def query(
         self, query: str, top_k: int = 10, doc_ids: Optional[list] = None
     ) -> List[Document]:
+        filters = ["index_role != 'parent'"]
         if doc_ids:
             id_filter = ", ".join([f"'{_id}'" for _id in doc_ids])
-            query_filter = f"id in ({id_filter})"
-        else:
-            query_filter = None
+            filters.append(f"id in ({id_filter})")
+        query_filter = " AND ".join(filters)
         try:
             document_collection = self.db_connection.open_table(self.collection_name)
-            if query_filter:
-                docs = (
-                    document_collection.search(query, query_type="fts")
-                    .where(query_filter, prefilter=True)
-                    .limit(top_k)
-                    .to_list()
-                )
-            else:
-                docs = (
-                    document_collection.search(query, query_type="fts")
-                    .limit(top_k)
-                    .to_list()
-                )
+            docs = (
+                document_collection.search(query, query_type="fts")
+                .where(query_filter, prefilter=True)
+                .limit(top_k)
+                .to_list()
+            )
         except (ValueError, FileNotFoundError):
             docs = []
         return [

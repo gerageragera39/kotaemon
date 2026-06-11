@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import json
+import sys
+import types
+
 import pytest
 
 pytest.importorskip("theflow")
@@ -197,3 +201,54 @@ def test_parent_docs_are_filtered_before_reranking_and_raw_results():
     assert reranker.seen_doc_ids == ["child"]
     assert [result.doc_id for result in results] == ["child"]
     assert all(result.metadata.get("index_role") != "parent" for result in results)
+
+
+def test_lancedb_fts_prefilters_parent_docs_before_limit(monkeypatch, tmp_path):
+    events: list[tuple] = []
+
+    class FakeSearch:
+        def where(self, query_filter, prefilter=False):
+            events.append(("where", query_filter, prefilter))
+            return self
+
+        def limit(self, top_k):
+            events.append(("limit", top_k))
+            return self
+
+        def to_list(self):
+            events.append(("to_list",))
+            return [
+                {
+                    "id": "child",
+                    "text": "child hit",
+                    "attributes": json.dumps({"index_role": "child"}),
+                }
+            ]
+
+    class FakeTable:
+        def search(self, query=None, query_type=None):
+            events.append(("search", query, query_type))
+            return FakeSearch()
+
+    class FakeDB:
+        def table_names(self):
+            return ["docstore"]
+
+        def open_table(self, name):
+            return FakeTable()
+
+    fake_lancedb = types.SimpleNamespace(connect=lambda _path: FakeDB())
+    monkeypatch.setitem(sys.modules, "lancedb", fake_lancedb)
+
+    from kotaemon.storages.docstores.lancedb import LanceDBDocumentStore
+
+    store = LanceDBDocumentStore(path=str(tmp_path), collection_name="docstore")
+    results = store.query("Prüfende", top_k=1, doc_ids=["parent", "child"])
+
+    assert [result.doc_id for result in results] == ["child"]
+    where_event = next(event for event in events if event[0] == "where")
+    limit_event = next(event for event in events if event[0] == "limit")
+    assert events.index(where_event) < events.index(limit_event)
+    assert "index_role != 'parent'" in where_event[1]
+    assert "id in ('parent', 'child')" in where_event[1]
+    assert where_event[2] is True

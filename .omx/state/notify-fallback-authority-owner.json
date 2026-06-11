@@ -1,0 +1,14 @@
+{
+  "owner": "hud",
+  "pid": 1005,
+  "cwd": "/mnt/c/Users/SED/Documents/my_ktem/test3/kotaemon",
+  "heartbeat_at": "2026-06-10T17:22:37.442Z",
+  "cooldown_ms": 5000,
+  "jitter_ms": 250,
+  "skip_count": 974,
+  "last_status": "skipped",
+  "last_reason": "rate_limited",
+  "last_spawn_at": "2026-06-10T17:22:32.403Z",
+  "last_skip_at": "2026-06-10T17:22:37.442Z",
+  "next_allowed_at": "2026-06-10T17:22:37.653Z"
+}

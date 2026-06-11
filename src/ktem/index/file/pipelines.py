@@ -45,7 +45,8 @@ from kotaemon.indices.ingests.files import (
     web_reader,
 )
 from kotaemon.indices.rankings import BaseReranking, LLMReranking, LLMTrulensScoring
-from kotaemon.indices.splitters import BaseSplitter, TokenSplitter
+from kotaemon.indices.splitters import BaseSplitter, TokenSplitter, UniversityPDFChunker
+from kotaemon.loaders import DoclingStructuredPDFReader
 
 from .base import BaseFileIndexIndexing, BaseFileIndexRetriever
 
@@ -498,6 +499,8 @@ class IndexPipeline(BaseComponent):
             with Session(engine) as session:
                 nodes = []
                 for chunk in chunks:
+                    if chunk.metadata.get("index_role") == "parent":
+                        continue
                     nodes.append(
                         self.Index(
                             source_id=file_id,
@@ -775,6 +778,39 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             file_path.startswith("http://") or file_path.startswith("https://")
         )
 
+    def _university_pdf_mode_enabled(self, file_path: Path) -> bool:
+        """Return True when this PDF must use the university structured pipeline.
+
+        This is intentionally an explicit config/env/path gate, not a change to the
+        default PDF behavior. It covers the repository university dataset by path and
+        lets CLI/evaluation runs force the same mode with environment/config.
+        """
+
+        if file_path.suffix.lower() != ".pdf":
+            return False
+
+        configured_mode = (
+            config("UNIVERSITY_RAG_PDF_MODE", default="")
+            or config("KOTAEMON_FILE_INDEX_PDF_MODE", default="")
+            or str(getattr(settings, "FILE_INDEX_PIPELINE_PDF_MODE", ""))
+        ).lower()
+        if configured_mode == "university":
+            return True
+
+        configured_dir = (
+            config("UNIVERSITY_RAG_DOCUMENTS_DIR", default="")
+            or str(getattr(settings, "UNIVERSITY_RAG_DOCUMENTS_DIR", ""))
+        )
+        if configured_dir:
+            try:
+                file_path.resolve().relative_to(Path(configured_dir).expanduser().resolve())
+                return True
+            except ValueError:
+                pass
+
+        parts = [part.lower() for part in file_path.resolve().parts]
+        return len(parts) >= 3 and parts[-3:-1] == ["dataset", "documents"]
+
     def route(self, file_path: str | Path) -> IndexPipeline:
         """Decide the pipeline based on the file type
 
@@ -789,10 +825,30 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         # check if file_path is a URL
         if self.is_url(file_path):
             reader = web_reader
+            splitter: BaseSplitter = TokenSplitter(
+                chunk_size=chunk_size or 1024,
+                chunk_overlap=chunk_overlap or 256,
+                separator="\n\n",
+                backup_separators=["\n", ".", "\u200B"],
+            )
         else:
             assert isinstance(file_path, Path)
             ext = file_path.suffix.lower()
-            reader = self.readers.get(ext, unstructured)
+            if self._university_pdf_mode_enabled(file_path):
+                reader = DoclingStructuredPDFReader()
+                splitter = UniversityPDFChunker()
+                _index_log(
+                    f"[{file_path}] University PDF mode active: "
+                    "DoclingStructuredPDFReader + UniversityPDFChunker"
+                )
+            else:
+                reader = self.readers.get(ext, unstructured)
+                splitter = TokenSplitter(
+                    chunk_size=chunk_size or 1024,
+                    chunk_overlap=chunk_overlap or 256,
+                    separator="\n\n",
+                    backup_separators=["\n", ".", "\u200B"],
+                )
             if reader is None:
                 raise NotImplementedError(
                     f"No supported pipeline to index {file_path.name}. Please specify "
@@ -805,12 +861,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         )
         pipeline: IndexPipeline = IndexPipeline(
             loader=reader,
-            splitter=TokenSplitter(
-                chunk_size=chunk_size or 1024,
-                chunk_overlap=chunk_overlap or 256,
-                separator="\n\n",
-                backup_separators=["\n", ".", "\u200B"],
-            ),
+            splitter=splitter,
             run_embedding_in_thread=self.run_embedding_in_thread,
             Source=self.Source,
             Index=self.Index,
