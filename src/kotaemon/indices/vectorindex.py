@@ -24,6 +24,18 @@ VECTOR_STORE_FNAME = "vectorstore"
 DOC_STORE_FNAME = "docstore"
 logger = logging.getLogger(__name__)
 
+LEXICAL_STOPWORDS = {
+    "a", "an", "and", "are", "as", "at", "be", "by", "can", "does",
+    "for", "from", "how", "in", "is", "it", "many", "of", "on", "or",
+    "the", "that", "this", "to", "what", "when", "which", "with", "you",
+    "your",
+    "aber", "alle", "als", "am", "an", "auch", "auf", "aus", "bei",
+    "bis", "da", "das", "dem", "den", "der", "des", "die", "ein",
+    "eine", "einem", "einen", "einer", "eines", "für", "ist", "im",
+    "mit", "nach", "oder", "sich", "und", "von", "vor", "wann", "was",
+    "wie", "zu", "zum", "zur",
+}
+
 
 def _vector_log(message: str, level: int = logging.INFO) -> None:
     """Log vector indexing/retrieval progress to logger and terminal."""
@@ -290,6 +302,83 @@ class VectorRetrieval(BaseRetrieval):
             add(" ".join(keywords[:10]))
         return variants if self.enable_query_expansion else [query]
 
+    def _lexical_normalize(self, value: str) -> str:
+        return (
+            unicodedata.normalize("NFKC", value or "")
+            .lower()
+            .replace("ä", "ae")
+            .replace("ö", "oe")
+            .replace("ü", "ue")
+            .replace("ß", "ss")
+        )
+
+    def _lexical_tokens(self, value: str) -> list[str]:
+        return [
+            token
+            for token in re.findall(r"[\wÄÖÜäöüß]+", self._lexical_normalize(value))
+            if len(token) > 2 and token not in LEXICAL_STOPWORDS
+        ]
+
+    def _lexical_doc_text(self, doc: Document) -> str:
+        metadata = doc.metadata or {}
+        metadata_text = " ".join(
+            str(value)
+            for value in (
+                metadata.get("section_id"),
+                metadata.get("section_title"),
+                metadata.get("paragraph_id"),
+                metadata.get("sentence_id"),
+                metadata.get("major_heading"),
+                metadata.get("module_title"),
+                metadata.get("module_number"),
+                metadata.get("module_section"),
+                metadata.get("chunk_type"),
+                metadata.get("source_file") or metadata.get("file_name"),
+            )
+            if value
+        )
+        return f"{metadata_text}\n{doc.text or ''}"
+
+    def _lexical_relevance_score(
+        self, query_variants: Sequence[str], doc: Document
+    ) -> float:
+        """Small exact-match signal for ordering candidates already found upstream.
+
+        Dense retrieval decides the candidate pool; this score only resolves common
+        university-PDF ties/misorders where many chunks from the same file share
+        similar boilerplate but only one contains the exact paragraph, section, or
+        German query-expansion terms.
+        """
+
+        doc_text = self._lexical_doc_text(doc)
+        doc_norm = self._lexical_normalize(doc_text)
+        doc_tokens = set(self._lexical_tokens(doc_text))
+        if not doc_tokens:
+            return 0.0
+
+        best = 0.0
+        for query in query_variants:
+            query_tokens = self._lexical_tokens(query)
+            if not query_tokens:
+                continue
+            unique_query_tokens = set(query_tokens)
+            overlap = len(unique_query_tokens & doc_tokens) / max(
+                1, len(unique_query_tokens)
+            )
+
+            phrase_hits = 0
+            for width in range(min(5, len(query_tokens)), 1, -1):
+                for idx in range(0, len(query_tokens) - width + 1):
+                    phrase = " ".join(query_tokens[idx : idx + width])
+                    if phrase in doc_norm:
+                        phrase_hits += 1
+                if phrase_hits:
+                    break
+            phrase_score = min(1.0, phrase_hits / 2.0)
+            best = max(best, min(1.0, 0.75 * overlap + 0.25 * phrase_score))
+
+        return best
+
     def _filter_docs(
         self, documents: list[RetrievedDocument], top_k: int | None = None
     ):
@@ -305,6 +394,8 @@ class VectorRetrieval(BaseRetrieval):
         dense_weight: float = 0.7,
         sparse_weight: float = 0.3,
         rrf_k: int = 60,
+        query_variants: Sequence[str] | None = None,
+        lexical_weight: float = 0.025,
     ) -> list[RetrievedDocument]:
         """Fuse dense and full-text candidates using weighted RRF ranks.
 
@@ -323,6 +414,7 @@ class VectorRetrieval(BaseRetrieval):
                 metadata = dict(doc_dict.get("metadata") or {})
                 doc_dict["metadata"] = metadata
                 entry = {
+                    "doc": doc,
                     "doc_dict": doc_dict,
                     "metadata": metadata,
                     "score": 0.0,
@@ -357,11 +449,21 @@ class VectorRetrieval(BaseRetrieval):
 
         result: list[RetrievedDocument] = []
         for entry in fused.values():
+            lexical_score = (
+                self._lexical_relevance_score(query_variants, entry["doc"])
+                if query_variants
+                else 0.0
+            )
             entry["metadata"]["_fusion_score"] = entry["score"]
-            entry["metadata"]["_ranking_score"] = entry["score"]
+            entry["metadata"]["_lexical_score"] = lexical_score
+            entry["metadata"]["_ranking_score"] = entry["score"] + (
+                lexical_weight * lexical_score
+            )
             entry["metadata"]["_retrieval_sources"] = entry["sources"]
             entry["metadata"]["retrieval_source"] = (
-                "both" if {"vector", "text"}.issubset(set(entry["sources"])) else entry["sources"][0]
+                "both"
+                if {"vector", "text"}.issubset(set(entry["sources"]))
+                else entry["sources"][0]
             )
             display_score = self._display_retrieval_score(entry["metadata"])
             entry["metadata"]["retrieval_score"] = display_score
@@ -572,7 +674,9 @@ class VectorRetrieval(BaseRetrieval):
                     current = best.get(doc.doc_id)
                     if current is None or candidate[:2] < current[:2]:
                         best[doc.doc_id] = candidate
-            return [item[2] for item in sorted(best.values(), key=lambda item: item[:2])]
+            return [
+                item[2] for item in sorted(best.values(), key=lambda item: item[:2])
+            ]
 
         if self.retrieval_mode == "vector":
             vector_batches: list[tuple[list[Document], list[float]]] = []
@@ -580,7 +684,9 @@ class VectorRetrieval(BaseRetrieval):
                 docs_for_query, scores_for_query = vector_search(query)
                 vector_batches.append((docs_for_query, scores_for_query))
             all_vector_docs, all_vector_scores = merge_vector_batches(vector_batches)
-            result = self._rrf_fuse(all_vector_docs, all_vector_scores, [])
+            result = self._rrf_fuse(
+                all_vector_docs, all_vector_scores, [], query_variants=query_variants
+            )
             debug["vector_candidates"] = len(all_vector_docs)
             debug["fused_candidates"] = len(result)
             debug["vector_branch_empty"] = len(all_vector_docs) == 0
@@ -589,7 +695,9 @@ class VectorRetrieval(BaseRetrieval):
             for query in query_variants:
                 text_batches.append(text_search(query))
             all_text_docs = merge_text_batches(text_batches)
-            result = self._rrf_fuse([], [], all_text_docs)
+            result = self._rrf_fuse(
+                [], [], all_text_docs, query_variants=query_variants
+            )
             debug["text_candidates"] = len(all_text_docs)
             debug["fused_candidates"] = len(result)
         elif self.retrieval_mode == "hybrid":
@@ -649,7 +757,9 @@ class VectorRetrieval(BaseRetrieval):
 
             vs_docs, vs_scores = merge_vector_batches(vs_batches)
             ds_docs = merge_text_batches(ds_batches)
-            result = self._rrf_fuse(vs_docs, vs_scores, ds_docs)
+            result = self._rrf_fuse(
+                vs_docs, vs_scores, ds_docs, query_variants=query_variants
+            )
             debug["vector_candidates"] = len(vs_docs)
             debug["text_candidates"] = len(ds_docs)
             debug["fused_candidates"] = len(result)
@@ -760,7 +870,9 @@ class VectorRetrieval(BaseRetrieval):
             "ranking_score": metadata.get("_ranking_score") or metadata.get("_fusion_score"),
             "vector_score": metadata.get("_vector_score"),
             "text_score": metadata.get("_text_score"),
-            "retrieval_source": metadata.get("retrieval_source") or metadata.get("_retrieval_sources"),
+            "lexical_score": metadata.get("_lexical_score"),
+            "retrieval_source": metadata.get("retrieval_source")
+            or metadata.get("_retrieval_sources"),
             "preview": (doc.text or "")[:500],
         }
 

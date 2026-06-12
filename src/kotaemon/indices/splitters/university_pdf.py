@@ -418,29 +418,20 @@ class UniversityPDFChunker(BaseSplitter):
         page_start = self._page_start(block.elements)
         page_end = self._page_end(block.elements)
         page_label = self._page_range(page_start, page_end)
+        # Keep the embedded child text content-centric.  Large repeated headers
+        # made chunks from the same file overly similar; metadata is still carried
+        # separately and rendered by PrepareEvidencePipeline.
         header_lines = [
             f"Dokument: {source_meta['source_file']}",
-            f"Dokumenttyp: {source_meta['doc_type']}",
-            f"Studiengang: {self.study_program}",
+            f"Abschnitt: {section_label}",
         ]
         if block.major_heading:
             header_lines.append(f"Hauptüberschrift: {block.major_heading}")
-        header_lines.extend(
-            [
-                f"Abschnitt/Modul/Tabelle/Formularblock: {section_label}",
-                f"Section: {section_label}",
-            ]
-        )
         if paragraph_id:
             header_lines.append(f"Paragraph: {paragraph_id}")
         if sentence_id:
             header_lines.append(f"Sentence: {sentence_id}")
-        header_lines.extend(
-            [
-                f"Seite: {page_label}",
-                f"Page: {page_label}",
-            ]
-        )
+        header_lines.append(f"Seite: {page_label}")
         text = "\n".join(header_lines) + f"\n\n{child_text.strip()}"
         chunk_id = self._stable_id(parent_id, "child", child_index, text[:120])
         module_section = block.module_section

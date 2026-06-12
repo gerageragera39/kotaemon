@@ -501,3 +501,110 @@ def test_context_formatter_reports_budget_dropped_docs():
     assert formatter.last_debug["input_docs"] == 3
     assert formatter.last_debug["used_docs"] < 3
     assert formatter.last_debug["dropped_docs"]
+
+
+def test_rrf_lexical_signal_promotes_exact_university_candidate():
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    generic = doc("generic", text="Allgemeine Hinweise zur Prüfung.")
+    exact = doc(
+        "exact",
+        text="Mündliche Prüfungen dauern mindestens 15 und höchstens 60 Minuten.",
+        section_title="§ 13 Bewertung der Prüfungsleistungen",
+    )
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[generic, exact],
+        vector_scores=[0.91, 0.89],
+        text_docs=[],
+        query_variants=["mündliche Prüfung 15 60 Minuten"],
+    )
+
+    assert fused[0].doc_id == "exact"
+    assert fused[0].metadata["_lexical_score"] > fused[1].metadata["_lexical_score"]
+
+
+def test_context_formatter_uses_final_ranking_before_display_score():
+    from kotaemon.base import RetrievedDocument
+    from kotaemon.indices.qa.format_context import PrepareEvidencePipeline
+
+    formatter = PrepareEvidencePipeline(max_context_length=500)
+    docs = [
+        RetrievedDocument(
+            text="high display score but weak fused rank",
+            id_="display-high",
+            score=0.99,
+            metadata={"_ranking_score": 0.01},
+        ),
+        RetrievedDocument(
+            text="lower display score but best final rank",
+            id_="rank-high",
+            score=0.2,
+            metadata={"_ranking_score": 0.5},
+        ),
+    ]
+
+    _, evidence, _ = formatter.run(docs).content
+
+    assert evidence.index("rank-high") < evidence.index("display-high")
+
+
+def test_lancedb_get_all_supports_sibling_expansion(monkeypatch, tmp_path):
+    events: list[tuple] = []
+
+    class FakeSearch:
+        def limit(self, top_k):
+            events.append(("limit", top_k))
+            return self
+
+        def to_list(self):
+            return [
+                {
+                    "id": "child-1",
+                    "text": "first sibling",
+                    "attributes": json.dumps(
+                        {
+                            "index_role": "child",
+                            "parent_id": "parent",
+                            "child_index": 1,
+                        }
+                    ),
+                },
+                {
+                    "id": "child-2",
+                    "text": "matched sibling",
+                    "attributes": json.dumps(
+                        {
+                            "index_role": "child",
+                            "parent_id": "parent",
+                            "child_index": 2,
+                        }
+                    ),
+                },
+            ]
+
+    class FakeTable:
+        def search(self, query=None, query_type=None):
+            events.append(("search", query, query_type))
+            return FakeSearch()
+
+    class FakeDB:
+        def table_names(self):
+            return ["docstore"]
+
+        def open_table(self, name):
+            return FakeTable()
+
+    fake_lancedb = types.SimpleNamespace(connect=lambda _path: FakeDB())
+    monkeypatch.setitem(sys.modules, "lancedb", fake_lancedb)
+
+    from kotaemon.storages.docstores.lancedb import LanceDBDocumentStore
+
+    store = LanceDBDocumentStore(path=str(tmp_path), collection_name="docstore")
+    docs = store.get_all()
+
+    assert [doc.doc_id for doc in docs] == ["child-1", "child-2"]
+    assert events == [("search", None, None), ("limit", 10**4)]

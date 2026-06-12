@@ -54,6 +54,9 @@ def test_regulation_chunks_preserve_section_title_and_required_metadata():
     assert child.metadata["section_title"].startswith("§ 1")
     assert child.metadata["section_title"] in child.text
     assert "Dokument: PO_BSc_Test.pdf" in child.text
+    assert "Abschnitt: § 1 Geltungsbereich" in child.text
+    assert "Studiengang:" not in child.text
+    assert "Section:" not in child.text
     assert child.metadata["doc_family"] == "exam_regulation"
     assert child.metadata["page_label_start"] == 1
     assert child.metadata["page_label_end"] == 1

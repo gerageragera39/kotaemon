@@ -67,10 +67,13 @@ class PrepareEvidencePipeline(BaseComponent):
 
         metadata = doc.metadata or {}
         candidates = (
-            doc.score,
+            metadata.get("llm_trulens_score"),
+            metadata.get("llm_reranking_score"),
+            metadata.get("reranking_score"),
             metadata.get("_ranking_score"),
             metadata.get("_fusion_score"),
             metadata.get("retrieval_score"),
+            doc.score,
             metadata.get("score"),
         )
         for candidate in candidates:

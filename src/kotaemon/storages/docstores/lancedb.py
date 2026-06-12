@@ -170,7 +170,28 @@ class LanceDBDocumentStore(BaseDocumentStore):
         raise NotImplementedError
 
     def get_all(self) -> List[Document]:
-        raise NotImplementedError
+        """Return stored documents for context expansion helpers.
+
+        University sibling expansion needs all child chunks grouped by parent.
+        LanceDB is the default docstore in this app, so leaving this unimplemented
+        made ``context_expansion_mode='siblings'`` silently fall back to no
+        expansion.
+        """
+
+        try:
+            document_collection = self.db_connection.open_table(self.collection_name)
+            docs = document_collection.search().limit(MAX_DOCS_TO_GET).to_list()
+        except (ValueError, FileNotFoundError):
+            docs = []
+
+        return [
+            Document(
+                id_=doc["id"],
+                text=doc["text"] if doc["text"] else "<empty>",
+                metadata=json.loads(doc["attributes"]),
+            )
+            for doc in docs
+        ]
 
     def __persist_flow__(self):
         return {
