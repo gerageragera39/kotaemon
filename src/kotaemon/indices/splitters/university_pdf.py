@@ -15,6 +15,10 @@ from . import BaseSplitter
 
 STUDY_PROGRAM = "B.Sc. Digital and Data-Driven Business"
 SECTION_START_RE = re.compile(r"(?m)^\s*(§\s*\d+[a-zA-Z]?\b[^\n]*)")
+PARAGRAPH_RE = re.compile(
+    r"(?im)(?:^|\n)\s*(\(\s*\d+[a-z]?\s*\)|Abs\.\s*\d+[a-z]?|Absatz\s+\d+[a-z]?)"
+)
+SENTENCE_RE = re.compile(r"(?im)\b(Satz\s+\d+[a-z]?)\b")
 
 
 @dataclass
@@ -384,6 +388,8 @@ class UniversityPDFChunker(BaseSplitter):
             "chunk_type": f"parent_{block.chunk_type}",
             "section_id": block.section_id,
             "section_title": block.section_title,
+            "paragraph_id": None,
+            "sentence_id": None,
             "major_heading": block.major_heading,
             "module_title": block.module_title,
             "module_number": block.module_number,
@@ -407,6 +413,8 @@ class UniversityPDFChunker(BaseSplitter):
         source_meta: dict[str, Any],
     ) -> Document:
         section_label = block.section_title or block.module_title or block.title
+        paragraph_id = self._paragraph_id(child_text)
+        sentence_id = self._sentence_id(child_text)
         page_start = self._page_start(block.elements)
         page_end = self._page_end(block.elements)
         page_label = self._page_range(page_start, page_end)
@@ -420,7 +428,17 @@ class UniversityPDFChunker(BaseSplitter):
         header_lines.extend(
             [
                 f"Abschnitt/Modul/Tabelle/Formularblock: {section_label}",
+                f"Section: {section_label}",
+            ]
+        )
+        if paragraph_id:
+            header_lines.append(f"Paragraph: {paragraph_id}")
+        if sentence_id:
+            header_lines.append(f"Sentence: {sentence_id}")
+        header_lines.extend(
+            [
                 f"Seite: {page_label}",
+                f"Page: {page_label}",
             ]
         )
         text = "\n".join(header_lines) + f"\n\n{child_text.strip()}"
@@ -433,9 +451,12 @@ class UniversityPDFChunker(BaseSplitter):
             "index_role": "child",
             "parent_id": parent_id,
             "chunk_id": chunk_id,
+            "child_index": child_index,
             "chunk_type": block.chunk_type,
             "section_id": block.section_id,
             "section_title": block.section_title,
+            "paragraph_id": paragraph_id,
+            "sentence_id": sentence_id,
             "major_heading": block.major_heading,
             "module_title": block.module_title,
             "module_number": block.module_number,
@@ -507,17 +528,13 @@ class UniversityPDFChunker(BaseSplitter):
         return chunks or [text]
 
     def _split_regulation_paragraphs(self, body: str) -> list[str]:
-        matches = list(
-            re.finditer(
-                r"(?m)(^|\n)\s*((?:\(\d+[a-z]?\)|Absatz\s+\d+)[^\n]*)", body
-            )
-        )
+        matches = list(PARAGRAPH_RE.finditer(body))
         if not matches:
             return []
         groups: list[str] = []
         for idx, match in enumerate(matches):
-            start = match.start(2)
-            end = matches[idx + 1].start(2) if idx + 1 < len(matches) else len(body)
+            start = match.start(1)
+            end = matches[idx + 1].start(1) if idx + 1 < len(matches) else len(body)
             part = body[start:end].strip()
             if part:
                 groups.append(part)
@@ -673,6 +690,18 @@ class UniversityPDFChunker(BaseSplitter):
         return windows
 
     # --- metadata helpers --------------------------------------------------------
+
+    def _paragraph_id(self, text: str) -> Optional[str]:
+        match = PARAGRAPH_RE.search(text or "")
+        if not match:
+            return None
+        raw = " ".join(match.group(1).split())
+        number_match = re.search(r"\d+[a-z]?", raw, flags=re.I)
+        return f"Abs. {number_match.group(0)}" if number_match else raw
+
+    def _sentence_id(self, text: str) -> Optional[str]:
+        match = SENTENCE_RE.search(text or "")
+        return " ".join(match.group(1).split()) if match else None
 
     def _source_file(self, docs: list[Document]) -> str:
         value = (

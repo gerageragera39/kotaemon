@@ -753,7 +753,8 @@ class EvaluationPage(BasePage):
 
             return (
                 f"{status_icon} Evaluation finished: "
-                f"{result.summary.get('samples_ok', 0)}/{result.summary.get('samples_total', 0)} samples OK.",
+                f"{result.summary.get('samples_ok', 0)}/{result.summary.get('samples_total', 0)} samples OK. "
+                f"Artifacts: {result.run_dir}",
                 self._summary_cards(result.summary),
                 ragas_html,
                 ragas_dropdown,

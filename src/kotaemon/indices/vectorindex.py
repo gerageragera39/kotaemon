@@ -1,20 +1,24 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import time
+import unicodedata
 import uuid
+from inspect import Parameter, signature
 from pathlib import Path
-from typing import Optional, Sequence, cast
+from typing import Any, Optional, Sequence, cast
 
 from theflow.settings import settings as flowsettings
 
 from kotaemon.base import BaseComponent, Document, RetrievedDocument
 from kotaemon.embeddings import BaseEmbeddings
 from kotaemon.storages import BaseDocumentStore, BaseVectorStore
+from kotaemon.utils.rag_debug import rag_log
 
 from .base import BaseIndexing, BaseRetrieval
-from .rankings import BaseReranking, LLMReranking
+from .rankings import BaseReranking
 
 VECTOR_STORE_FNAME = "vectorstore"
 DOC_STORE_FNAME = "docstore"
@@ -162,6 +166,129 @@ class VectorRetrieval(BaseRetrieval):
     top_k: int = 5
     first_round_top_k_mult: int = 10
     retrieval_mode: str = "hybrid"  # vector, text, hybrid
+    enable_query_expansion: bool = True
+    sibling_window: int = 1
+    last_debug: dict[str, Any] = {}
+
+
+    UNIVERSITY_QUERY_EXPANSIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
+        ("oral exam", ("mündliche Prüfung", "mündliche Prüfungsleistung")),
+        ("oral", ("mündlich", "mündliche Prüfung")),
+        ("file inspection", ("Akteneinsicht", "Einsichtnahme")),
+        ("inspection", ("Akteneinsicht", "Einsichtnahme")),
+        ("grade announced", ("Bekanntgabe der Bewertung", "Notenbekanntgabe")),
+        ("grade", ("Note", "Bewertung", "Prüfungsleistung")),
+        ("deadline", ("Frist", "Abgabefrist")),
+        ("bachelor thesis", ("Bachelorarbeit", "Abschlussarbeit")),
+        ("thesis", ("Bachelorarbeit", "Abschlussarbeit")),
+        ("ects points", ("ECTS-Punkte", "Leistungspunkte")),
+        ("ects", ("ECTS", "Leistungspunkte")),
+        ("attendance requirement", ("Anwesenheitspflicht", "Fehlzeiten")),
+        ("attendance", ("Anwesenheit", "Anwesenheitspflicht", "Fehlzeiten")),
+        ("distinction", ("mit Auszeichnung",)),
+        ("deception", ("Täuschung", "fremde Hilfe")),
+        ("ghostwriting", ("Täuschung", "fremde Hilfe")),
+        ("artificial intelligence", ("künstliche Intelligenz", "KI", "Täuschung")),
+        ("ai", ("künstliche Intelligenz", "KI", "Täuschung")),
+        ("withdraw", ("Rücktritt", "Abmeldung")),
+        (
+            "retake",
+            (
+                "Wiederholung von Prüfungen",
+                "nicht bestandene Prüfung",
+                "zweimal wiederholen",
+                "Wiederholungsprüfung",
+                "Wiederholungsmöglichkeit",
+                "mit Ausnahme der Bachelor- oder Masterarbeit",
+            ),
+        ),
+        (
+            "repeat",
+            (
+                "Wiederholung von Prüfungen",
+                "nicht bestandene Prüfung",
+                "zweimal wiederholen",
+                "Wiederholungsprüfung",
+                "Wiederholungsmöglichkeit",
+                "mit Ausnahme der Bachelor- oder Masterarbeit",
+            ),
+        ),
+        (
+            "failed",
+            (
+                "Wiederholung von Prüfungen",
+                "nicht bestandene Prüfung",
+                "zweimal wiederholen",
+                "Wiederholungsprüfung",
+                "Wiederholungsmöglichkeit",
+                "mit Ausnahme der Bachelor- oder Masterarbeit",
+            ),
+        ),
+        (
+            "failed exam",
+            (
+                "Wiederholung von Prüfungen",
+                "nicht bestandene Prüfung",
+                "zweimal wiederholen",
+                "Wiederholungsprüfung",
+                "Wiederholungsmöglichkeit",
+                "mit Ausnahme der Bachelor- oder Masterarbeit",
+            ),
+        ),
+        ("exam board", ("Prüfungsausschuss",)),
+    )
+
+    def _normalize_query_text(self, query: str) -> str:
+        de_umlaut = (
+            query.replace("ä", "ae")
+            .replace("ö", "oe")
+            .replace("ü", "ue")
+            .replace("Ä", "Ae")
+            .replace("Ö", "Oe")
+            .replace("Ü", "Ue")
+            .replace("ß", "ss")
+        )
+        ascii_fold = unicodedata.normalize("NFKD", query).encode("ascii", "ignore").decode("ascii")
+        return de_umlaut if de_umlaut != query else ascii_fold
+
+    def query_variants(self, text: str | Document) -> list[str]:
+        query = text.text if isinstance(text, Document) else str(text)
+        variants: list[str] = []
+
+        def add(value: str) -> None:
+            value = " ".join(str(value).split())
+            if value and value not in variants:
+                variants.append(value)
+
+        add(query)
+        lowered = query.lower()
+        expansion_terms: list[str] = []
+        for needle, replacements in self.UNIVERSITY_QUERY_EXPANSIONS:
+            # Match complete terms only.  A raw substring check made "ai" match
+            # words like "failed", which polluted repeat-exam queries with
+            # Täuschung/KI/Ghostwriting expansions and hurt hybrid ranking.
+            if re.search(rf"(?<!\w){re.escape(needle)}(?!\w)", lowered):
+                for replacement in replacements:
+                    if replacement not in expansion_terms:
+                        expansion_terms.append(replacement)
+        if expansion_terms:
+            add(f"{query} {' '.join(expansion_terms)}")
+            add(" ".join(expansion_terms))
+        normalized = self._normalize_query_text(query)
+        if normalized != query:
+            add(normalized)
+        keywords = [
+            token
+            for token in re.findall(r"[\wÄÖÜäöüß]+", query)
+            if len(token) > 2
+            and token.lower() not in {
+                "the", "and", "for", "with", "when", "what", "which", "how",
+                "does", "can", "are", "you", "your", "from", "that", "this",
+            }
+        ]
+        if keywords:
+            add(" ".join(keywords[:10]))
+        return variants if self.enable_query_expansion else [query]
 
     def _filter_docs(
         self, documents: list[RetrievedDocument], top_k: int | None = None
@@ -179,7 +306,13 @@ class VectorRetrieval(BaseRetrieval):
         sparse_weight: float = 0.3,
         rrf_k: int = 60,
     ) -> list[RetrievedDocument]:
-        """Fuse dense and full-text candidates using weighted RRF ranks."""
+        """Fuse dense and full-text candidates using weighted RRF ranks.
+
+        Keep the small RRF value as an internal ranking score. User-facing
+        retrieval scores should remain the source score (dense similarity or
+        text rank score); otherwise hybrid hits display as 0.00/0.01 even when
+        the candidate was a strong vector or lexical match.
+        """
 
         fused: dict[str, dict] = {}
 
@@ -217,6 +350,7 @@ class VectorRetrieval(BaseRetrieval):
             seen_text_ids.add(doc.doc_id)
             entry = ensure_entry(doc)
             entry["score"] += sparse_weight / (rrf_k + rank)
+            entry["metadata"]["_text_score"] = 1.0 / rank
             entry["metadata"]["_sparse_rank"] = rank
             if "text" not in entry["sources"]:
                 entry["sources"].append("text")
@@ -224,10 +358,78 @@ class VectorRetrieval(BaseRetrieval):
         result: list[RetrievedDocument] = []
         for entry in fused.values():
             entry["metadata"]["_fusion_score"] = entry["score"]
+            entry["metadata"]["_ranking_score"] = entry["score"]
             entry["metadata"]["_retrieval_sources"] = entry["sources"]
-            result.append(RetrievedDocument(**entry["doc_dict"], score=entry["score"]))
+            entry["metadata"]["retrieval_source"] = (
+                "both" if {"vector", "text"}.issubset(set(entry["sources"])) else entry["sources"][0]
+            )
+            display_score = self._display_retrieval_score(entry["metadata"])
+            entry["metadata"]["retrieval_score"] = display_score
+            result.append(RetrievedDocument(**entry["doc_dict"], score=display_score))
 
-        return sorted(result, key=lambda doc: doc.score, reverse=True)
+        return sorted(result, key=self._ranking_score, reverse=True)
+
+    def _display_retrieval_score(self, metadata: dict[str, Any]) -> float:
+        """Return a meaningful score for UI/eval prompts, not the RRF rank value."""
+
+        try:
+            vector_score = float(metadata.get("_vector_score"))
+        except (TypeError, ValueError):
+            vector_score = None
+        if vector_score is not None and vector_score != -1.0:
+            return vector_score
+
+        try:
+            text_score = float(metadata.get("_text_score"))
+        except (TypeError, ValueError):
+            text_score = None
+        if text_score is not None and text_score != -1.0:
+            # Lexical rank is useful for ordering, but it is not a semantic
+            # relevance probability.  Keep text-only scores visibly lower so a
+            # wrong FTS hit is not shown as 1.00 relevance in hybrid mode.
+            return min(0.35, max(0.0, text_score * 0.35))
+
+        try:
+            return float(metadata.get("_fusion_score", 0.0))
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _ranking_score(self, doc: RetrievedDocument) -> float:
+        metadata = doc.metadata or {}
+        for key in ("_ranking_score", "_fusion_score"):
+            try:
+                return float(metadata[key])
+            except (KeyError, TypeError, ValueError):
+                pass
+        try:
+            return float(doc.score or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    def _vector_scope_kwargs(self, scope: list[str] | None) -> dict[str, list[str]]:
+        """Map selected chunk ids to the vectorstore's public query parameter.
+
+        BaseVectorStore and LlamaIndex-backed stores use ``ids``. Some local test
+        doubles and older adapters used ``doc_ids``. Prefer the canonical
+        contract so production vector search is actually scoped to selected
+        chunks, while keeping compatibility with older doubles.
+        """
+
+        if not scope:
+            return {}
+
+        try:
+            parameters = signature(self.vector_store.query).parameters
+        except (TypeError, ValueError):
+            return {"ids": scope}
+
+        if "ids" in parameters:
+            return {"ids": scope}
+        if "doc_ids" in parameters:
+            return {"doc_ids": scope}
+        if any(param.kind == Parameter.VAR_KEYWORD for param in parameters.values()):
+            return {"ids": scope}
+        return {}
 
     def run(
         self,
@@ -251,8 +453,9 @@ class VectorRetrieval(BaseRetrieval):
         do_extend = kwargs.pop("do_extend", False)
         thumbnail_count = kwargs.pop("thumbnail_count", 3)
 
+        candidate_multiplier = max(1, int(self.first_round_top_k_mult))
         if do_extend:
-            top_k_first_round = top_k * self.first_round_top_k_mult
+            top_k_first_round = top_k * candidate_multiplier
         else:
             top_k_first_round = top_k
 
@@ -268,64 +471,153 @@ class VectorRetrieval(BaseRetrieval):
         emb: list[float]
 
         _vector_log(
-            f"Retrieval started: mode={self.retrieval_mode}, top_k={top_k}, "
-            f"first_round_top_k={top_k_first_round}, scope={len(scope) if scope else 0}"
+            f"Retrieval started: retrieval_mode={self.retrieval_mode}, "
+            f"final_top_k={top_k}, candidate_multiplier={candidate_multiplier}, "
+            f"candidate_pool={top_k_first_round}, scope={len(scope) if scope else 0}"
         )
 
-        if self.retrieval_mode == "vector":
+        query_variants = self.query_variants(text)
+        debug: dict[str, Any] = {
+            "question": text.text if isinstance(text, Document) else text,
+            "query_variants": query_variants,
+            "retrieval_mode": self.retrieval_mode,
+            "final_top_k": top_k,
+            "candidate_multiplier": candidate_multiplier,
+            "candidate_pool_size": top_k_first_round,
+            "scope_size": len(scope) if scope else 0,
+            "reranking_enabled": bool(self.rerankers),
+            "vector_candidates": 0,
+            "text_candidates": 0,
+            "fused_candidates": 0,
+            "final_docs_before_expansion": 0,
+            "final_docs_after_expansion": 0,
+            "vector_filter_fallbacks": 0,
+            "vector_ids_without_docstore_match": 0,
+            "vector_branch_empty": False,
+        }
+
+        def vector_search(query_text: str) -> tuple[list[Document], list[float]]:
             start_time = time.time()
-            _vector_log("Getting query embedding")
-            emb = self.embedding.run(text)[0].embedding
+            emb_local = self.embedding.run(query_text)[0].embedding
             _vector_log(f"Query embedding ready in {time.time() - start_time:.2f}s")
+            vector_kwargs = dict(kwargs)
+            vector_kwargs.update(self._vector_scope_kwargs(scope))
             _, scores, ids = self.vector_store.query(
-                embedding=emb, top_k=top_k_first_round, doc_ids=scope, **kwargs
+                embedding=emb_local, top_k=top_k_first_round, **vector_kwargs
             )
-            docs = self.doc_store.get(ids)
-            result = [
-                RetrievedDocument(**doc.to_dict(), score=score)
-                for doc, score in zip(docs, scores)
-            ]
+            if (
+                not ids
+                and scope
+                and "filters" in vector_kwargs
+            ):
+                # The selected chunk ids already scope the query.  Some
+                # LlamaIndex/Chroma filter translations are stricter than the
+                # metadata actually stored in older indexes and can eliminate all
+                # vector hits.  Retry without metadata filters before declaring
+                # vector search empty.
+                debug["vector_filter_fallbacks"] += 1
+                retry_kwargs = dict(vector_kwargs)
+                retry_kwargs.pop("filters", None)
+                _vector_log("Vector query returned no ids; retrying without filters")
+                _, scores, ids = self.vector_store.query(
+                    embedding=emb_local, top_k=top_k_first_round, **retry_kwargs
+                )
+            docs_local = self.doc_store.get(ids) if ids else []
+            if ids and not docs_local:
+                debug["vector_ids_without_docstore_match"] += len(ids)
+            if ids:
+                score_by_id = dict(zip(ids, scores))
+                scores = [score_by_id.get(doc.doc_id, 0.0) for doc in docs_local]
+            return docs_local, list(scores)
+
+        def text_search(query_text: str) -> list[Document]:
+            return self.doc_store.query(query_text, top_k=top_k_first_round, doc_ids=scope)
+
+        def merge_vector_batches(
+            batches: list[tuple[list[Document], list[float]]]
+        ) -> tuple[list[Document], list[float]]:
+            """Merge query-expansion dense candidates by best per-query rank.
+
+            Query expansion runs multiple German/English variants.  A hit ranked
+            #1 for a later variant should not be treated as rank #151 merely
+            because candidates were appended after the first variant.
+            """
+
+            best: dict[str, tuple[int, float, int, Document]] = {}
+            order = 0
+            for docs_for_query, scores_for_query in batches:
+                for local_rank, (doc, score) in enumerate(
+                    zip(docs_for_query, scores_for_query), start=1
+                ):
+                    order += 1
+                    current = best.get(doc.doc_id)
+                    candidate = (local_rank, -float(score or 0.0), order, doc)
+                    if current is None or candidate[:3] < current[:3]:
+                        best[doc.doc_id] = candidate
+
+            ordered = sorted(best.values(), key=lambda item: item[:3])
+            docs = [item[3] for item in ordered]
+            scores = [-item[1] for item in ordered]
+            return docs, scores
+
+        def merge_text_batches(batches: list[list[Document]]) -> list[Document]:
+            """Merge query-expansion lexical candidates by best per-query rank."""
+
+            best: dict[str, tuple[int, int, Document]] = {}
+            order = 0
+            for docs_for_query in batches:
+                for local_rank, doc in enumerate(docs_for_query, start=1):
+                    order += 1
+                    candidate = (local_rank, order, doc)
+                    current = best.get(doc.doc_id)
+                    if current is None or candidate[:2] < current[:2]:
+                        best[doc.doc_id] = candidate
+            return [item[2] for item in sorted(best.values(), key=lambda item: item[:2])]
+
+        if self.retrieval_mode == "vector":
+            vector_batches: list[tuple[list[Document], list[float]]] = []
+            for query in query_variants:
+                docs_for_query, scores_for_query = vector_search(query)
+                vector_batches.append((docs_for_query, scores_for_query))
+            all_vector_docs, all_vector_scores = merge_vector_batches(vector_batches)
+            result = self._rrf_fuse(all_vector_docs, all_vector_scores, [])
+            debug["vector_candidates"] = len(all_vector_docs)
+            debug["fused_candidates"] = len(result)
+            debug["vector_branch_empty"] = len(all_vector_docs) == 0
         elif self.retrieval_mode == "text":
-            query = text.text if isinstance(text, Document) else text
-            docs = self.doc_store.query(
-                query, top_k=top_k_first_round, doc_ids=scope
-            )
-            result = [RetrievedDocument(**doc.to_dict(), score=-1.0) for doc in docs]
+            text_batches: list[list[Document]] = []
+            for query in query_variants:
+                text_batches.append(text_search(query))
+            all_text_docs = merge_text_batches(text_batches)
+            result = self._rrf_fuse([], [], all_text_docs)
+            debug["text_candidates"] = len(all_text_docs)
+            debug["fused_candidates"] = len(result)
         elif self.retrieval_mode == "hybrid":
-            # similarity search section
-            start_time = time.time()
-            _vector_log("Getting query embedding")
-            emb = self.embedding.run(text)[0].embedding
-            _vector_log(f"Query embedding ready in {time.time() - start_time:.2f}s")
-            vs_docs: list[Document] = []
-            vs_ids: list[str] = []
-            vs_scores: list[float] = []
+            vs_batches: list[tuple[list[Document], list[float]]] = []
+            ds_batches: list[list[Document]] = []
+            errors: list[tuple[str, Exception]] = []
+            errors_lock = threading.Lock()
+
+            def _record_error(source: str, exc: Exception) -> None:
+                with errors_lock:
+                    errors.append((source, exc))
 
             def query_vectorstore():
-                nonlocal vs_docs
-                nonlocal vs_scores
-                nonlocal vs_ids
-
-                assert self.doc_store is not None
-                _, vs_scores, vs_ids = self.vector_store.query(
-                    embedding=emb, top_k=top_k_first_round, doc_ids=scope, **kwargs
-                )
-                if vs_ids:
-                    vs_docs = self.doc_store.get(vs_ids)
-                    score_by_id = dict(zip(vs_ids, vs_scores))
-                    vs_scores = [score_by_id[doc.doc_id] for doc in vs_docs]
-
-            # full-text search section
-            ds_docs: list[Document] = []
+                nonlocal vs_batches
+                try:
+                    for query in query_variants:
+                        docs_for_query, scores_for_query = vector_search(query)
+                        vs_batches.append((docs_for_query, scores_for_query))
+                except Exception as exc:
+                    _record_error("vectorstore", exc)
 
             def query_docstore():
-                nonlocal ds_docs
-
-                assert self.doc_store is not None
-                query = text.text if isinstance(text, Document) else text
-                ds_docs = self.doc_store.query(
-                    query, top_k=top_k_first_round, doc_ids=scope
-                )
+                nonlocal ds_batches
+                try:
+                    for query in query_variants:
+                        ds_batches.append(text_search(query))
+                except Exception as exc:
+                    _record_error("docstore", exc)
 
             vs_query_thread = threading.Thread(target=query_vectorstore)
             ds_query_thread = threading.Thread(target=query_docstore)
@@ -341,28 +633,53 @@ class VectorRetrieval(BaseRetrieval):
                 f"Hybrid vector/docstore queries finished "
                 f"in {time.time() - query_start:.2f}s"
             )
+            if errors:
+                error_summary = "; ".join(
+                    f"{source}: {exc!r}" for source, exc in errors
+                )
+                for source, exc in errors:
+                    logger.error(
+                        "Hybrid retrieval %s branch failed",
+                        source,
+                        exc_info=(type(exc), exc, exc.__traceback__),
+                    )
+                raise RuntimeError(
+                    f"Hybrid retrieval failed in branch(es): {error_summary}"
+                ) from errors[0][1]
 
+            vs_docs, vs_scores = merge_vector_batches(vs_batches)
+            ds_docs = merge_text_batches(ds_batches)
             result = self._rrf_fuse(vs_docs, vs_scores, ds_docs)
+            debug["vector_candidates"] = len(vs_docs)
+            debug["text_candidates"] = len(ds_docs)
+            debug["fused_candidates"] = len(result)
+            debug["vector_branch_empty"] = len(vs_docs) == 0
             _vector_log(f"Got {len(vs_docs)} from vectorstore")
             _vector_log(f"Got {len(ds_docs)} from docstore")
+        else:
+            raise ValueError(f"Unsupported retrieval_mode={self.retrieval_mode!r}")
 
         result = self._without_parent_docs(result)
 
         # use additional reranker to re-order the document list
         if self.rerankers and text:
             for reranker in self.rerankers:
-                # if reranker is LLMReranking, limit the document with top_k items only
-                if isinstance(reranker, LLMReranking):
-                    result = self._filter_docs(result, top_k=top_k)
                 rerank_start = time.time()
                 _vector_log(f"Running reranker {reranker}")
                 result = reranker.run(documents=result, query=text)
+                for doc in result:
+                    sources = list(doc.metadata.get("_retrieval_sources") or [])
+                    if "rerank" not in sources:
+                        sources.append("rerank")
+                    doc.metadata["_retrieval_sources"] = sources
+                    doc.metadata["retrieval_source"] = doc.metadata.get("retrieval_source") or "rerank"
                 _vector_log(
                     f"Reranker returned {len(result)} docs "
                     f"in {time.time() - rerank_start:.2f}s"
                 )
 
         result = self._filter_docs(result, top_k=top_k)
+        debug["final_docs_before_expansion"] = len(result)
         _vector_log(f"Got raw {len(result)} retrieved documents")
 
         # add page thumbnails to the result if exists
@@ -415,10 +732,101 @@ class VectorRetrieval(BaseRetrieval):
             # return output from raw retrieved thumbnails
             result = self._filter_docs(raw_thumbnail_docs, top_k=thumbnail_count)
 
-        if expand_parent:
+        if expand_parent == "siblings":
+            result = self._expand_sibling_context(result, window=self.sibling_window)
+        elif expand_parent:
             result = self._expand_parent_context(result)
 
+        debug["final_docs_after_expansion"] = len(result)
+        debug["final_docs"] = [self._debug_doc(doc, rank) for rank, doc in enumerate(result, start=1)]
+        self.last_debug = debug
+        rag_log("retrieval.vector.result", **debug)
         return result
+
+    def _debug_doc(self, doc: RetrievedDocument, rank: int) -> dict[str, Any]:
+        metadata = doc.metadata or {}
+        return {
+            "rank": rank,
+            "doc_id": doc.doc_id,
+            "source_file": metadata.get("source_file") or metadata.get("file_name"),
+            "page_label_start": metadata.get("page_label_start") or metadata.get("page_label"),
+            "page_label_end": metadata.get("page_label_end") or metadata.get("page_label"),
+            "section_id": metadata.get("section_id"),
+            "paragraph_id": metadata.get("paragraph_id"),
+            "parent_id": metadata.get("parent_id"),
+            "child_index": metadata.get("child_index"),
+            "index_role": metadata.get("index_role"),
+            "score": doc.score,
+            "ranking_score": metadata.get("_ranking_score") or metadata.get("_fusion_score"),
+            "vector_score": metadata.get("_vector_score"),
+            "text_score": metadata.get("_text_score"),
+            "retrieval_source": metadata.get("retrieval_source") or metadata.get("_retrieval_sources"),
+            "preview": (doc.text or "")[:500],
+        }
+
+    def _expand_sibling_context(
+        self, documents: list[RetrievedDocument], window: int = 1
+    ) -> list[RetrievedDocument]:
+        if self.doc_store is None or not documents:
+            return documents
+        window = max(0, int(window or 0))
+        try:
+            all_docs = self.doc_store.get_all()
+        except Exception:
+            return documents
+        children_by_parent: dict[str, list[Document]] = {}
+        for doc in all_docs:
+            metadata = doc.metadata or {}
+            if metadata.get("index_role") == "child" and metadata.get("parent_id"):
+                children_by_parent.setdefault(str(metadata["parent_id"]), []).append(doc)
+        for siblings in children_by_parent.values():
+            siblings.sort(key=lambda d: int((d.metadata or {}).get("child_index") or 0))
+
+        expanded: list[RetrievedDocument] = []
+        seen: set[str] = set()
+        for doc in sorted(documents, key=self._ranking_score, reverse=True):
+            metadata = doc.metadata or {}
+            parent_id = metadata.get("parent_id")
+            child_index = metadata.get("child_index")
+            if metadata.get("index_role") != "child" or not parent_id or child_index is None:
+                if doc.doc_id not in seen:
+                    expanded.append(doc)
+                    seen.add(doc.doc_id)
+                continue
+
+            siblings = children_by_parent.get(str(parent_id), [])
+            matched_idx = int(child_index)
+            group = [
+                sibling
+                for sibling in siblings
+                if abs(int((sibling.metadata or {}).get("child_index") or 0) - matched_idx) <= window
+            ]
+            group.sort(
+                key=lambda sibling: (
+                    0 if int((sibling.metadata or {}).get("child_index") or 0) == matched_idx else 1,
+                    abs(int((sibling.metadata or {}).get("child_index") or 0) - matched_idx),
+                    int((sibling.metadata or {}).get("child_index") or 0),
+                )
+            )
+            for sibling in group:
+                if sibling.doc_id in seen:
+                    continue
+                sibling_metadata = dict(sibling.metadata or {})
+                sibling_metadata["context_role"] = (
+                    "matched_child" if sibling.doc_id == doc.doc_id else "sibling_context"
+                )
+                sibling_metadata["retrieval_source"] = (
+                    metadata.get("retrieval_source") if sibling.doc_id == doc.doc_id else "sibling_context"
+                )
+                sibling_metadata["matched_child_id"] = doc.doc_id
+                expanded.append(
+                    RetrievedDocument(
+                        **{**sibling.to_dict(), "metadata": sibling_metadata},
+                        score=doc.score if sibling.doc_id == doc.doc_id else max((doc.score or 0.0) - 1e-6, 0.0),
+                    )
+                )
+                seen.add(sibling.doc_id)
+        return expanded
 
     def _without_parent_docs(
         self, documents: list[RetrievedDocument]
@@ -473,11 +881,18 @@ class VectorRetrieval(BaseRetrieval):
             if not children:
                 continue
             child_scores = [child.score for child in children]
+            child_ranking_scores = [self._ranking_score(child) for child in children]
             doc_dict = parent.to_dict()
             metadata = doc_dict.setdefault("metadata", {})
             metadata["expanded_from_child_ids"] = [child.doc_id for child in children]
             metadata["expanded_from_child_scores"] = child_scores
             metadata["best_child_score"] = max(child_scores) if child_scores else 0.0
+            metadata["expanded_from_child_ranking_scores"] = child_ranking_scores
+            metadata["_ranking_score"] = (
+                max(child_ranking_scores) if child_ranking_scores else 0.0
+            )
+            metadata["_fusion_score"] = metadata["_ranking_score"]
+            metadata["retrieval_score"] = metadata["best_child_score"]
             expanded.append(
                 RetrievedDocument(
                     **doc_dict,
@@ -485,7 +900,8 @@ class VectorRetrieval(BaseRetrieval):
                 )
             )
 
-        return passthrough + expanded
+        result = passthrough + expanded
+        return sorted(result, key=self._ranking_score, reverse=True)
 
 
 class TextVectorQA(BaseComponent):

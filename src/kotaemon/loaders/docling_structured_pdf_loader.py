@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Optional
 
-from kotaemon.base import Document, Param
+from kotaemon.base import Document
 
 from .base import BaseReader
 from .utils.adobe import make_markdown_table
@@ -20,14 +20,30 @@ class DoclingStructuredPDFReader(BaseReader):
 
     _dependencies = ["docling"]
 
-    @Param.auto(cache=True)
+    @property
     def converter_(self):
+        """Lazily create the Docling converter without theflow Param caching.
+
+        Index routing instantiates this reader directly for the university PDF UI
+        mode. In that path, theflow's ``@Param.auto(cache=True)`` descriptor can
+        miss its internal ``converter_`` cache slot and raise ``KeyError`` before
+        Docling runs. A plain private attribute keeps the reader stateless from the
+        pipeline perspective while avoiding descriptor cache initialization issues.
+        """
+
+        try:
+            return object.__getattribute__(self, "_docling_converter")
+        except AttributeError:
+            pass
+
         try:
             from docling.document_converter import DocumentConverter
         except ImportError as exc:
             raise ImportError("Please install docling: 'pip install docling'") from exc
 
-        return DocumentConverter()
+        converter = DocumentConverter()
+        object.__setattr__(self, "_docling_converter", converter)
+        return converter
 
     def run(
         self, file_path: str | Path, extra_info: Optional[dict] = None, **kwargs

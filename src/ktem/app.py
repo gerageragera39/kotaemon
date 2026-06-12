@@ -43,6 +43,9 @@ class BaseApp:
         self.app_version = getattr(settings, "KH_APP_VERSION", "")
         self.f_user_management = getattr(settings, "KH_FEATURE_USER_MANAGEMENT", False)
         self._theme = KotaemonTheme()
+        app_data_dir = Path(getattr(settings, "KH_APP_DATA_DIR", "ktem_app_data"))
+        (app_data_dir / "chats").mkdir(parents=True, exist_ok=True)
+        (app_data_dir / "evaluations").mkdir(parents=True, exist_ok=True)
 
         dir_assets = Path(__file__).parent / "assets"
         with (dir_assets / "css" / "main.css").open() as fi:

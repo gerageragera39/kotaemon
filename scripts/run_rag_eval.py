@@ -57,8 +57,9 @@ def parse_args() -> argparse.Namespace:
         "--index-documents-dir",
         default=os.environ.get("UNIVERSITY_RAG_DOCUMENTS_DIR", ""),
         help=(
-            "Optional university PDF directory to ingest before evaluation. "
-            "Use dataset/documents for the D3B corpus."
+            "Optional university PDF directory to chunk as a preflight check before "
+            "evaluation. This does not write into the Kotaemon app index; reindex "
+            "the PDFs in the UI/API to change retrieval."
         ),
     )
     parser.add_argument(
@@ -83,8 +84,9 @@ def preflight_university_ingest(documents_dir: str, pdf_mode: str) -> None:
         )
 
     print(
-        f"Preflight ingesting {len(pdfs)} PDFs with pdf_mode=university "
-        "(DoclingStructuredPDFReader + UniversityPDFChunker)",
+        f"Preflight chunking {len(pdfs)} PDFs with pdf_mode=university "
+        "(DoclingStructuredPDFReader + UniversityPDFChunker); this does not "
+        "persist chunks into the app index",
         flush=True,
     )
     chunks = DocumentIngestor(pdf_mode="university").run(pdfs)
@@ -127,7 +129,7 @@ def main() -> int:
     if result.warnings:
         (output_dir / "warnings.txt").write_text("\n".join(result.warnings), encoding="utf-8")
 
-    print(json.dumps(result.summary, indent=2, ensure_ascii=False))
+    print(json.dumps({**result.summary, "run_dir": result.run_dir}, indent=2, ensure_ascii=False))
     if result.warnings:
         print("\nWarnings:")
         for warning in result.warnings:

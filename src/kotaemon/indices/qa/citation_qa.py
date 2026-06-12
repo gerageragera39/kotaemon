@@ -15,6 +15,7 @@ from kotaemon.base import (
     SystemMessage,
 )
 from kotaemon.llms import ChatLLM, PromptTemplate
+from kotaemon.utils.rag_debug import rag_log
 
 from .citation import CitationPipeline
 from .format_context import (
@@ -202,6 +203,17 @@ class AnswerWithContextPipeline(BaseComponent):
             prompt, evidence = self.get_prompt(question, evidence, evidence_mode)
         else:
             prompt = question
+        rag_log(
+            "qa.answer.start",
+            question=question,
+            evidence_chars=len(evidence or ""),
+            evidence_preview=(evidence or "")[:2000],
+            evidence_mode=evidence_mode,
+            images_count=len(images),
+            history_turns=len(history),
+            llm_class=self.llm.__class__.__name__ if self.llm else None,
+            llm_model=getattr(self.llm, "model", None),
+        )
 
         # retrieve the citation
         citation = None
@@ -232,6 +244,7 @@ class AnswerWithContextPipeline(BaseComponent):
 
         output = ""
         logprobs = []
+        fallback_attempted = False
 
         messages = []
         if self.system_prompt:
@@ -240,6 +253,31 @@ class AnswerWithContextPipeline(BaseComponent):
         for human, ai in history[-self.n_last_interactions :]:
             messages.append(HumanMessage(content=human))
             messages.append(AIMessage(content=ai))
+
+        def _model_name() -> str:
+            return str(getattr(self.llm, "model", "") or "").lower()
+
+        def _should_force_no_think() -> bool:
+            model = _model_name()
+            return "qwen3" in model or "qwen" in model
+
+        def _with_no_think(text: str) -> str:
+            if not _should_force_no_think() or "/no_think" in text:
+                return text
+            return (
+                f"{text}\n\n"
+                "Do not output hidden reasoning. Return the final answer only. "
+                "/no_think"
+            )
+
+        prompt = _with_no_think(prompt)
+        if self.system_prompt and _should_force_no_think() and "/no_think" not in self.system_prompt:
+            messages[0] = SystemMessage(
+                content=(
+                    f"{messages[0].content}\n"
+                    "Do not use chain-of-thought. Return only the final answer. /no_think"
+                )
+            )
 
         if self.use_multimodal and evidence_mode == EVIDENCE_MODE_FIGURE:
             # create image message:
@@ -260,23 +298,177 @@ class AnswerWithContextPipeline(BaseComponent):
         else:
             # append main prompt
             messages.append(HumanMessage(content=prompt))
+        rag_log(
+            "qa.answer.messages_ready",
+            question=question,
+            prompt_chars=len(prompt or ""),
+            prompt_preview=(prompt or "")[:3000],
+            message_count=len(messages),
+            message_roles=[message.__class__.__name__ for message in messages],
+            no_think_forced=_should_force_no_think(),
+        )
+
+        def _non_streaming_fallback(reason: str, retry_no_think: bool = False) -> str:
+            """Run a plain completion when an OpenAI-compatible stream is empty.
+
+            Some local servers finish a streaming request without text (or with
+            an obviously truncated single article such as "The") while the same
+            prompt succeeds through a normal request.  Without this fallback the
+            UI renders "Generate nothing" even though retrieval and evidence are
+            already present.
+            """
+
+            fallback_messages = messages
+            if retry_no_think and messages:
+                fallback_messages = list(messages)
+                last = fallback_messages[-1]
+                if isinstance(last, HumanMessage):
+                    fallback_messages[-1] = HumanMessage(
+                        content=_with_no_think(
+                            f"{last.content}\n\n"
+                            "The previous attempt produced no final answer. "
+                            "Answer now in one concise paragraph using only the context."
+                        )
+                    )
+            print(f"Streaming produced {reason}; falling back to normal processing")
+            rag_log(
+                "qa.answer.fallback.start",
+                reason=reason,
+                retry_no_think=retry_no_think,
+                current_output_chars=len(output or ""),
+                fallback_message_count=len(fallback_messages),
+            )
+            fallback = self.llm.run(fallback_messages)
+            reasoning = (
+                getattr(fallback, "additional_kwargs", {}) or {}
+            ).get("reasoning_content")
+            if reasoning and not (getattr(fallback, "text", None) or getattr(fallback, "content", None)):
+                print("Non-streaming fallback returned reasoning_content without final content")
+            fallback_text = (
+                getattr(fallback, "text", None)
+                or getattr(fallback, "content", None)
+                or ""
+            )
+            rag_log(
+                "qa.answer.fallback.end",
+                reason=reason,
+                retry_no_think=retry_no_think,
+                fallback_output_chars=len(fallback_text),
+                fallback_output_preview=fallback_text[:1200],
+                reasoning_chars=len(str(reasoning or "")),
+                completion_tokens=getattr(fallback, "completion_tokens", None),
+                total_tokens=getattr(fallback, "total_tokens", None),
+            )
+            return fallback_text
+
+        def _looks_incomplete_generation(text: str) -> bool:
+            stripped = " ".join((text or "").strip().split())
+            if not stripped:
+                return True
+            lowered = stripped.lower().strip(" .,:;!?")
+            if lowered in {
+                "a",
+                "an",
+                "the",
+                "die",
+                "der",
+                "das",
+                "um",
+                "based",
+                "auf",
+                "im",
+                "in",
+            }:
+                return True
+            words = stripped.split()
+            return len(words) <= 4 and stripped[-1:] not in ".!?…"
 
         try:
             # try streaming first
             print("Trying LLM streaming")
+            rag_log("qa.answer.stream.start", message_count=len(messages))
             for out_msg in self.llm.stream(messages):
-                output += out_msg.text
+                text_delta = out_msg.text or ""
+                output += text_delta
                 logprobs += out_msg.logprobs
-                yield Document(channel="chat", content=out_msg.text)
+                if text_delta:
+                    yield Document(channel="chat", content=text_delta)
+            rag_log(
+                "qa.answer.stream.end",
+                output_chars=len(output),
+                output_preview=output[:1200],
+                incomplete=_looks_incomplete_generation(output),
+            )
         except NotImplementedError:
-            print("Streaming is not supported, falling back to normal processing")
-            output = self.llm.run(messages).text
-            yield Document(channel="chat", content=output)
+            fallback_attempted = True
+            rag_log("qa.answer.stream.unsupported")
+            output = _non_streaming_fallback("unsupported")
+            if _looks_incomplete_generation(output):
+                output = _non_streaming_fallback("unsupported and empty", retry_no_think=True)
+            if output:
+                yield Document(channel="chat", content=output)
+        except Exception as exc:
+            print(f"Streaming failed after {len(output)} chars: {exc!r}")
+            rag_log(
+                "qa.answer.stream.error",
+                error=repr(exc),
+                partial_output_chars=len(output),
+                partial_output_preview=output[:1200],
+            )
+            if _looks_incomplete_generation(output):
+                if output:
+                    yield Document(channel="chat", content=None)
+                fallback_attempted = True
+                try:
+                    output = _non_streaming_fallback(f"stream error: {exc!r}")
+                    if _looks_incomplete_generation(output):
+                        output = _non_streaming_fallback(
+                            f"stream error retry: {exc!r}",
+                            retry_no_think=True,
+                        )
+                    if output:
+                        yield Document(channel="chat", content=output)
+                except Exception as fallback_exc:
+                    raise RuntimeError(
+                        "LLM generation failed during streaming and fallback"
+                    ) from fallback_exc
+            else:
+                raise
 
+        if (
+            not fallback_attempted
+            and _looks_incomplete_generation(output)
+        ):
+            rag_log(
+                "qa.answer.incomplete_after_stream",
+                output_chars=len(output),
+                output_preview=output[:1200],
+            )
+            if output:
+                # Clear the partial one-word stream before replacing it with the
+                # non-streaming answer.
+                yield Document(channel="chat", content=None)
+            fallback_attempted = True
+            fallback_output = _non_streaming_fallback("empty or incomplete text")
+            if _looks_incomplete_generation(fallback_output):
+                fallback_output = _non_streaming_fallback(
+                    "empty or incomplete text after fallback",
+                    retry_no_think=True,
+                )
+            if fallback_output:
+                output = fallback_output
+                yield Document(channel="chat", content=output)
         if logprobs:
             qa_score = np.exp(np.average(logprobs))
         else:
             qa_score = None
+        rag_log(
+            "qa.answer.final",
+            output_chars=len(output),
+            output_preview=output[:2000],
+            fallback_attempted=fallback_attempted,
+            qa_score=qa_score,
+        )
 
         if citation_thread:
             citation_thread.join(timeout=CITATION_TIMEOUT)
@@ -341,7 +533,10 @@ class AnswerWithContextPipeline(BaseComponent):
             # -1.0 is the sentinel for full-text-only hits. Vector-only retrieval
             # carries the actual similarity in doc.score, so use it as the fallback
             # when LLM/reranker scores are missing or tied at 0.
-            score = _score(getattr(doc, "score", None), default=-1.0)
+            score = _score(
+                doc.metadata.get("retrieval_score", getattr(doc, "score", None)),
+                default=-1.0,
+            )
             return None if score == -1.0 else score
 
         def _ranking_key(doc_id: str) -> tuple:

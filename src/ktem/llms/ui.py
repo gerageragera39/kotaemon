@@ -77,7 +77,14 @@ class LocalModelAddBlock(BasePage):
                 "base_url": base_llm,
                 "model": model_name,
                 "temperature": 0,
-                "timeout": 120,
+                "timeout": 600,
+                "max_tokens": 1024,
+                "extra_body": {
+                    "options": {
+                        "num_ctx": 32768,
+                        "num_predict": 1024,
+                    }
+                },
             }
         if model_type == "Embedding":
             return {

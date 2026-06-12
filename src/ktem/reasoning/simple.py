@@ -1,9 +1,12 @@
 import logging
+import os
+import re
 import threading
 import time
 from textwrap import dedent
 from typing import Generator
 
+import tiktoken
 from decouple import config
 from ktem.embeddings.manager import embedding_models_manager as embeddings
 from ktem.llms.manager import llms
@@ -30,9 +33,10 @@ from kotaemon.indices.qa.citation_qa import (
     AnswerWithContextPipeline,
 )
 from kotaemon.indices.qa.citation_qa_inline import AnswerWithInlineCitation
-from kotaemon.indices.qa.format_context import PrepareEvidencePipeline
+from kotaemon.indices.qa.format_context import EVIDENCE_MODE_TEXT, PrepareEvidencePipeline
 from kotaemon.indices.qa.utils import replace_think_tag_with_details
 from kotaemon.llms import ChatLLM
+from kotaemon.utils.rag_debug import rag_log
 
 from ..utils import SUPPORTED_LANGUAGE_MAP
 from .base import BaseReasoning
@@ -112,6 +116,197 @@ class FullQAPipeline(BaseReasoning):
         )
     )
     add_query_context: AddQueryContextPipeline = AddQueryContextPipeline.withx()
+    requested_context_window: int = 32000
+    effective_context_window: int | None = None
+    context_budget_debug: dict = {}
+
+    def _token_count(self, text: str) -> int:
+        try:
+            tokenizer = tiktoken.encoding_for_model("gpt-3.5-turbo").encode
+            return len(
+                tokenizer(
+                    text or "",
+                    allowed_special=set(),
+                    disallowed_special="all",
+                )
+            )
+        except Exception:
+            # Conservative rough fallback for German/English text.
+            return max(1, len(text or "") // 4)
+
+    def _message_token_count(self, content) -> int:
+        if isinstance(content, str):
+            return self._token_count(content)
+        if isinstance(content, list):
+            total = 0
+            for item in content:
+                if isinstance(item, dict):
+                    total += self._token_count(str(item.get("text") or item.get("url") or ""))
+                else:
+                    total += self._token_count(str(item))
+            return total
+        return self._token_count(str(content or ""))
+
+    def _safe_int(self, value, fallback: int) -> int:
+        try:
+            if value is None or value == "":
+                return fallback
+            return int(value)
+        except (TypeError, ValueError):
+            return fallback
+
+    def _llm_model_name(self) -> str:
+        return str(getattr(self.answering_pipeline.llm, "model", "") or "")
+
+    def _is_ollama_openai_endpoint(self) -> bool:
+        llm = self.answering_pipeline.llm
+        base_url = str(getattr(llm, "base_url", "") or "").lower()
+        api_key = str(getattr(llm, "api_key", "") or "").lower()
+        return "ollama" in base_url or "11434" in base_url or api_key == "ollama"
+
+    def _effective_llm_context_window(self, requested_window: int) -> int:
+        """Return the window the backend will really honor for prompt+answer.
+
+        Ollama's OpenAI-compatible /v1 endpoint can accept options.num_ctx in
+        extra_body while the served model still reports/uses its compiled context
+        window.  For qwen3:8b the observed hard stop is 8192 tokens, so do not
+        trust the requested UI value unless the model name explicitly advertises
+        a larger context build (for example qwen3-8b-32k).
+        """
+
+        requested_window = max(1, self._safe_int(requested_window, 8192))
+        model = self._llm_model_name().lower()
+        if self._is_ollama_openai_endpoint():
+            if re.search(r"(32k|32768)", model):
+                return min(requested_window, 32768)
+            if re.search(r"(16k|16384)", model):
+                return min(requested_window, 16384)
+            if re.search(r"(8k|8192)", model) or "qwen3:8b" in model:
+                return min(requested_window, 8192)
+            # Safe default for unknown Ollama /v1 models: avoid assuming that
+            # extra_body.options.num_ctx was actually applied.
+            return min(requested_window, 8192)
+        return requested_window
+
+    def _llm_max_tokens(self) -> int:
+        llm = self.answering_pipeline.llm
+        configured = getattr(llm, "max_tokens", None)
+        if configured is not None:
+            return max(1, self._safe_int(configured, 1024))
+        for env_name in (
+            "KH_OLLAMA_MAX_TOKENS",
+            "OLLAMA_MAX_TOKENS",
+            "KH_OLLAMA_NUM_PREDICT",
+            "OLLAMA_NUM_PREDICT",
+        ):
+            value = os.environ.get(env_name)
+            if value:
+                return max(1, self._safe_int(value, 1024))
+        return 1024
+
+    def configure_evidence_budget(self, question: str, history: list) -> dict:
+        requested_window = max(
+            1,
+            self._safe_int(
+                getattr(self, "requested_context_window", None)
+                or getattr(self.evidence_pipeline, "max_context_length", None),
+                8192,
+            ),
+        )
+        effective_window = self._effective_llm_context_window(requested_window)
+        max_tokens = self._llm_max_tokens()
+        reserved_answer_tokens = max(128, max_tokens)
+        safety_margin = max(128, self._safe_int(os.environ.get("KH_RAG_SAFETY_MARGIN"), 256))
+
+        prompt_without_context, _ = self.answering_pipeline.get_prompt(
+            question,
+            "",
+            EVIDENCE_MODE_TEXT,
+        )
+        overhead_tokens = self._token_count(prompt_without_context)
+        if self.answering_pipeline.system_prompt:
+            overhead_tokens += self._token_count(self.answering_pipeline.system_prompt)
+        for human, ai in history[-self.answering_pipeline.n_last_interactions :]:
+            overhead_tokens += self._message_token_count(human)
+            overhead_tokens += self._message_token_count(ai)
+
+        available_for_context = (
+            effective_window
+            - reserved_answer_tokens
+            - safety_margin
+            - overhead_tokens
+        )
+        available_for_context = max(256, available_for_context)
+        self.effective_context_window = effective_window
+        self.evidence_pipeline.max_context_length = available_for_context
+        debug = {
+            "requested_context_window": requested_window,
+            "effective_context_window": effective_window,
+            "max_tokens": max_tokens,
+            "reserved_answer_tokens": reserved_answer_tokens,
+            "safety_margin": safety_margin,
+            "prompt_overhead_tokens": overhead_tokens,
+            "available_context_tokens": available_for_context,
+            "prompt_tokens_before_truncation": None,
+            "prompt_tokens_after_truncation": None,
+            "completion_budget": None,
+            "fail_fast_warning": available_for_context <= 256,
+            "llm_model": self._llm_model_name(),
+            "ollama_openai_endpoint": self._is_ollama_openai_endpoint(),
+        }
+        self.context_budget_debug = debug
+        self.evidence_pipeline.context_budget_debug = dict(debug)
+        rag_log("reasoning.context_budget.configured", **debug)
+        return debug
+
+    def finalize_evidence_budget(
+        self,
+        question: str,
+        history: list,
+        evidence: str,
+        evidence_mode: int,
+    ) -> dict:
+        prompt, _ = self.answering_pipeline.get_prompt(question, evidence, evidence_mode)
+        prompt_tokens_after = self._token_count(prompt)
+        if self.answering_pipeline.system_prompt:
+            prompt_tokens_after += self._token_count(self.answering_pipeline.system_prompt)
+        for human, ai in history[-self.answering_pipeline.n_last_interactions :]:
+            prompt_tokens_after += self._message_token_count(human)
+            prompt_tokens_after += self._message_token_count(ai)
+
+        evidence_debug = getattr(self.evidence_pipeline, "last_debug", {}) or {}
+        context_tokens = int(evidence_debug.get("context_tokens") or 0)
+        candidate_context_tokens = int(
+            evidence_debug.get("candidate_context_tokens") or context_tokens
+        )
+        prompt_tokens_before = prompt_tokens_after + max(
+            0, candidate_context_tokens - context_tokens
+        )
+        effective_window = int(
+            self.effective_context_window
+            or self._effective_llm_context_window(
+                getattr(self, "requested_context_window", 8192)
+            )
+        )
+        completion_budget = effective_window - prompt_tokens_after
+        debug = {
+            **(self.context_budget_debug or {}),
+            "prompt_tokens_before_truncation": prompt_tokens_before,
+            "prompt_tokens_after_truncation": prompt_tokens_after,
+            "completion_budget": completion_budget,
+            "truncated_docs_count": int(evidence_debug.get("truncated_docs_count") or 0),
+            "context_tokens": context_tokens,
+            "candidate_context_tokens": candidate_context_tokens,
+            "fail_fast_warning": completion_budget < 128,
+        }
+        self.context_budget_debug = debug
+        self.evidence_pipeline.context_budget_debug = dict(debug)
+        self.evidence_pipeline.last_debug = {
+            **evidence_debug,
+            **debug,
+        }
+        rag_log("reasoning.context_budget.applied", **debug)
+        return debug
 
     def retrieve(
         self, message: str, history: list
@@ -145,6 +340,14 @@ class FullQAPipeline(BaseReasoning):
                 f"Retriever {idx} returned {len(retriever_docs)} docs "
                 f"in {time.time() - start_time:.2f}s"
             )
+            rag_log(
+                "reasoning.retrieve.retriever_result",
+                retriever_index=idx,
+                retriever_class=retriever_node.__class__.__name__,
+                query=query,
+                docs_count=len(retriever_docs),
+                retriever_debug=getattr(retriever_node, "last_debug", {}),
+            )
 
             retriever_docs_text = []
             retriever_docs_plot = []
@@ -175,6 +378,25 @@ class FullQAPipeline(BaseReasoning):
             )
             for doc in plot_docs
         ]
+
+        rag_log(
+            "reasoning.retrieve.final",
+            query=query,
+            docs_count=len(docs),
+            doc_ids=doc_ids,
+            docs=[
+                {
+                    "rank": rank,
+                    "doc_id": doc.doc_id,
+                    "score": doc.score,
+                    "source_file": (doc.metadata or {}).get("source_file")
+                    or (doc.metadata or {}).get("file_name"),
+                    "section_id": (doc.metadata or {}).get("section_id"),
+                    "preview": (doc.text or "")[:800],
+                }
+                for rank, doc in enumerate(docs, start=1)
+            ],
+        )
 
         return docs, info
 
@@ -315,7 +537,50 @@ class FullQAPipeline(BaseReasoning):
 
         evidence_start = time.time()
         _reasoning_log("Preparing evidence for answer generation")
+        self.configure_evidence_budget(message, history)
         evidence_mode, evidence, images = self.evidence_pipeline.run(docs).content
+        budget_debug = self.finalize_evidence_budget(
+            message,
+            history,
+            evidence,
+            evidence_mode,
+        )
+        if budget_debug.get("completion_budget", 0) < 128 and evidence:
+            deficit = 128 - int(budget_debug.get("completion_budget") or 0)
+            retry_budget = max(
+                256,
+                int(self.evidence_pipeline.max_context_length) - deficit - 64,
+            )
+            rag_log(
+                "reasoning.context_budget.retry_truncate",
+                previous_context_budget=self.evidence_pipeline.max_context_length,
+                retry_context_budget=retry_budget,
+                completion_budget=budget_debug.get("completion_budget"),
+            )
+            self.evidence_pipeline.max_context_length = retry_budget
+            self.evidence_pipeline.context_budget_debug = dict(self.context_budget_debug)
+            evidence_mode, evidence, images = self.evidence_pipeline.run(docs).content
+            budget_debug = self.finalize_evidence_budget(
+                message,
+                history,
+                evidence,
+                evidence_mode,
+            )
+            if budget_debug.get("completion_budget", 0) < 128:
+                rag_log(
+                    "reasoning.context_budget.fail_fast_warning",
+                    completion_budget=budget_debug.get("completion_budget"),
+                    effective_context_window=budget_debug.get("effective_context_window"),
+                    prompt_tokens_after_truncation=budget_debug.get(
+                        "prompt_tokens_after_truncation"
+                    ),
+                )
+                raise RuntimeError(
+                    "LLM prompt would exceed the effective context window: "
+                    f"completion_budget={budget_debug.get('completion_budget')}, "
+                    f"effective_context_window={budget_debug.get('effective_context_window')}, "
+                    f"prompt_tokens={budget_debug.get('prompt_tokens_after_truncation')}"
+                )
         _reasoning_log(
             f"Evidence prepared: mode={evidence_mode}, "
             f"chars={len(evidence) if evidence else 0}, images={len(images)} "
@@ -378,16 +643,42 @@ class FullQAPipeline(BaseReasoning):
             settings: the settings for the pipeline
             retrievers: the retrievers to use
         """
-        max_context_length_setting = settings.get("reasoning.max_context_length", 4000)
+        prefix = f"reasoning.options.{cls.get_info()['id']}"
+        global_context_setting = settings.get("reasoning.max_context_length", 32000)
+        option_context_setting = settings.get(f"{prefix}.max_context_length", None)
+
+        def _safe_context_tokens(value, fallback: int = 32000) -> int:
+            try:
+                return int(value)
+            except (TypeError, ValueError):
+                return fallback
+
+        global_context_tokens = _safe_context_tokens(global_context_setting)
+        option_context_tokens = _safe_context_tokens(
+            option_context_setting, global_context_tokens
+        )
+        if (
+            option_context_setting in (None, "", 0)
+            or (
+                # 8000 was an older Simple QA default that silently overrode the
+                # global "Max context length (LLM)" setting.  Treat that legacy
+                # value as "follow the LLM window" when the LLM window is larger.
+                option_context_tokens == 8000
+                and global_context_tokens > option_context_tokens
+            )
+        ):
+            max_context_length_setting = global_context_tokens
+        else:
+            max_context_length_setting = min(option_context_tokens, global_context_tokens)
 
         pipeline = cls.prepare_pipeline_instance(settings, retrievers)
 
-        prefix = f"reasoning.options.{cls.get_info()['id']}"
         llm = llms.get_default()
 
         # prepare evidence pipeline configuration
         evidence_pipeline = pipeline.evidence_pipeline
         evidence_pipeline.max_context_length = max_context_length_setting
+        pipeline.requested_context_window = max_context_length_setting
 
         # answering pipeline configuration
         use_inline_citation = settings[f"{prefix}.highlight_citation"] == "inline"
@@ -459,6 +750,16 @@ class FullQAPipeline(BaseReasoning):
                 "value": False,
                 "component": "checkbox",
             },
+            "max_context_length": {
+                "name": "RAG context window",
+                "value": 32000,
+                "component": "number",
+                "info": (
+                    "Maximum retrieved-context tokens allowed in the prompt. "
+                    "By default it follows Max context length (LLM), then is capped "
+                    "by the detected effective model window before generation."
+                ),
+            },
             "system_prompt": {
                 "name": "System Prompt",
                 "value": """You are a precise university assistant. Answer ONLY based on the provided context.
@@ -525,7 +826,9 @@ class FullDecomposeQAPipeline(FullQAPipeline):
 
             yield from infos
 
+            self.configure_evidence_budget(message, history)
             evidence_mode, evidence, images = self.evidence_pipeline.run(docs).content
+            self.finalize_evidence_budget(message, history, evidence, evidence_mode)
             answer = yield from self.answering_pipeline.stream(
                 question=message,
                 history=history,
@@ -575,7 +878,9 @@ class FullDecomposeQAPipeline(FullQAPipeline):
         print(f"Got {len(docs)} retrieved documents")
         yield from infos
 
+        self.configure_evidence_budget(message, history)
         evidence_mode, evidence, images = self.evidence_pipeline.run(docs).content
+        self.finalize_evidence_budget(message, history, evidence, evidence_mode)
         answer = yield from self.answering_pipeline.stream(
             question=message,
             history=history,

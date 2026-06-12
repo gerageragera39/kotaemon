@@ -164,14 +164,20 @@ class Render:
         open_collapsible: bool = False,
     ) -> str:
         """Format the retrieval score and the document"""
-        # score from doc_store (Elasticsearch)
-        if is_close(doc.score, -1.0):
-            vectorstore_score_value = None
-            vectorstore_score = ""
+        # score from retrieval. Hybrid retrieval keeps RRF as internal metadata
+        # and exposes dense/text relevance in doc.score / retrieval_score.
+        retrieval_score_raw = doc.metadata.get("retrieval_score", doc.score)
+        try:
+            retrieval_score_float = float(retrieval_score_raw)
+        except (TypeError, ValueError):
+            retrieval_score_float = -1.0
+        if is_close(retrieval_score_float, -1.0):
+            retrieval_score_value = None
+            retrieval_score = ""
             text_search_str = " (full-text search)<br>"
         else:
-            vectorstore_score_value = round(doc.score, 2)
-            vectorstore_score = str(vectorstore_score_value)
+            retrieval_score_value = round(retrieval_score_float, 2)
+            retrieval_score = str(retrieval_score_value)
             text_search_str = "<br>"
 
         llm_reranking_score = (
@@ -196,15 +202,15 @@ class Render:
             relevant_score = llm_reranking_score
         elif reranking_score > 0:
             relevant_score = reranking_score
-        elif vectorstore_score_value is not None:
-            relevant_score = vectorstore_score_value
+        elif retrieval_score_value is not None:
+            relevant_score = retrieval_score_value
         else:
             relevant_score = 0.0
 
         rendered_score = Render.collapsible(
             header=f"<b>&emsp;Relevance score</b>: {relevant_score:.1f}",
-            content="<b>&emsp;&emsp;Vectorstore score:</b>"
-            f" {vectorstore_score}"
+            content="<b>&emsp;&emsp;Retrieval score:</b>"
+            f" {retrieval_score}"
             f"{text_search_str}"
             "<b>&emsp;&emsp;LLM relevant score:</b>"
             f" {llm_reranking_score}<br>"

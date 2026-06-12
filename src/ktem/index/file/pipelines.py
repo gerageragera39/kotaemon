@@ -47,6 +47,7 @@ from kotaemon.indices.ingests.files import (
 from kotaemon.indices.rankings import BaseReranking, LLMReranking, LLMTrulensScoring
 from kotaemon.indices.splitters import BaseSplitter, TokenSplitter, UniversityPDFChunker
 from kotaemon.loaders import DoclingStructuredPDFReader
+from kotaemon.utils.rag_debug import rag_log
 
 from .base import BaseFileIndexIndexing, BaseFileIndexRetriever
 
@@ -112,7 +113,12 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
     mmr: bool = False
     top_k: int = 5
     retrieval_mode: str = "hybrid"
+    candidate_multiplier: int = 20
+    context_expansion_mode: str = "none"
+    sibling_window: int = 1
+    enable_query_expansion: bool = True
     doc_ids: Optional[list[str]] = None
+    last_debug: dict = {}
 
     @Node.auto(depends_on=["embedding", "VS", "DS"])
     def vector_retrieval(self) -> VectorRetrieval:
@@ -122,6 +128,9 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             doc_store=self.DS,
             retrieval_mode=self.retrieval_mode,  # type: ignore
             rerankers=self.rerankers,
+            first_round_top_k_mult=self.candidate_multiplier,
+            enable_query_expansion=self.enable_query_expansion,
+            sibling_window=self.sibling_window,
         )
 
     def run(
@@ -161,25 +170,39 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
         retrieval_kwargs: dict = {}
         with Session(engine) as session:
             stmt = select(self.Index).where(
-                self.Index.relation_type == "document",
                 self.Index.source_id.in_(doc_ids),
+                self.Index.relation_type.in_(["document", "vector"]),
             )
             results = session.execute(stmt)
-            chunk_ids = [r[0].target_id for r in results.all()]
+            document_chunk_ids: list[str] = []
+            vector_chunk_ids: list[str] = []
+            for row in results.all():
+                index_row = row[0]
+                if index_row.relation_type == "vector":
+                    vector_chunk_ids.append(index_row.target_id)
+                elif index_row.relation_type == "document":
+                    document_chunk_ids.append(index_row.target_id)
+
+        # Vector search must be scoped to ids that actually exist in the vector
+        # store. University structural indexing stores parent docs only in the
+        # docstore; passing those parent ids to Chroma/LlamaIndex node_ids can
+        # make vector-only retrieval return no hits for the selected file.
+        chunk_ids = vector_chunk_ids or document_chunk_ids
 
         # do first round top_k extension
         retrieval_kwargs["do_extend"] = True
         retrieval_kwargs["scope"] = chunk_ids
-        retrieval_kwargs["filters"] = MetadataFilters(
-            filters=[
-                MetadataFilter(
-                    key="file_id",
-                    value=doc_ids,
-                    operator=FilterOperator.IN,
-                )
-            ],
-            condition=FilterCondition.OR,
-        )
+        if not chunk_ids:
+            retrieval_kwargs["filters"] = MetadataFilters(
+                filters=[
+                    MetadataFilter(
+                        key="file_id",
+                        value=doc_ids,
+                        operator=FilterOperator.IN,
+                    )
+                ],
+                condition=FilterCondition.OR,
+            )
 
         if self.mmr:
             # TODO: double check that llama-index MMR works correctly
@@ -189,9 +212,31 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
         # rerank
         s_time = time.time()
         _index_log(f"Retrieval kwargs: {retrieval_kwargs.keys()}")
+        expand_mode = (self.context_expansion_mode or "none").lower()
         docs = self.vector_retrieval.run(
-            text=text, top_k=self.top_k, **retrieval_kwargs
+            text=text,
+            top_k=self.top_k,
+            expand_parent=(
+                "siblings"
+                if expand_mode == "siblings"
+                else expand_mode == "parent"
+            ),
+            **retrieval_kwargs,
         )
+        self.last_debug = dict(getattr(self.vector_retrieval, "last_debug", {}) or {})
+        self.last_debug.update(
+            {
+                "retrieval_mode": self.retrieval_mode,
+                "context_expansion_mode": self.context_expansion_mode,
+                "sibling_window": self.sibling_window,
+                "enable_query_expansion": self.enable_query_expansion,
+                "selected_doc_ids": doc_ids,
+                "source_filter_count": len(chunk_ids),
+                "document_scope_count": len(document_chunk_ids),
+                "vector_scope_count": len(vector_chunk_ids),
+            }
+        )
+        rag_log("retrieval.file.result", **self.last_debug)
         _index_log(f"Retrieval step took {time.time() - s_time:.2f}s")
 
         if not self.get_extra_table:
@@ -244,14 +289,35 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
         return {
             "num_retrieval": {
                 "name": "Number of document chunks to retrieve",
-                "value": 10,
+                "value": 15,
                 "component": "number",
             },
             "retrieval_mode": {
                 "name": "Retrieval mode",
-                "value": "vector",
+                "value": "hybrid",
                 "choices": ["vector", "text", "hybrid"],
                 "component": "dropdown",
+            },
+            "candidate_multiplier": {
+                "name": "Candidate multiplier before final filtering",
+                "value": 20,
+                "component": "number",
+            },
+            "context_expansion_mode": {
+                "name": "Context expansion mode",
+                "value": "none",
+                "choices": ["none", "parent", "siblings"],
+                "component": "dropdown",
+            },
+            "sibling_window": {
+                "name": "Sibling chunk window",
+                "value": 1,
+                "component": "number",
+            },
+            "enable_query_expansion": {
+                "name": "Enable university query expansion",
+                "value": True,
+                "component": "checkbox",
             },
             "prioritize_table": {
                 "name": "Prioritize table",
@@ -290,15 +356,21 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
         use_llm_reranking = user_settings.get("use_llm_reranking", False)
 
         retriever = cls(
-            get_extra_table=user_settings["prioritize_table"],
-            top_k=user_settings["num_retrieval"],
-            mmr=user_settings["mmr"],
+            get_extra_table=user_settings.get("prioritize_table", False),
+            top_k=user_settings.get("num_retrieval", 15),
+            candidate_multiplier=user_settings.get("candidate_multiplier", 20),
+            context_expansion_mode=user_settings.get(
+                "context_expansion_mode", "none"
+            ),
+            sibling_window=user_settings.get("sibling_window", 1),
+            enable_query_expansion=user_settings.get("enable_query_expansion", True),
+            mmr=user_settings.get("mmr", False),
             embedding=embedding_models_manager[
                 index_settings.get(
                     "embedding", embedding_models_manager.get_default_name()
                 )
             ],
-            retrieval_mode=user_settings["retrieval_mode"],
+            retrieval_mode=user_settings.get("retrieval_mode", "hybrid"),
             llm_scorer=(LLMTrulensScoring() if use_llm_reranking else None),
             rerankers=[
                 reranking_models_manager[
@@ -308,7 +380,7 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
                 ]
             ],
         )
-        if not user_settings["use_reranking"]:
+        if not user_settings.get("use_reranking", False):
             retriever.rerankers = []  # type: ignore
 
         for reranker in retriever.rerankers:
@@ -699,6 +771,16 @@ class IndexPipeline(BaseComponent):
         _index_log(f"[{file_name}] Converted to text: docs={len(docs)}")
         yield Document(f" => Converted {file_name} to text", channel="debug")
         yield from self.handle_docs(docs, file_id, file_name)
+        parents_created = sum(1 for doc in docs if doc.metadata.get("index_role") == "parent")
+        children_created = sum(1 for doc in docs if doc.metadata.get("index_role") == "child")
+        embedded_docs_count = sum(1 for doc in docs if doc.metadata.get("index_role") != "parent")
+        skipped_parent_docs_count = len(docs) - embedded_docs_count
+        _index_log(
+            f"[{file_name}] Index summary: documents_created={len(docs)}, "
+            f"parents_created={parents_created}, children_created={children_created}, "
+            f"embedded_docs_count={embedded_docs_count}, "
+            f"skipped_parent_docs_count={skipped_parent_docs_count}"
+        )
 
         self.finish(file_id, file_path)
 
@@ -720,6 +802,11 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     """
 
     reader_mode: str = Param("default", help="The reader mode")
+    university_target_child_size: int = Param(550, help="University child target size")
+    university_min_child_size: int = Param(120, help="University child minimum size")
+    university_max_child_size: int = Param(900, help="University child maximum size")
+    university_overlap: int = Param(80, help="University child overlap")
+    university_parent_max_size: int = Param(2500, help="University parent maximum size")
     embedding: BaseEmbeddings
     run_embedding_in_thread: bool = False
 
@@ -744,7 +831,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         return {
             "reader_mode": {
                 "name": "File loader",
-                "value": "default",
+                "value": "university",
                 "choices": [
                     ("Default (open-source)", "default"),
                     ("Adobe API (figure+table extraction)", "adobe"),
@@ -753,8 +840,34 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                         "azure-di",
                     ),
                     ("Docling (figure+table extraction)", "docling"),
+                    ("University PDF structural chunking", "university"),
                 ],
                 "component": "dropdown",
+            },
+            "university_target_child_size": {
+                "name": "University target child size",
+                "value": 550,
+                "component": "number",
+            },
+            "university_min_child_size": {
+                "name": "University minimum child size",
+                "value": 120,
+                "component": "number",
+            },
+            "university_max_child_size": {
+                "name": "University maximum child size",
+                "value": 900,
+                "component": "number",
+            },
+            "university_overlap": {
+                "name": "University child overlap",
+                "value": 80,
+                "component": "number",
+            },
+            "university_parent_max_size": {
+                "name": "University parent maximum size",
+                "value": 2500,
+                "component": "number",
             },
         }
 
@@ -770,6 +883,19 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             ],
             run_embedding_in_thread=use_quick_index_mode,
             reader_mode=user_settings.get("reader_mode", "default"),
+            university_target_child_size=user_settings.get(
+                "university_target_child_size", 550
+            ),
+            university_min_child_size=user_settings.get(
+                "university_min_child_size", 120
+            ),
+            university_max_child_size=user_settings.get(
+                "university_max_child_size", 900
+            ),
+            university_overlap=user_settings.get("university_overlap", 80),
+            university_parent_max_size=user_settings.get(
+                "university_parent_max_size", 2500
+            ),
         )
         return obj
 
@@ -786,8 +912,13 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         lets CLI/evaluation runs force the same mode with environment/config.
         """
 
+        return self._university_pdf_mode_trigger(file_path) != "none"
+
+    def _university_pdf_mode_trigger(self, file_path: Path) -> str:
+        """Return the source enabling university PDF mode, or ``none``."""
+
         if file_path.suffix.lower() != ".pdf":
-            return False
+            return "none"
 
         configured_mode = (
             config("UNIVERSITY_RAG_PDF_MODE", default="")
@@ -795,7 +926,7 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             or str(getattr(settings, "FILE_INDEX_PIPELINE_PDF_MODE", ""))
         ).lower()
         if configured_mode == "university":
-            return True
+            return "env"
 
         configured_dir = (
             config("UNIVERSITY_RAG_DOCUMENTS_DIR", default="")
@@ -803,13 +934,27 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         )
         if configured_dir:
             try:
-                file_path.resolve().relative_to(Path(configured_dir).expanduser().resolve())
-                return True
+                file_path.resolve().relative_to(
+                    Path(configured_dir).expanduser().resolve()
+                )
+                return "path"
             except ValueError:
                 pass
 
         parts = [part.lower() for part in file_path.resolve().parts]
-        return len(parts) >= 3 and parts[-3:-1] == ["dataset", "documents"]
+        if len(parts) >= 3 and parts[-3:-1] == ["dataset", "documents"]:
+            return "path"
+
+        return "none"
+
+    def _university_chunker(self) -> UniversityPDFChunker:
+        return UniversityPDFChunker(
+            target_child_size=self.university_target_child_size,
+            min_child_size=self.university_min_child_size,
+            max_child_size=self.university_max_child_size,
+            overlap=self.university_overlap,
+            parent_max_size=self.university_parent_max_size,
+        )
 
     def route(self, file_path: str | Path) -> IndexPipeline:
         """Decide the pipeline based on the file type
@@ -834,13 +979,13 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         else:
             assert isinstance(file_path, Path)
             ext = file_path.suffix.lower()
-            if self._university_pdf_mode_enabled(file_path):
+            university_trigger = self._university_pdf_mode_trigger(file_path)
+            if self.reader_mode == "university" and ext == ".pdf":
+                university_trigger = "ui"
+
+            if university_trigger != "none" and ext == ".pdf":
                 reader = DoclingStructuredPDFReader()
-                splitter = UniversityPDFChunker()
-                _index_log(
-                    f"[{file_path}] University PDF mode active: "
-                    "DoclingStructuredPDFReader + UniversityPDFChunker"
-                )
+                splitter = self._university_chunker()
             else:
                 reader = self.readers.get(ext, unstructured)
                 splitter = TokenSplitter(
@@ -855,9 +1000,16 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                     "the suitable pipeline for this file type in the settings."
                 )
 
+        reader_name = reader.__class__.__name__
+        splitter_name = splitter.__class__.__name__
+        university_pdf_mode = splitter_name == "UniversityPDFChunker"
+        trigger = locals().get("university_trigger", "none")
         _index_log(
-            f"[{file_path}] Route selected reader={reader}, "
-            f"chunk_size={chunk_size or 1024}, chunk_overlap={chunk_overlap or 256}"
+            f"file_path={file_path}, reader_class={reader_name}, "
+            f"splitter_class={splitter_name}, "
+            f"university_pdf_mode={str(university_pdf_mode).lower()}, "
+            f"university_trigger={trigger}, chunk_size={chunk_size or 1024}, "
+            f"chunk_overlap={chunk_overlap or 256}"
         )
         pipeline: IndexPipeline = IndexPipeline(
             loader=reader,

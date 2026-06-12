@@ -118,7 +118,16 @@ KH_LLMS = {
             "model": config("LOCAL_MODEL", default="qwen3:8b"),
             "api_key": "ollama",
             "temperature": 0,
-            "timeout": 120,
+            "timeout": config("KH_OLLAMA_TIMEOUT", default=600, cast=int),
+            "max_tokens": config("KH_OLLAMA_MAX_TOKENS", default=1024, cast=int),
+            "extra_body": {
+                "options": {
+                    "num_ctx": config("KH_OLLAMA_NUM_CTX", default=32768, cast=int),
+                    "num_predict": config(
+                        "KH_OLLAMA_NUM_PREDICT", default=1024, cast=int
+                    ),
+                }
+            },
         },
         "default": True,
     },

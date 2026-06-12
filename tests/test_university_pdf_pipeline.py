@@ -189,3 +189,180 @@ def test_vector_retrieval_expands_child_to_parent_context():
     assert expanded[0].text == "full parent section"
     assert expanded[0].score == 0.75
     assert expanded[0].metadata["expanded_from_child_ids"] == ["child-1"]
+
+
+def test_index_pipeline_university_reader_mode_routes_pdf_to_structural_chunker(tmp_path, monkeypatch):
+    from ktem.index.file import pipelines as file_pipelines
+    from ktem.index.file.pipelines import IndexDocumentPipeline
+    from kotaemon.loaders import DoclingStructuredPDFReader
+    from kotaemon.indices.splitters import TokenSplitter
+
+    monkeypatch.setattr(file_pipelines, "dev_settings", lambda: ({}, None, None))
+    monkeypatch.delenv("UNIVERSITY_RAG_PDF_MODE", raising=False)
+    monkeypatch.delenv("KOTAEMON_FILE_INDEX_PDF_MODE", raising=False)
+    monkeypatch.delenv("UNIVERSITY_RAG_DOCUMENTS_DIR", raising=False)
+
+    pipeline = IndexDocumentPipeline(
+        embedding=DummyEmbedding(),
+        reader_mode="university",
+        university_target_child_size=551,
+        university_min_child_size=121,
+        university_max_child_size=901,
+        university_overlap=81,
+        university_parent_max_size=2501,
+        Source=None,
+        Index=None,
+        VS=None,
+        DS=None,
+        FSPath=tmp_path,
+        user_id="test",
+        private=False,
+    )
+
+    routed = pipeline.route(tmp_path / "course.pdf")
+
+    assert isinstance(routed.loader, DoclingStructuredPDFReader)
+    assert isinstance(routed.splitter, UniversityPDFChunker)
+    assert routed.splitter.target_child_size == 551
+    assert routed.splitter.min_child_size == 121
+    assert routed.splitter.max_child_size == 901
+    assert routed.splitter.overlap == 81
+    assert routed.splitter.parent_max_size == 2501
+
+    non_pdf = pipeline.route(tmp_path / "notes.txt")
+    assert isinstance(non_pdf.splitter, TokenSplitter)
+    assert not isinstance(non_pdf.splitter, UniversityPDFChunker)
+
+
+def test_index_pipeline_docling_reader_mode_keeps_token_splitter_without_university_gate(tmp_path, monkeypatch):
+    from ktem.index.file import pipelines as file_pipelines
+    from ktem.index.file.pipelines import IndexDocumentPipeline
+    from kotaemon.indices.splitters import TokenSplitter
+
+    monkeypatch.setattr(file_pipelines, "dev_settings", lambda: ({}, None, None))
+    monkeypatch.delenv("UNIVERSITY_RAG_PDF_MODE", raising=False)
+    monkeypatch.delenv("KOTAEMON_FILE_INDEX_PDF_MODE", raising=False)
+    monkeypatch.delenv("UNIVERSITY_RAG_DOCUMENTS_DIR", raising=False)
+
+    pipeline = IndexDocumentPipeline(
+        embedding=DummyEmbedding(),
+        reader_mode="docling",
+        Source=None,
+        Index=None,
+        VS=None,
+        DS=None,
+        FSPath=tmp_path,
+        user_id="test",
+        private=False,
+    )
+
+    routed = pipeline.route(tmp_path / "ordinary.pdf")
+
+    assert isinstance(routed.splitter, TokenSplitter)
+    assert not isinstance(routed.splitter, UniversityPDFChunker)
+
+
+def test_index_pipeline_user_settings_expose_university_reader_mode_and_defaults():
+    from ktem.index.file.pipelines import IndexDocumentPipeline
+
+    settings = IndexDocumentPipeline.get_user_settings()
+
+    assert ("University PDF structural chunking", "university") in settings[
+        "reader_mode"
+    ]["choices"]
+    assert settings["university_target_child_size"]["value"] == 550
+    assert settings["university_min_child_size"]["value"] == 120
+    assert settings["university_max_child_size"]["value"] == 900
+    assert settings["university_overlap"]["value"] == 80
+    assert settings["university_parent_max_size"]["value"] == 2500
+
+
+def test_vector_retrieval_parent_expansion_returns_score_sorted_results():
+    from kotaemon.base import RetrievedDocument
+    from kotaemon.indices.vectorindex import VectorRetrieval
+
+    parent = Document(text="expanded high score parent", id_="parent-high", metadata={"index_role": "parent"})
+    passthrough = RetrievedDocument(text="low score regular", id_="regular-low", score=0.1, metadata={})
+    child = RetrievedDocument(
+        text="high score child",
+        id_="child-high",
+        score=0.9,
+        metadata={"index_role": "child", "parent_id": "parent-high"},
+    )
+    doc_store = InMemoryDocumentStore()
+    doc_store.add(parent)
+    retrieval = VectorRetrieval(vector_store=DummyVectorStore(), doc_store=doc_store, embedding=DummyEmbedding())
+
+    expanded = retrieval._expand_parent_context([passthrough, child])
+
+    assert [doc.doc_id for doc in expanded] == ["parent-high", "regular-low"]
+    assert expanded[0].score == 0.9
+
+
+def test_docling_structured_reader_uses_plain_lazy_converter(monkeypatch, tmp_path):
+    import sys
+    import types
+
+    from kotaemon.loaders import DoclingStructuredPDFReader
+
+    class FakeDocument:
+        def export_to_dict(self):
+            return {
+                "body": {"children": [{"$ref": "#/texts/0"}]},
+                "texts": [
+                    {
+                        "label": "paragraph",
+                        "text": "§ 1 Testinhalt",
+                        "prov": [{"page_no": 3}],
+                    }
+                ],
+                "tables": [],
+                "pictures": [],
+            }
+
+    class FakeConversionResult:
+        document = FakeDocument()
+
+    class FakeDocumentConverter:
+        instances = 0
+
+        def __init__(self):
+            FakeDocumentConverter.instances += 1
+
+        def convert(self, file_path):
+            return FakeConversionResult()
+
+    fake_docling_converter_module = types.SimpleNamespace(
+        DocumentConverter=FakeDocumentConverter
+    )
+    monkeypatch.setitem(sys.modules, "docling", types.SimpleNamespace())
+    monkeypatch.setitem(
+        sys.modules, "docling.document_converter", fake_docling_converter_module
+    )
+
+    reader = DoclingStructuredPDFReader()
+    docs = reader.load_data(tmp_path / "apo.pdf", extra_info={"file_id": "file-1"})
+
+    assert FakeDocumentConverter.instances == 1
+    assert reader.converter_ is reader.converter_
+    assert docs[0].text == "§ 1 Testinhalt"
+    assert docs[0].metadata["order"] == 0
+    assert docs[0].metadata["page_label"] == 3
+    assert docs[0].metadata["file_id"] == "file-1"
+
+
+def test_university_chunker_adds_child_index_and_paragraph_metadata():
+    docs = [
+        structured_doc("§ 13 Bewertung der Prüfungsleistungen", 0, "heading"),
+        structured_doc("(1) Erste Regelung.\n(2) Zweite Regelung zu mündlichen Prüfungen.", 1),
+    ]
+
+    chunks = UniversityPDFChunker(target_child_size=40, max_child_size=80).run(docs)
+    children = [doc for doc in chunks if doc.metadata.get("index_role") == "child"]
+    parents = [doc for doc in chunks if doc.metadata.get("index_role") == "parent"]
+
+    assert parents and children
+    assert all(child.metadata.get("parent_id") for child in children)
+    assert all(child.metadata.get("child_index") for child in children)
+    assert any(child.metadata.get("paragraph_id") == "Abs. 1" for child in children)
+    assert "Paragraph: Abs." in children[0].text

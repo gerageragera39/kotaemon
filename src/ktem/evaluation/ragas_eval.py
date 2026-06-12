@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 import json
 import math
 import os
@@ -7,6 +8,7 @@ import time
 import traceback
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
 from difflib import SequenceMatcher
 from pathlib import Path
 from typing import Any, Callable
@@ -16,10 +18,58 @@ from ktem.components import reasonings
 from ktem.db.engine import engine
 from kotaemon.base import Document
 from kotaemon.indices.qa.utils import strip_think_tag
+from kotaemon.utils.rag_debug import rag_log
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from theflow.settings import settings as flowsettings
 
 ProgressFn = Callable[[int, int, str], None]
+
+
+def _app_data_dir() -> Path:
+    return Path(getattr(flowsettings, "KH_APP_DATA_DIR", "ktem_app_data"))
+
+
+def ensure_app_data_dirs() -> dict[str, Path]:
+    root = _app_data_dir()
+    paths = {
+        "root": root,
+        "chats": root / "chats",
+        "evaluations": root / "evaluations",
+    }
+    for path in paths.values():
+        path.mkdir(parents=True, exist_ok=True)
+    return paths
+
+
+def _new_eval_run_dir() -> Path:
+    paths = ensure_app_data_dirs()
+    run_dir = paths["evaluations"] / datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    suffix = 1
+    candidate = run_dir
+    while candidate.exists():
+        suffix += 1
+        candidate = run_dir.with_name(f"{run_dir.name}_{suffix}")
+    candidate.mkdir(parents=True, exist_ok=False)
+    for name in ("retrieval_debug.jsonl", "answers.jsonl", "errors.jsonl"):
+        (candidate / name).touch()
+    return candidate
+
+
+def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, ensure_ascii=False, default=str) + "\n")
+
+
+def _json_safe_settings(settings: dict[str, Any]) -> dict[str, Any]:
+    safe: dict[str, Any] = {}
+    for key, value in settings.items():
+        try:
+            json.dumps(value)
+            safe[key] = value
+        except TypeError:
+            safe[key] = str(value)
+    return safe
 
 
 @dataclass
@@ -30,6 +80,7 @@ class EvalRunResult:
     ragas_scores: pd.DataFrame
     summary: dict[str, float | int | str]
     warnings: list[str]
+    run_dir: str = ""
 
 
 @dataclass
@@ -232,6 +283,36 @@ def _doc_score(doc: Any) -> float | None:
     return round(score, 4) if score is not None else None
 
 
+def _university_chunk_stats(docs: list[Any]) -> dict[str, Any]:
+    """Summarize whether retrieved docs look like UniversityPDFChunker output."""
+
+    child_count = 0
+    parent_count = 0
+    structural_metadata_count = 0
+    for doc in docs:
+        metadata = getattr(doc, "metadata", {}) or {}
+        if metadata.get("index_role") == "child":
+            child_count += 1
+        if metadata.get("index_role") == "parent":
+            parent_count += 1
+        if (
+            metadata.get("chunk_id")
+            or metadata.get("section_id")
+            or metadata.get("module_title")
+            or metadata.get("doc_family")
+        ):
+            structural_metadata_count += 1
+
+    return {
+        "university_child_chunks": child_count,
+        "university_parent_chunks": parent_count,
+        "structural_metadata_docs": structural_metadata_count,
+        "looks_like_university_structural_chunks": bool(
+            docs and (child_count > 0 or structural_metadata_count > 0)
+        ),
+    }
+
+
 
 def _ensure_simple_reasoning_settings(settings: dict[str, Any]) -> dict[str, Any]:
     """Use Simple QA for deterministic single-turn RAG evaluation."""
@@ -313,7 +394,13 @@ def _build_retrievers(app: Any, settings: dict[str, Any], user_id: Any, source_f
 
 
 
-def _answer_with_pipeline(app: Any, settings: dict[str, Any], user_id: Any, sample: dict[str, str]) -> dict[str, Any]:
+def _answer_with_pipeline(
+    app: Any,
+    settings: dict[str, Any],
+    user_id: Any,
+    sample: dict[str, str],
+    run_dir: Path | None = None,
+) -> dict[str, Any]:
     question = sample["question"]
     source_file = sample.get("source_file", "")
     started = time.time()
@@ -329,22 +416,114 @@ def _answer_with_pipeline(app: Any, settings: dict[str, Any], user_id: Any, samp
     )
 
     docs, _ = pipeline.retrieve(question, [])
+    if hasattr(pipeline, "configure_evidence_budget"):
+        pipeline.configure_evidence_budget(question, [])
     evidence_mode, evidence, images = pipeline.evidence_pipeline.run(docs).content
+    if hasattr(pipeline, "finalize_evidence_budget"):
+        budget_debug = pipeline.finalize_evidence_budget(
+            question,
+            [],
+            evidence,
+            evidence_mode,
+        )
+        if budget_debug.get("completion_budget", 0) < 128 and evidence:
+            retry_budget = max(
+                256,
+                int(pipeline.evidence_pipeline.max_context_length)
+                - (128 - int(budget_debug.get("completion_budget") or 0))
+                - 64,
+            )
+            rag_log(
+                "evaluation.context_budget.retry_truncate",
+                id=sample["id"],
+                previous_context_budget=pipeline.evidence_pipeline.max_context_length,
+                retry_context_budget=retry_budget,
+                completion_budget=budget_debug.get("completion_budget"),
+            )
+            pipeline.evidence_pipeline.max_context_length = retry_budget
+            evidence_mode, evidence, images = pipeline.evidence_pipeline.run(docs).content
+            budget_debug = pipeline.finalize_evidence_budget(
+                question,
+                [],
+                evidence,
+                evidence_mode,
+            )
+            if budget_debug.get("completion_budget", 0) < 128:
+                raise RuntimeError(
+                    "LLM prompt would exceed the effective context window: "
+                    f"completion_budget={budget_debug.get('completion_budget')}, "
+                    f"effective_context_window={budget_debug.get('effective_context_window')}, "
+                    f"prompt_tokens={budget_debug.get('prompt_tokens_after_truncation')}"
+                )
 
     answer_chunks: list[str] = []
-    for response in pipeline.answering_pipeline.stream(
+    raw_stream: list[dict[str, Any]] = []
+    final_answer_doc: Document | None = None
+    stream = pipeline.answering_pipeline.stream(
         question=question,
         history=[],
         evidence=evidence,
         evidence_mode=evidence_mode,
         images=images,
         conv_id=f"rag-eval-{sample['id']}",
-    ):
-        if isinstance(response, Document) and response.channel == "chat":
-            if response.content is None:
-                answer_chunks = []
-            else:
+    )
+    while True:
+        try:
+            response = next(stream)
+        except StopIteration as stop:
+            if isinstance(stop.value, Document):
+                final_answer_doc = stop.value
+            break
+        if isinstance(response, Document):
+            raw_stream.append(
+                {
+                    "channel": response.channel,
+                    "content": response.content,
+                    "text": response.text,
+                }
+            )
+            if response.channel == "chat" and response.content is not None:
                 answer_chunks.append(str(response.content))
+            elif response.channel == "chat":
+                answer_chunks = []
+
+    raw_answer = (
+        final_answer_doc.text
+        if final_answer_doc is not None
+        else "".join(answer_chunks)
+    )
+    answer = strip_think_tag(raw_answer).strip()
+    if raw_answer and not answer:
+        if run_dir is not None:
+            _append_jsonl(
+                run_dir / "errors.jsonl",
+                {
+                    "id": sample["id"],
+                    "stage": "answer_postprocess",
+                    "raw_answer": raw_answer,
+                    "postprocessed_answer": answer,
+                },
+            )
+    if not raw_answer and run_dir is not None:
+        rag_log(
+            "evaluation.empty_answer",
+            id=sample["id"],
+            question=question,
+            source_file=source_file,
+            context_chars=len(evidence or ""),
+            context_debug=getattr(pipeline.evidence_pipeline, "last_debug", {}),
+            raw_stream=raw_stream,
+        )
+        _append_jsonl(
+            run_dir / "errors.jsonl",
+            {
+                "id": sample["id"],
+                "stage": "generation",
+                "error": "model returned empty raw text",
+                "context_chars": len(evidence or ""),
+                "context_debug": getattr(pipeline.evidence_pipeline, "last_debug", {}),
+            },
+        )
 
     contexts = [getattr(doc, "text", "") or getattr(doc, "content", "") or "" for doc in docs]
     top_doc = docs[0] if docs else None
@@ -356,13 +535,28 @@ def _answer_with_pipeline(app: Any, settings: dict[str, Any], user_id: Any, samp
     if top_score is None and docs:
         top_score = 0.0
 
+    debug_record = {
+        "id": sample["id"],
+        "question": question,
+        "source_file": source_file,
+        "indexed_source": used_sources,
+        "retrievers": [getattr(retriever, "last_debug", {}) for retriever in retrievers],
+        "context_debug": getattr(pipeline.evidence_pipeline, "last_debug", {}),
+        "university_chunk_stats": _university_chunk_stats(docs),
+        "final_prompt_context_char_length": len(evidence or ""),
+        "model_answer_raw_text": raw_answer,
+        "raw_stream": raw_stream,
+    }
+    if run_dir is not None:
+        _append_jsonl(run_dir / "retrieval_debug.jsonl", debug_record)
+
     return {
         "id": sample["id"],
         "question": question,
         "reference": sample["reference"],
         "source_file": source_file,
         "indexed_source": "; ".join(used_sources),
-        "answer": strip_think_tag("".join(answer_chunks)).strip(),
+        "answer": answer,
         "contexts": contexts,
         "context_count": len(contexts),
         "top_context_preview": (contexts[0][:500] if contexts else ""),
@@ -911,6 +1105,11 @@ def run_evaluation(
     samples = samples[:limit]
 
     eval_settings = _ensure_simple_reasoning_settings(settings)
+    run_dir = _new_eval_run_dir()
+    (run_dir / "settings.json").write_text(
+        json.dumps(_json_safe_settings(eval_settings), indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     rows: list[dict[str, Any]] = []
     warnings: list[str] = []
 
@@ -918,11 +1117,12 @@ def run_evaluation(
         if progress:
             progress(idx - 1, limit, f"Question {idx}/{limit}: {sample['id']}")
         try:
-            rows.append(_answer_with_pipeline(app, eval_settings, user_id, sample))
+            row = _answer_with_pipeline(app, eval_settings, user_id, sample, run_dir)
+            rows.append(row)
+            _append_jsonl(run_dir / "answers.jsonl", row)
         except Exception as exc:  # keep the run useful even when one sample fails
             warnings.append(f"{sample['id']}: {exc}")
-            rows.append(
-                {
+            error_row = {
                     "id": sample["id"],
                     "question": sample["question"],
                     "reference": sample["reference"],
@@ -938,6 +1138,16 @@ def run_evaluation(
                     "status": "error",
                     "error": f"{exc}\n{traceback.format_exc(limit=2)}",
                 }
+            rows.append(error_row)
+            _append_jsonl(run_dir / "answers.jsonl", error_row)
+            _append_jsonl(
+                run_dir / "errors.jsonl",
+                {
+                    "id": sample["id"],
+                    "stage": "sample",
+                    "error": str(exc),
+                    "traceback": traceback.format_exc(limit=5),
+                },
             )
 
     if progress:
@@ -957,10 +1167,19 @@ def run_evaluation(
             warnings.append(f"RAGAS scoring failed: {exc}")
 
     samples_df = pd.DataFrame(rows)
+    samples_df.to_csv(run_dir / "answers.csv", index=False, quoting=csv.QUOTE_MINIMAL)
+    if not ragas_df.empty:
+        ragas_df.to_csv(run_dir / "ragas_scores.csv", index=False)
     summary = _summarize(samples_df, ragas_df)
+    (run_dir / "summary.json").write_text(
+        json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    if warnings:
+        (run_dir / "warnings.txt").write_text("\n".join(warnings), encoding="utf-8")
     return EvalRunResult(
         samples=samples_df,
         ragas_scores=ragas_df,
         summary=summary,
         warnings=warnings,
+        run_dir=str(run_dir),
     )

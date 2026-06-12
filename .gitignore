@@ -424,6 +424,8 @@ tags
 .history
 .ionide
 
+.omx
+
 ### Windows ###
 # Windows thumbnail cache files
 Thumbs.db
@@ -476,5 +478,6 @@ doc_env/
 # application data
 ktem_app_data/
 gradio_tmp/
-. o m x /  
+. o m x / 
+ 
  

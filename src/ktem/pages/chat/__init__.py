@@ -1,4 +1,5 @@
 import asyncio
+import html
 import json
 import re
 from copy import deepcopy
@@ -25,6 +26,7 @@ from theflow.utils.modules import import_dotted_string
 from kotaemon.base import Document
 from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
 from kotaemon.indices.qa.utils import strip_think_tag
+from kotaemon.utils.rag_debug import rag_log
 
 from ...utils import SUPPORTED_LANGUAGE_MAP, get_file_names_regex, get_urls
 from ...utils.commands import WEB_SEARCH_COMMAND
@@ -1342,12 +1344,35 @@ class ChatPage(BasePage):
                 )
         except ValueError as e:
             print(e)
+        except Exception as e:
+            print(f"Chat generation failed: {e!r}")
+            refs += (
+                "<h5><b>Generation error.</b></h5>"
+                f"<pre>{html.escape(str(e))}</pre>"
+            )
+            yield (
+                chat_history + [(chat_input, text or msg_placeholder)],
+                refs,
+                plot_gr,
+                plot,
+                chat_state,
+            )
 
         if not text:
             empty_msg = getattr(
                 flowsettings, "KH_CHAT_EMPTY_MSG_PLACEHOLDER", "(Sorry, I don't know)"
             )
             print(f"Generate nothing: {empty_msg}")
+            rag_log(
+                "ui.chat.empty_answer",
+                conversation_id=conversation_id,
+                question=chat_input,
+                refs_chars=len(refs or ""),
+                refs_preview=(refs or "")[:3000],
+                reasoning_type=reasoning_type,
+                llm_type=llm_type,
+                command_state=command_state,
+            )
             yield (
                 chat_history + [(chat_input, text or empty_msg)],
                 refs,
