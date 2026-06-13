@@ -6,21 +6,9 @@
     "source_file": "a_APO_ab_WS_14_15.pdf"
   },
   {
-    "id": "apo_orig_02",
-    "question": "What duration range is specified for an oral exam at KU Eichstätt-Ingolstadt?",
-    "ground_truth": "An oral exam should not be shorter than 15 minutes or longer than 60 minutes.",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
-  },
-  {
     "id": "apo_orig_03",
     "question": "How many ECTS points is the bachelor's thesis worth at KU Eichstätt-Ingolstadt?",
     "ground_truth": "The bachelor's thesis is worth 10 ECTS points.",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
-  },
-  {
-    "id": "apo_orig_04",
-    "question": "What overall grade average is required to receive the distinction 'mit Auszeichnung' (with distinction) in the bachelor's or master's exam at KU?",
-    "ground_truth": "A final grade of 1.20 or better is required to receive the distinction 'mit Auszeichnung' (with distinction).",
     "source_file": "a_APO_ab_WS_14_15.pdf"
   },
   {
@@ -69,18 +57,6 @@
     "id": "apo_2022_04",
     "question": "What is a Take-Home-Prüfung and how is it conducted according to the 2022 APO?",
     "ground_truth": "A Take-Home-Prüfung is an exam in electronic form that does not take place in person at KU, but is instead completed at home without supervision within a specified time frame. Exam materials are issued and submitted electronically. Limited aids may be permitted.",
-    "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
-  },
-  {
-    "id": "apo_2022_05",
-    "question": "How long is the text portion of a Portfolio exam supposed to be according to the 2022 amended APO?",
-    "ground_truth": "The text portion of a Portfolio typically comprises approximately 18,000 to 30,000 characters without spaces, depending on the ECTS points specified in the program regulations.",
-    "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
-  },
-  {
-    "id": "apo_2022_06",
-    "question": "According to the 2022 APO, what happens to the exam attempt if a technical failure occurs during an electronic remote exam?",
-    "ground_truth": "If a technical failure occurs, the exam is ended at the current point and the exam attempt is considered as not having taken place (not counted). This does not apply if the disruption is proven to be within the student's own area of responsibility.",
     "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
   },
   {
@@ -138,12 +114,6 @@
     "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
   },
   {
-  "id": "apo_2024_01",
-  "question": "According to the 2024 APO amendment, what is required for taking university examinations at KU?",
-  "ground_truth": "Taking university examinations requires enrollment or matriculation according to Art. 87 Abs. 1 Satz 1 BayHIG, unless a cooperation agreement with another university allows students to participate in courses and complete study or examination achievements without enrollment at KU.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
   "id": "apo_2024_02",
   "question": "According to the 2024 APO amendment, what must be included with written examination work completed without supervision?",
   "ground_truth": "Written examination work completed without supervision, such as term papers, study papers, portfolios and similar work, must include a list of the aids used. Content taken directly or indirectly from publications or other sources must be marked as such.",
@@ -162,42 +132,6 @@
   "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
 },
 {
-  "id": "apo_2024_05",
-  "question": "What special section was added to the APO by the 2024 amendment?",
-  "ground_truth": "A new section was added for special provisions for university of applied sciences degree programs, including practical study semesters and special rules for examination bodies.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "apo_2024_06",
-  "question": "According to the 2024 APO amendment, what is a practical study semester?",
-  "ground_truth": "A practical study semester is an integrated, university-regulated, supervised study semester with defined content, usually completed in a company or other professional practice institution outside the university.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "apo_2024_07",
-  "question": "According to the 2024 APO amendment, how long does a practical study semester usually last if the program regulations do not specify otherwise?",
-  "ground_truth": "It usually lasts a continuous period of 22 weeks, including accompanying courses.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "apo_2024_08",
-  "question": "According to the 2024 APO amendment, what happens if a second examination date lies in the following semester and using it would exceed the maximum study duration?",
-  "ground_truth": "The maximum study duration is extended automatically by one semester.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "apo_2024_09",
-  "question": "According to the 2024 APO amendment, when is withdrawal from a semester-accompanying examination no longer allowed?",
-  "ground_truth": "For semester-accompanying examinations, starting the examination performance, such as submitting a paper or giving a presentation, counts as registration, and withdrawal is no longer allowed from that point.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "apo_2024_10",
-  "question": "According to the 2024 APO amendment, how is the grade determined if two examiners evaluate an examination differently and cannot agree?",
-  "ground_truth": "If two examiners cannot agree on a common evaluation, the grade is calculated as the arithmetic mean rounded down to one decimal place.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
   "id": "study_plan_01",
   "question": "Which four exemplary study profiles are shown in the D3B study plan document?",
   "ground_truth": "The D3B study plan document shows four exemplary study profiles: Accounting, Taxation and Controlling; Finance and Economics; Marketing, Organization, Innovation; and Supply Chain Management and Logistics.",
@@ -207,12 +141,6 @@
   "id": "study_plan_02",
   "question": "How many ECTS are planned for each semester in the exemplary D3B study plans?",
   "ground_truth": "Each semester in the exemplary D3B study plans is planned with 30 ECTS.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_03",
-  "question": "In the Accounting, Taxation and Controlling study profile, how many ECTS is the Bachelor thesis worth?",
-  "ground_truth": "In the Accounting, Taxation and Controlling study profile, the Bachelor thesis is worth 10 ECTS.",
   "source_file": "Studienverlaufsplan_BA_D3B.pdf"
 },
 {
@@ -237,24 +165,6 @@
   "id": "study_plan_07",
   "question": "Which common modules appear in the first two semesters of the D3B study plans?",
   "ground_truth": "Common early modules include Grundlagen: Informationssysteme, Mathe für WiWi, Betriebliches Rechnungswesen, Digital Business Models, Einf. VWL, Business English I, Business Analytics, Einführung Quantitative Methoden, Statistik I, Digital Business Strategies, Organisation, Innovation, Mikroökonomie, and Business English II.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_08",
-  "question": "What do bold and italic module names indicate in the D3B study plan document?",
-  "ground_truth": "Bold module names indicate elective modules, and italic module names indicate elective or study-profile modules.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_09",
-  "question": "Which module is shown as a 10 ECTS project in the Finance and Economics study profile?",
-  "ground_truth": "The Finance and Economics study profile shows Digital & Data Project in Finance & Economics as a 10 ECTS project.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_10",
-  "question": "Which study profile includes the module Digital Seminar in Data Science & Quantitative Applications?",
-  "ground_truth": "The module Digital Seminar in Data Science & Quantitative Applications appears in the Marketing, Organization, Innovation profile and in the Supply Chain Management and Logistics profile.",
   "source_file": "Studienverlaufsplan_BA_D3B.pdf"
 },
 {
@@ -297,12 +207,6 @@
   "id": "elective_2026_07",
   "question": "Which modules are listed in the Supply Chain Management and Logistics study profile in the SoSe 2026 catalogue?",
   "ground_truth": "The Supply Chain Management and Logistics profile lists Digital Seminar in Data Science & Quantitative Applications, Retail Management Fundamentals, Systementwicklung, Operations Analytics, Supply Chain Analytics, SCM Projektstudium, and Internat. Transportlogistik und Distributionssysteme (VHB).",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_08",
-  "question": "Which module in the Supply Chain Management and Logistics profile is worth 10 ECTS?",
-  "ground_truth": "Digital Seminar in Data Science & Quantitative Applications is worth 10 ECTS.",
   "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
 },
 {
