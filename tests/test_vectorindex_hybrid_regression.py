@@ -28,15 +28,30 @@ class DummyEmbedding(BaseEmbeddings):
         return [DocumentWithEmbedding(embedding=[1.0, 0.0]) for _ in docs]
 
 
+class MetadataCopyEmbedding(BaseEmbeddings):
+    def invoke(self, docs, *args, **kwargs):
+        if not isinstance(docs, list):
+            docs = [docs]
+        return [
+            DocumentWithEmbedding(
+                embedding=[1.0, 0.0],
+                metadata=dict(doc.metadata or {}) if isinstance(doc, Document) else {},
+            )
+            for doc in docs
+        ]
+
+
 class RecordingVectorStore(BaseVectorStore):
     def __init__(self, ids: list[str] | None = None, scores: list[float] | None = None):
         self.ids = ids or []
         self.scores = scores or []
         self.query_calls: list[dict] = []
         self.added_ids: list[str] = []
+        self.added_embeddings = []
 
     def add(self, embeddings, ids):
         self.added_ids.extend(ids)
+        self.added_embeddings.extend(embeddings)
 
     def query(self, embedding, top_k=1, doc_ids=None, **kwargs):
         self.query_calls.append(
@@ -142,7 +157,7 @@ def test_text_mode_queries_docstore_when_scope_is_none():
     results = retrieval.run("hello", top_k=3, expand_parent=False)
 
     assert [result.doc_id for result in results] == ["text-hit"]
-    assert docstore.query_calls == [{"query": "hello", "top_k": 3, "doc_ids": None}]
+    assert docstore.query_calls == [{"query": "hello", "top_k": 30, "doc_ids": None}]
 
 
 def test_hybrid_mode_queries_vectorstore_and_docstore_when_scope_is_none():
@@ -160,7 +175,7 @@ def test_hybrid_mode_queries_vectorstore_and_docstore_when_scope_is_none():
     results = retrieval.run("hello", top_k=5, expand_parent=False)
 
     assert vectorstore.query_calls[0]["doc_ids"] is None
-    assert docstore.query_calls == [{"query": "hello", "top_k": 5, "doc_ids": None}]
+    assert docstore.query_calls == [{"query": "hello", "top_k": 50, "doc_ids": None}]
     assert {result.doc_id for result in results} == {"vector-hit", "text-hit"}
 
 
@@ -206,7 +221,7 @@ def test_vector_scope_uses_canonical_ids_parameter_for_vectorstore_contract():
     )
 
     assert vectorstore.query_calls == [
-        {"embedding": [1.0, 0.0], "top_k": 3, "ids": ["scoped-hit"], "kwargs": {}}
+        {"embedding": [1.0, 0.0], "top_k": 30, "ids": ["scoped-hit"], "kwargs": {}}
     ]
     assert [result.doc_id for result in results] == ["scoped-hit"]
     assert results[0].score == 0.87
@@ -267,6 +282,36 @@ def test_parent_docs_are_skipped_in_vector_embedding():
 
     assert embedding.embedded_doc_ids == ["child"]
     assert vectorstore.added_ids == ["child"]
+
+
+def test_vector_metadata_is_flattened_before_vectorstore_insert():
+    child = doc(
+        "child",
+        index_role="child",
+        section_path=["2. Aufbau des Studiengangs", "2.6. Studienprofile"],
+        nearest_heading="2.6. Studienprofile",
+        is_probably_latest=True,
+        nested={"origin": "docling"},
+    )
+    vectorstore = RecordingVectorStore()
+    indexing = VectorIndexing(
+        vector_store=vectorstore,
+        doc_store=RecordingDocStore(),
+        embedding=MetadataCopyEmbedding(),
+    )
+
+    indexing.add_to_vectorstore([child])
+
+    metadata = vectorstore.added_embeddings[0].metadata
+    assert metadata["section_path"] == (
+        "2. Aufbau des Studiengangs > 2.6. Studienprofile"
+    )
+    assert metadata["is_probably_latest"] == 1
+    assert metadata["nested"] == '{"origin": "docling"}'
+    assert all(
+        value is None or type(value) in {str, int, float}
+        for value in metadata.values()
+    )
 
 
 def test_parent_docs_are_filtered_before_reranking_and_raw_results():
@@ -355,6 +400,23 @@ def test_candidate_multiplier_controls_first_round_pool_when_extended():
     retrieval.run("hello", top_k=15, do_extend=True, expand_parent=False)
 
     assert vectorstore.query_calls[0]["top_k"] == 300
+
+
+def test_candidate_multiplier_widens_first_round_pool_by_default():
+    vector_doc = doc("vector-hit")
+    docstore = RecordingDocStore(docs=[vector_doc])
+    vectorstore = RecordingVectorStore(ids=["vector-hit"], scores=[0.42])
+    retrieval = VectorRetrieval(
+        vector_store=vectorstore,
+        doc_store=docstore,
+        embedding=DummyEmbedding(),
+        retrieval_mode="vector",
+        first_round_top_k_mult=4,
+    )
+
+    retrieval.run("hello", top_k=5, expand_parent=False)
+
+    assert vectorstore.query_calls[0]["top_k"] == 20
 
 
 def test_hybrid_branch_errors_are_propagated_to_caller():

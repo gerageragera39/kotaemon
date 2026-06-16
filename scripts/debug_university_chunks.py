@@ -5,6 +5,7 @@ import json
 import re
 import statistics
 import sys
+import argparse
 from pathlib import Path
 from typing import Any
 
@@ -16,13 +17,21 @@ if str(SRC_ROOT) not in sys.path:
 from kotaemon.indices.splitters import UniversityPDFChunker  # noqa: E402
 from kotaemon.loaders import DoclingStructuredPDFReader  # noqa: E402
 
-DOCS_DIR = REPO_ROOT / "dataset" / "documents"
+DOCS_DIR = REPO_ROOT / "dataset" / "testing_files"
 OUT_DIR = REPO_ROOT / "dataset" / ".cache" / "chunks_debug"
 
 
 def doc_to_record(doc) -> dict[str, Any]:
     return {
         "id": doc.doc_id,
+        "source_file": doc.metadata.get("source_file") or doc.metadata.get("file_name"),
+        "doc_type": doc.metadata.get("doc_type"),
+        "chunk_type": doc.metadata.get("chunk_type"),
+        "section_path": doc.metadata.get("section_path"),
+        "nearest_heading": doc.metadata.get("nearest_heading"),
+        "page_label_start": doc.metadata.get("page_label_start"),
+        "page_label_end": doc.metadata.get("page_label_end"),
+        "text_preview": (doc.text or "")[:500],
         "text": doc.text,
         "metadata": doc.metadata,
     }
@@ -126,12 +135,19 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
 
 
 def main() -> int:
-    pdfs = sorted(DOCS_DIR.glob("*.pdf"))
+    parser = argparse.ArgumentParser(description="Dump university PDF chunks to JSONL/Markdown.")
+    parser.add_argument("--documents-dir", default=str(DOCS_DIR))
+    parser.add_argument("--output-dir", default=str(OUT_DIR))
+    args = parser.parse_args()
+
+    docs_dir = Path(args.documents_dir).expanduser().resolve()
+    out_dir = Path(args.output_dir).expanduser().resolve()
+    pdfs = sorted(docs_dir.glob("*.pdf"))
     if not pdfs:
-        print(f"No PDFs found in {DOCS_DIR}")
+        print(f"No PDFs found in {docs_dir}")
         return 1
 
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
     reader = DoclingStructuredPDFReader()
     chunker = UniversityPDFChunker()
 
@@ -142,8 +158,8 @@ def main() -> int:
         chunks = chunker.run(elements)
         assert_sanity(chunks)
 
-        jsonl_path = OUT_DIR / f"{pdf.stem}.jsonl"
-        md_path = OUT_DIR / f"{pdf.stem}.md"
+        jsonl_path = out_dir / f"{pdf.stem}.jsonl"
+        md_path = out_dir / f"{pdf.stem}.md"
         write_jsonl(jsonl_path, chunks)
         write_markdown(md_path, chunks)
 
@@ -157,9 +173,9 @@ def main() -> int:
             "no_page={chunks_without_page_metadata} | missing={missing_metadata}".format(**stats)
         )
 
-    summary_path = OUT_DIR / "_summary.json"
+    summary_path = out_dir / "_summary.json"
     summary_path.write_text(json.dumps(all_stats, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Wrote debug chunks to {OUT_DIR}")
+    print(f"Wrote debug chunks to {out_dir}")
     return 0
 
 

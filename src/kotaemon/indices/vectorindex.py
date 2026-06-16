@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 import re
 import threading
@@ -140,12 +141,53 @@ class VectorIndexing(BaseIndexing):
                 f"Created {len(embeddings)} embeddings "
                 f"in {time.time() - start_time:.2f}s"
             )
+            self._sanitize_embedding_metadata_for_vectorstore(embeddings)
             _vector_log("Adding embeddings to vector store")
             self.vector_store.add(
                 embeddings=embeddings,
                 ids=[t.doc_id for t in vector_docs],
             )
             _vector_log(f"Added {len(embeddings)} embeddings to vector store")
+
+    def _sanitize_embedding_metadata_for_vectorstore(self, embeddings: list[Any]) -> None:
+        """Make LlamaIndex/Chroma vector metadata flat.
+
+        Docstore metadata can keep structured values, but LlamaIndex vector
+        stores validate node metadata as scalar-only.  University chunks carry
+        ``section_path`` as a list for in-process formatting, so serialize the
+        vector-store copy before insertion.
+        """
+
+        for embedding in embeddings:
+            if isinstance(embedding, list):
+                continue
+            metadata = getattr(embedding, "metadata", None)
+            if metadata:
+                embedding.metadata = self._flat_vector_metadata(metadata)
+
+    @staticmethod
+    def _flat_vector_metadata(metadata: dict[str, Any]) -> dict[str, str | int | float | None]:
+        return {
+            str(key): VectorIndexing._flat_vector_metadata_value(str(key), value)
+            for key, value in (metadata or {}).items()
+        }
+
+    @staticmethod
+    def _flat_vector_metadata_value(key: str, value: Any) -> str | int | float | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return int(value)
+        if isinstance(value, (str, int, float)):
+            return value
+        if isinstance(value, (list, tuple, set)):
+            items = [str(item) for item in value if item is not None and str(item)]
+            if key == "section_path":
+                return " > ".join(items)
+            return json.dumps(list(value), ensure_ascii=False, default=str)
+        if isinstance(value, dict):
+            return json.dumps(value, ensure_ascii=False, default=str)
+        return str(value)
 
     def run(self, text: str | list[str] | Document | list[Document]):
         input_: list[Document] = []
@@ -248,6 +290,154 @@ class VectorRetrieval(BaseRetrieval):
             ),
         ),
         ("exam board", ("Prüfungsausschuss",)),
+        (
+            "studium.pro",
+            ("Studium.Pro", "Pro Diskurs", "Pro Horizont", "Pro Gesellschaft", "Pro Beruf", "Pro International"),
+        ),
+        (
+            "studium pro",
+            ("Studium.Pro", "Pro Diskurs", "Pro Horizont", "Pro Gesellschaft", "Pro Beruf", "Pro International"),
+        ),
+        (
+            "digital data-driven business",
+            ("Digital & Data-Driven Business", "Digital and Data-Driven Business", "180 ECTS"),
+        ),
+        ("d3b", ("Digital & Data-Driven Business", "Studienverlaufsplan", "Studiengangsbeschreibung")),
+        ("total ects", ("180 ECTS", "ECTS-Leistungspunkte", "Leistungspunkte")),
+        ("study profile", ("Studienprofil", "Studienprofile")),
+        (
+            "study profiles",
+            (
+                "Studienprofile",
+                "Accounting Taxation Controlling",
+                "Finance Economics",
+                "Marketing Organization Innovation",
+                "Supply Chain Management Logistics",
+            ),
+        ),
+        ("elective area", ("Wahlpflichtbereich", "Wahlpflichtbereiche")),
+        (
+            "elective areas",
+            (
+                "Wahlpflichtbereiche",
+                "Digitalization & Analytics",
+                "Data Competence",
+                "Application Competence",
+                "Business Language and Management Skills",
+                "Wirtschafts- und Unternehmensethik",
+            ),
+        ),
+        (
+            "data competence",
+            (
+                "Data Competence",
+                "Algorithmen und Datenstrukturen",
+                "Rechnergestützte Statistik mit R",
+                "Hands-on Machine Learning and Data Science",
+            ),
+        ),
+        (
+            "application competence",
+            (
+                "Application Competence",
+                "Steuerbilanzen und Rechtsformwahl",
+                "Marketing and Management",
+                "Operations Analytics",
+                "Kapitalmarkttheorie",
+            ),
+        ),
+        (
+            "sustainability",
+            (
+                "Sustainability in Business and Economics",
+                "Nachhaltige Wirtschaft",
+                "Sustainable Entrepreneurship",
+                "Umweltökonomie",
+                "Sustainable Development",
+            ),
+        ),
+        (
+            "faculty responsible",
+            (
+                "federführende Fakultät",
+                "verantwortliche Fakultät",
+                "Wirtschaftswissenschaftliche Fakultät",
+                "Mathematisch-Geographische Fakultät",
+            ),
+        ),
+        (
+            "responsible faculty",
+            (
+                "federführende Fakultät",
+                "verantwortliche Fakultät",
+                "Wirtschaftswissenschaftliche Fakultät",
+                "Mathematisch-Geographische Fakultät",
+            ),
+        ),
+        (
+            "faculty",
+            (
+                "federführende Fakultät",
+                "verantwortliche Fakultät",
+                "Wirtschaftswissenschaftliche Fakultät",
+                "Mathematisch-Geographische Fakultät",
+                "Beteiligte Fakultäten",
+            ),
+        ),
+        (
+            "faculties",
+            (
+                "federführende Fakultät",
+                "verantwortliche Fakultät",
+                "Wirtschaftswissenschaftliche Fakultät",
+                "Mathematisch-Geographische Fakultät",
+                "Beteiligte Fakultäten",
+            ),
+        ),
+        (
+            "supply chain management logistics",
+            (
+                "Supply Chain Management and Logistics",
+                "Supply Chain Management & Logistics",
+                "SCM",
+                "Logistics",
+                "Operations Research",
+            ),
+        ),
+        (
+            "study plan",
+            ("Studienverlaufsplan", "Exemplarisches Studienprofil", "Semester", "30 ECTS"),
+        ),
+        (
+            "study plans",
+            ("Studienverlaufsplan", "Exemplarisches Studienprofil", "Semester", "30 ECTS"),
+        ),
+        (
+            "first two semesters",
+            (
+                "1. Semester",
+                "2. Semester",
+                "Grundlagen: Informationssysteme",
+                "Mathe für WiWi",
+                "Betriebliches Rechnungswesen",
+                "Digital Business Models",
+                "Business English",
+                "Einführung Quantitative Methoden",
+                "Statistik",
+            ),
+        ),
+        (
+            "common modules",
+            (
+                "Grundlagen: Informationssysteme",
+                "Mathe für WiWi",
+                "Betriebliches Rechnungswesen",
+                "Digital Business Models",
+                "Business English",
+                "Einführung Quantitative Methoden",
+                "Statistik",
+            ),
+        ),
     )
 
     def _normalize_query_text(self, query: str) -> str:
@@ -329,6 +519,12 @@ class VectorRetrieval(BaseRetrieval):
                 metadata.get("paragraph_id"),
                 metadata.get("sentence_id"),
                 metadata.get("major_heading"),
+                " > ".join(metadata.get("section_path") or [])
+                if isinstance(metadata.get("section_path"), list)
+                else metadata.get("section_path"),
+                metadata.get("nearest_heading"),
+                metadata.get("semantic_title"),
+                metadata.get("table_caption"),
                 metadata.get("module_title"),
                 metadata.get("module_number"),
                 metadata.get("module_section"),
@@ -556,10 +752,7 @@ class VectorRetrieval(BaseRetrieval):
         thumbnail_count = kwargs.pop("thumbnail_count", 3)
 
         candidate_multiplier = max(1, int(self.first_round_top_k_mult))
-        if do_extend:
-            top_k_first_round = top_k * candidate_multiplier
-        else:
-            top_k_first_round = top_k
+        top_k_first_round = max(top_k, top_k * candidate_multiplier)
 
         if self.doc_store is None:
             raise ValueError(
@@ -862,6 +1055,9 @@ class VectorRetrieval(BaseRetrieval):
             "page_label_start": metadata.get("page_label_start") or metadata.get("page_label"),
             "page_label_end": metadata.get("page_label_end") or metadata.get("page_label"),
             "section_id": metadata.get("section_id"),
+            "section_path": metadata.get("section_path"),
+            "nearest_heading": metadata.get("nearest_heading"),
+            "chunk_type": metadata.get("chunk_type"),
             "paragraph_id": metadata.get("paragraph_id"),
             "parent_id": metadata.get("parent_id"),
             "child_index": metadata.get("child_index"),

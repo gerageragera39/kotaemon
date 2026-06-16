@@ -35,6 +35,10 @@ class _Block:
     ects: Optional[str] = None
     semester: Optional[str] = None
     module_section: Optional[str] = None
+    section_path: Optional[list[str]] = None
+    nearest_heading: Optional[str] = None
+    table_caption: Optional[str] = None
+    semantic_title: Optional[str] = None
 
 
 class UniversityPDFChunker(BaseSplitter):
@@ -87,6 +91,8 @@ class UniversityPDFChunker(BaseSplitter):
             blocks = self._regulation_blocks(ordered)
         elif doc_type == "module_catalog":
             blocks = self._module_blocks(ordered, file_name)
+        elif doc_type == "study_description":
+            blocks = self._section_path_blocks(ordered, doc_type=doc_type)
         elif doc_type in {"study_plan", "elective_catalog"}:
             blocks = self._table_first_blocks(ordered, doc_type)
         elif doc_type == "form":
@@ -123,6 +129,18 @@ class UniversityPDFChunker(BaseSplitter):
         return output
 
     def detect_doc_type(self, file_name: str, first_text: str = "") -> str:
+        # Filename rules must win over body/TOC heuristics.  The D3B
+        # Studiengangsbeschreibung contains a table-of-contents occurrence of
+        # "Studienverlaufsplan"; treating the whole filename+body as one haystack
+        # misclassifies it as a study plan and triggers table-first chunking.
+        normalized_file = self._normalize(Path(file_name).name)
+        if "studiengangsbeschreibung" in normalized_file:
+            return "study_description"
+        if "studienverlaufsplan" in normalized_file:
+            return "study_plan"
+        if "wahlpflichtkatal" in normalized_file:
+            return "elective_catalog"
+
         haystack = f"{file_name}\n{first_text[:4000]}".lower()
         normalized = self._normalize(haystack)
 
@@ -136,6 +154,8 @@ class UniversityPDFChunker(BaseSplitter):
             ]
         ):
             return "amendment"
+        if "studiengangsbeschreibung" in normalized:
+            return "study_description"
         if "studienverlaufsplan" in normalized:
             return "study_plan"
         if "wahlpflichtkatal" in normalized:
@@ -279,22 +299,43 @@ class UniversityPDFChunker(BaseSplitter):
 
     def _table_first_blocks(self, docs: list[Document], doc_type: str) -> list[_Block]:
         blocks: list[_Block] = []
-        for idx, doc in enumerate(docs, start=1):
+        structured_docs = self._with_section_metadata(docs)
+        for idx, doc in enumerate(structured_docs, start=1):
             if doc.metadata.get("element_type") != "table":
                 continue
             page = doc.metadata.get("page_label") or "unbekannt"
-            title = f"Tabelle {idx} (Seite {page})"
-            summary = (
-                f"Zusammenfassung: Die folgende Tabelle aus {doc_type} strukturiert "
-                f"Informationen für {self.study_program}. Zeilen und Spalten wurden "
-                "als Markdown-Tabelle unverändert zusammengehalten."
+            section_path = self._metadata_section_path(doc)
+            nearest_heading = doc.metadata.get("nearest_heading")
+            caption = self._table_caption(doc.text)
+            title = self._semantic_table_title(
+                doc.text, nearest_heading=nearest_heading, section_path=section_path
             )
-            text = f"{summary}\n\n{doc.text.strip()}"
-            blocks.append(_Block(title=title, text=text, elements=[doc], chunk_type="table"))
+            text = self._table_block_text(
+                doc=doc,
+                doc_type=doc_type,
+                section_path=section_path,
+                nearest_heading=nearest_heading,
+                table_caption=caption,
+                page=page,
+            )
+            blocks.append(
+                _Block(
+                    title=title,
+                    text=text,
+                    elements=[doc],
+                    chunk_type="table",
+                    section_path=section_path,
+                    nearest_heading=nearest_heading,
+                    table_caption=caption,
+                    semantic_title=title,
+                )
+            )
 
-        non_table = [doc for doc in docs if doc.metadata.get("element_type") != "table"]
+        non_table = [
+            doc for doc in structured_docs if doc.metadata.get("element_type") != "table"
+        ]
         for block in self._generic_blocks(non_table):
-            if self._token_count(block.text) >= self.min_child_size:
+            if self._should_keep_short_block(block):
                 blocks.append(block)
         return blocks or self._generic_blocks(docs)
 
@@ -345,35 +386,89 @@ class UniversityPDFChunker(BaseSplitter):
         return blocks or [_Block("Formular", full_text, docs, "form_block")]
 
     def _generic_blocks(self, docs: list[Document]) -> list[_Block]:
+        return self._section_path_blocks(docs)
+
+    def _section_path_blocks(
+        self, docs: list[Document], doc_type: str = "generic_pdf"
+    ) -> list[_Block]:
         if not docs:
             return []
+        docs = self._with_section_metadata(docs)
         blocks: list[_Block] = []
         current: list[Document] = []
         title = "Dokument"
-        for doc in docs:
-            is_heading = doc.metadata.get("element_type") == "heading"
-            if is_heading and current:
-                blocks.append(
-                    _Block(
-                        title=title,
-                        text=self._join_docs(current),
-                        elements=current,
-                        chunk_type="heading",
-                    )
-                )
+        current_path: list[str] | None = None
+        current_heading: Optional[str] = None
+
+        def append_current() -> None:
+            nonlocal current, title, current_path, current_heading
+            if not current:
+                return
+            text = self._join_docs(current)
+            if not text.strip():
                 current = []
-            if is_heading:
-                title = (doc.text or "").strip()[:140] or title
-            current.append(doc)
-        if current:
+                return
             blocks.append(
                 _Block(
                     title=title,
-                    text=self._join_docs(current),
-                    elements=current,
+                    text=self._section_block_text(
+                        text=text,
+                        section_path=current_path,
+                        nearest_heading=current_heading,
+                    ),
+                    elements=list(current),
                     chunk_type="heading",
+                    section_path=list(current_path or []),
+                    nearest_heading=current_heading,
+                    semantic_title=title,
                 )
             )
+            current = []
+
+        for doc in docs:
+            element_type = doc.metadata.get("element_type")
+            is_heading = doc.metadata.get("element_type") == "heading"
+            path = self._metadata_section_path(doc)
+            nearest = doc.metadata.get("nearest_heading")
+            if element_type == "table":
+                append_current()
+                page = doc.metadata.get("page_label") or "unbekannt"
+                caption = self._table_caption(doc.text)
+                table_title = self._semantic_table_title(
+                    doc.text, nearest_heading=nearest, section_path=path
+                )
+                blocks.append(
+                    _Block(
+                        title=table_title,
+                        text=self._table_block_text(
+                            doc=doc,
+                            doc_type=str(doc.metadata.get("doc_type") or doc_type),
+                            section_path=path,
+                            nearest_heading=nearest,
+                            table_caption=caption,
+                            page=page,
+                        ),
+                        elements=[doc],
+                        chunk_type="table",
+                        section_path=path,
+                        nearest_heading=nearest,
+                        table_caption=caption,
+                        semantic_title=table_title,
+                    )
+                )
+                continue
+            if (is_heading or path != current_path) and current:
+                append_current()
+            if is_heading:
+                title = (doc.text or "").strip()[:140] or title
+            elif path:
+                title = path[-1]
+            current_path = path
+            current_heading = nearest
+            current.append(doc)
+        if current:
+            append_current()
+        blocks.extend(self._section_list_summary_blocks(docs))
         return blocks
 
     # --- chunk materialization ---------------------------------------------------
@@ -396,6 +491,10 @@ class UniversityPDFChunker(BaseSplitter):
             "ects": block.ects,
             "semester": block.semester,
             "module_section": block.module_section,
+            "section_path": block.section_path,
+            "nearest_heading": block.nearest_heading,
+            "table_caption": block.table_caption,
+            "semantic_title": block.semantic_title,
             "page_label_start": self._page_start(block.elements),
             "page_label_end": self._page_end(block.elements),
             "token_count": self._token_count(block.text),
@@ -412,7 +511,12 @@ class UniversityPDFChunker(BaseSplitter):
         child_index: int,
         source_meta: dict[str, Any],
     ) -> Document:
-        section_label = block.section_title or block.module_title or block.title
+        section_label = (
+            block.semantic_title
+            or block.section_title
+            or block.module_title
+            or block.title
+        )
         paragraph_id = self._paragraph_id(child_text)
         sentence_id = self._sentence_id(child_text)
         page_start = self._page_start(block.elements)
@@ -423,8 +527,15 @@ class UniversityPDFChunker(BaseSplitter):
         # separately and rendered by PrepareEvidencePipeline.
         header_lines = [
             f"Dokument: {source_meta['source_file']}",
+            f"Dokumenttyp: {source_meta['doc_type']}",
             f"Abschnitt: {section_label}",
         ]
+        if block.section_path:
+            header_lines.append(f"Section path: {' > '.join(block.section_path)}")
+        if block.nearest_heading:
+            header_lines.append(f"Nearest heading: {block.nearest_heading}")
+        if block.table_caption:
+            header_lines.append(f"Table caption: {block.table_caption}")
         if block.major_heading:
             header_lines.append(f"Hauptüberschrift: {block.major_heading}")
         if paragraph_id:
@@ -454,6 +565,10 @@ class UniversityPDFChunker(BaseSplitter):
             "ects": block.ects,
             "semester": block.semester,
             "module_section": module_section,
+            "section_path": block.section_path,
+            "nearest_heading": block.nearest_heading,
+            "table_caption": block.table_caption,
+            "semantic_title": block.semantic_title,
             "page_label_start": page_start,
             "page_label_end": page_end,
             "token_count": self._token_count(text),
@@ -717,6 +832,7 @@ class UniversityPDFChunker(BaseSplitter):
             "general_regulation",
             "exam_regulation",
             "module_catalog",
+            "study_description",
             "study_plan",
             "elective_catalog",
             "form",
@@ -789,6 +905,283 @@ class UniversityPDFChunker(BaseSplitter):
         return "\n\n".join(
             (doc.text or "").strip() for doc in docs if (doc.text or "").strip()
         ).strip()
+
+    def _with_section_metadata(self, docs: list[Document]) -> list[Document]:
+        """Return ordered documents enriched with nearest heading/section path.
+
+        Docling keeps layout order but does not make each table/paragraph
+        self-contained.  This pass maintains a lightweight university-heading
+        hierarchy and writes it into element metadata before blocks are built.
+        """
+
+        stack: list[tuple[int, str]] = []
+        previous_heading: Optional[str] = None
+        output: list[Document] = []
+
+        for doc in sorted(docs, key=lambda d: d.metadata.get("order", 0)):
+            metadata = dict(doc.metadata or {})
+            text = (doc.text or "").strip()
+            heading = self._detect_structural_heading(
+                text=text,
+                element_type=metadata.get("element_type"),
+            )
+            if heading:
+                level, title = heading
+                stack = [item for item in stack if item[0] < level]
+                if not stack or stack[-1][1] != title:
+                    stack.append((level, title))
+                metadata["heading_level"] = level
+                metadata["previous_heading"] = previous_heading
+                metadata["nearest_heading"] = title
+                previous_heading = title
+            else:
+                metadata["previous_heading"] = previous_heading
+                metadata["nearest_heading"] = stack[-1][1] if stack else previous_heading
+
+            metadata["section_path"] = [title for _, title in stack]
+            output.append(Document(text=doc.text, id_=doc.doc_id, metadata=metadata))
+
+        return output
+
+    def _detect_structural_heading(
+        self, text: str, element_type: Any = None
+    ) -> Optional[tuple[int, str]]:
+        first = self._clean_title((text or "").splitlines()[0] if text else "")
+        if not first or len(first) > 180:
+            return None
+
+        numbered = re.match(r"^(\d+(?:\.\d+)*\.?)\s+(.{2,})$", first)
+        if numbered:
+            number = numbered.group(1).rstrip(".")
+            title = self._clean_title(f"{number}. {numbered.group(2)}")
+            return (max(1, number.count(".") + 1), title)
+
+        lettered = re.match(r"^([A-Z])\)\s+(.{2,})$", first)
+        if lettered:
+            return (4, self._clean_title(first))
+
+        normalized = self._normalize(first).replace("&", "and")
+        known = {
+            "data competence",
+            "application competence",
+            "digitalization and analytics",
+            "business language and management skills",
+            "wirtschafts- und unternehmensethik",
+            "wirtschafts und unternehmensethik",
+            "accounting, taxation and controlling",
+            "accounting, taxation & controlling",
+            "finance and economics",
+            "finance & economics",
+            "marketing, organization, innovation",
+            "supply chain management and logistics",
+            "supply chain management & logistics",
+            "sustainability in business and economics",
+            "wahlpflichtbereich data competence",
+            "wahlpflichtbereich application competence",
+        }
+        if normalized in {self._normalize(item).replace("&", "and") for item in known}:
+            return (4, self._clean_title(first))
+
+        if element_type == "heading" and len(first.split()) <= 12:
+            return (2, self._clean_title(first))
+        return None
+
+    def _metadata_section_path(self, doc: Document) -> list[str]:
+        value = (doc.metadata or {}).get("section_path") or []
+        if isinstance(value, str):
+            return [part.strip() for part in value.split(">") if part.strip()]
+        if isinstance(value, list):
+            return [str(part).strip() for part in value if str(part).strip()]
+        return []
+
+    def _section_block_text(
+        self,
+        text: str,
+        section_path: list[str] | None,
+        nearest_heading: Optional[str],
+    ) -> str:
+        lines: list[str] = []
+        if section_path:
+            lines.append(f"Section path: {' > '.join(section_path)}")
+        if nearest_heading:
+            lines.append(f"Nearest heading: {nearest_heading}")
+        if not lines:
+            return text.strip()
+        return "\n".join(lines) + f"\n\n{text.strip()}"
+
+    def _table_block_text(
+        self,
+        doc: Document,
+        doc_type: str,
+        section_path: list[str] | None,
+        nearest_heading: Optional[str],
+        table_caption: Optional[str],
+        page: Any,
+    ) -> str:
+        source = (
+            doc.metadata.get("source_file")
+            or doc.metadata.get("file_name")
+            or "document.pdf"
+        )
+        header = [
+            f"Dokument: {source}",
+            f"Dokumenttyp: {doc_type}",
+            f"Section path: {' > '.join(section_path or []) if section_path else '-'}",
+            f"Nearest heading: {nearest_heading or '-'}",
+            f"Table caption: {table_caption or '-'}",
+            f"Page: {page}",
+        ]
+        return "\n".join(header) + f"\n\n{(doc.text or '').strip()}"
+
+    def _table_caption(self, text: str) -> Optional[str]:
+        for line in (text or "").splitlines()[:5]:
+            stripped = self._clean_title(line)
+            if stripped and "|" not in stripped:
+                return stripped
+        return None
+
+    def _semantic_table_title(
+        self,
+        text: str,
+        nearest_heading: Optional[str],
+        section_path: list[str] | None,
+    ) -> str:
+        haystack = self._normalize(
+            " ".join([*(section_path or []), nearest_heading or "", text or ""])
+        )
+        candidates = [
+            ("data competence", "Data Competence table"),
+            ("application competence", "Application Competence table"),
+            (
+                "supply chain management",
+                "Supply Chain Management & Logistics profile table",
+            ),
+            (
+                "sustainability in business and economics",
+                "Sustainability in Business and Economics profile table",
+            ),
+            ("digitalization", "Digitalization & Analytics table"),
+            (
+                "business language",
+                "Business Language and Management Skills table",
+            ),
+            (
+                "wirtschafts- und unternehmensethik",
+                "Wirtschafts- und Unternehmensethik table",
+            ),
+            (
+                "accounting",
+                "Accounting, Taxation & Controlling profile table",
+            ),
+            ("finance", "Finance & Economics profile table"),
+            ("marketing", "Marketing, Organization, Innovation profile table"),
+        ]
+        for needle, title in candidates:
+            if self._normalize(needle) in haystack:
+                return title
+        if nearest_heading:
+            return f"{nearest_heading} table"
+        return "University table"
+
+    def _section_list_summary_blocks(self, docs: list[Document]) -> list[_Block]:
+        """Build compact chunks for lists represented as sibling headings.
+
+        Some Docling outputs expose an introductory sentence (for example
+        "Es werden ... Studienprofile angeboten") followed by each option as a
+        standalone heading.  Splitting each heading into its own chunk is useful
+        for local evidence, but it removes the answer-bearing list from a single
+        retrievable context.  This helper reconstructs only those short,
+        explicitly enumerated structural lists.
+        """
+
+        profile_names = {
+            "accounting, taxation and controlling",
+            "accounting, controlling and taxation",
+            "finance and economics",
+            "marketing, organization, innovation",
+            "supply chain management and logistics",
+            "sustainability in business and economics",
+        }
+        elective_names = {
+            "digitalization and analytics",
+            "data competence",
+            "application competence",
+            "business language and management skills",
+            "wirtschafts- und unternehmensethik",
+            "wirtschafts und unternehmensethik",
+        }
+        summaries: dict[tuple[str, ...], list[Document]] = defaultdict(list)
+
+        for doc in docs:
+            metadata = doc.metadata or {}
+            if not (
+                metadata.get("element_type") == "heading"
+                or metadata.get("heading_level") is not None
+            ):
+                continue
+            path = self._metadata_section_path(doc)
+            if len(path) < 2:
+                continue
+            heading = self._clean_title(doc.text or path[-1])
+            normalized = self._normalize(heading).replace("&", "and")
+            parent_path = path[:-1]
+            parent_text = self._normalize(" > ".join(parent_path))
+            if "studienprofile" in parent_text and normalized in profile_names:
+                summaries[tuple(parent_path)].append(doc)
+            elif "wahlpflicht" in parent_text and normalized in elective_names:
+                summaries[tuple(parent_path)].append(doc)
+
+        blocks: list[_Block] = []
+        for parent_path, heading_docs in summaries.items():
+            unique: list[str] = []
+            elements: list[Document] = []
+            for doc in heading_docs:
+                title = self._clean_title(doc.text or "")
+                if title and title not in unique:
+                    unique.append(title)
+                    elements.append(doc)
+            if len(unique) < 2:
+                continue
+            path = list(parent_path)
+            nearest_heading = path[-1] if path else None
+            if any("studienprofile" in self._normalize(item) for item in path):
+                label = "Studienprofile"
+                lead = "Es werden in der Regel die folgenden Studienprofile angeboten:"
+            else:
+                label = "Wahlpflichtbereiche"
+                lead = "Folgende Wahlpflichtbereiche sind strukturell ausgewiesen:"
+            text = self._section_block_text(
+                text=f"{lead}\n" + "\n".join(f"- {item}" for item in unique),
+                section_path=path,
+                nearest_heading=nearest_heading,
+            )
+            blocks.append(
+                _Block(
+                    title=label,
+                    text=text,
+                    elements=elements,
+                    chunk_type="section_summary",
+                    section_path=path,
+                    nearest_heading=nearest_heading,
+                    semantic_title=label,
+                )
+            )
+        return blocks
+
+    def _should_keep_short_block(self, block: _Block) -> bool:
+        if self._token_count(block.text) >= self.min_child_size:
+            return True
+        page_start = self._page_start(block.elements)
+        try:
+            if page_start is not None and int(page_start) <= 2:
+                return True
+        except (TypeError, ValueError):
+            pass
+        important = re.compile(
+            r"(?i)(Fakultät|federführend|verantwortlich|Abschlussgrad|"
+            r"Bachelor of Science|ECTS|Studienprofile|Zeugnis|Wahlpflichtbereich)"
+        )
+        return bool(important.search(block.text or ""))
 
     def _split_text_at_section_starts(self, text: str) -> list[tuple[bool, str]]:
         matches = list(SECTION_START_RE.finditer(text))
@@ -890,7 +1283,11 @@ class UniversityPDFChunker(BaseSplitter):
                 metadata["module_number"] = compact.group(1)
 
         ects_match = re.search(
-            r"(?i)(\d+(?:[,.]\d+)?)\s*(?:ects|leistungspunkte|credits?|lp)\b", text
+            r"(?im)^\s*(?:ects|leistungspunkte|credits?|lp)\s*[:\-]?\s*(\d+(?:[,.]\d+)?)\b",
+            text,
+        ) or re.search(
+            r"(?i)(\d+(?:[,.]\d+)?)[ \t]*(?:ects|leistungspunkte|credits?|lp)\b",
+            text,
         )
         if ects_match:
             metadata["ects"] = ects_match.group(1).replace(",", ".")

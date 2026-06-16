@@ -54,7 +54,7 @@ def test_regulation_chunks_preserve_section_title_and_required_metadata():
     assert child.metadata["section_title"].startswith("§ 1")
     assert child.metadata["section_title"] in child.text
     assert "Dokument: PO_BSc_Test.pdf" in child.text
-    assert "Abschnitt: § 1 Geltungsbereich" in child.text
+    assert "Abschnitt: § 1 Zweck" in child.text
     assert "Studiengang:" not in child.text
     assert "Section:" not in child.text
     assert child.metadata["doc_family"] == "exam_regulation"
@@ -120,6 +120,118 @@ def test_table_chunks_keep_markdown_syntax():
     assert table_children
     assert "|" in table_children[0].text
     assert "---" in table_children[0].text
+    assert "Section path:" in table_children[0].text
+    assert table_children[0].metadata.get("nearest_heading") == "Studienverlaufsplan"
+
+
+def test_study_description_filename_wins_over_toc_studienverlaufsplan():
+    chunker = UniversityPDFChunker()
+
+    doc_type = chunker.detect_doc_type(
+        "Studiengangsbeschreibung_BA_D3B.pdf",
+        "Inhaltsverzeichnis\nStudienverlaufsplan ................................ 12",
+    )
+
+    assert doc_type == "study_description"
+
+
+def test_study_description_uses_section_path_table_chunks():
+    docs = [
+        structured_doc(
+            "Studiengangsbeschreibung",
+            0,
+            "heading",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "2.6. Studienprofile",
+            1,
+            "heading",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "Supply Chain Management & Logistics",
+            2,
+            "heading",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "| Modul | ECTS |\n| --- | --- |\n| SCM Projektstudium | 5 |",
+            3,
+            "table",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "federführende Fakultät: Wirtschaftswissenschaftliche Fakultät; "
+            "verantwortlich beteiligt: Mathematisch-Geographische Fakultät",
+            4,
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+    ]
+
+    chunks = UniversityPDFChunker().run(docs)
+    children = [d for d in chunks if d.metadata.get("index_role") == "child"]
+    table = next(d for d in children if d.metadata.get("chunk_type") == "table")
+
+    assert table.metadata["doc_type"] == "study_description"
+    assert table.metadata["nearest_heading"] == "Supply Chain Management & Logistics"
+    assert "2.6. Studienprofile > Supply Chain Management & Logistics" in table.text
+    assert table.metadata["semantic_title"] == "Supply Chain Management & Logistics profile table"
+    assert any("Wirtschaftswissenschaftliche Fakultät" in d.text for d in children)
+
+
+def test_study_profile_heading_list_gets_summary_chunk():
+    docs = [
+        structured_doc(
+            "2.6. Studienprofile\nEs werden in der Regel die folgenden Studienprofile angeboten:",
+            0,
+            "heading",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "Accounting, Taxation & Controlling",
+            1,
+            "list_item",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "Finance & Economics",
+            2,
+            "list_item",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "Marketing, Organization, Innovation",
+            3,
+            "list_item",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+        structured_doc(
+            "Supply Chain Management & Logistics",
+            4,
+            "list_item",
+            file_name="Studiengangsbeschreibung_BA_D3B.pdf",
+        ),
+    ]
+
+    chunks = UniversityPDFChunker().run(docs)
+    summaries = [
+        d
+        for d in chunks
+        if d.metadata.get("index_role") == "child"
+        and d.metadata.get("chunk_type") == "section_summary"
+    ]
+
+    assert summaries
+    summary = summaries[0]
+    assert summary.metadata["nearest_heading"] == "2.6. Studienprofile"
+    for expected in [
+        "Accounting, Taxation & Controlling",
+        "Finance & Economics",
+        "Marketing, Organization, Innovation",
+        "Supply Chain Management & Logistics",
+    ]:
+        assert expected in summary.text
 
 
 def test_module_chunks_include_module_title():

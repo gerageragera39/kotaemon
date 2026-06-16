@@ -42,19 +42,38 @@ class PrepareEvidencePipeline(BaseComponent):
         elif page_start:
             page = f", page={page_start}"
         section = metadata.get("section_id") or metadata.get("section_title") or ""
+        section_path = metadata.get("section_path") or ""
+        if isinstance(section_path, list):
+            section_path = " > ".join(str(part) for part in section_path if part)
+        nearest_heading = metadata.get("nearest_heading") or ""
         paragraph = metadata.get("paragraph_id") or ""
         role = metadata.get("context_role") or metadata.get("index_role") or ""
+        doc_type = metadata.get("doc_type") or ""
+        chunk_type = metadata.get("chunk_type") or ""
+        module_title = metadata.get("module_title") or ""
         retrieval_source = metadata.get("retrieval_source") or metadata.get("_retrieval_sources") or ""
         return (
-            f"[Context {rank}] source={source}{page}, section={section}, "
-            f"paragraph={paragraph}, role={role}, retrieval_source={retrieval_source}, "
+            f"[Context {rank}] doc_id={doc.doc_id}, source={source}{page}, doc_type={doc_type}, "
+            f"section={section}, section_path={section_path}, "
+            f"nearest_heading={nearest_heading}, chunk_type={chunk_type}, "
+            f"module_title={module_title}, paragraph={paragraph}, role={role}, "
+            f"retrieval_source={retrieval_source}, "
             f"score={doc.score}"
         )
 
     def _doc_text(self, doc: RetrievedDocument) -> tuple[str, int | None]:
         metadata = doc.metadata or {}
         if metadata.get("type", "") == "table":
-            return metadata.get("table_origin", doc.text), EVIDENCE_MODE_TABLE
+            # University table chunks already carry their structural prefix in
+            # doc.text/full_text.  Prefer that self-contained text over bare
+            # table_origin so section context is not stripped from evidence.
+            return (
+                metadata.get("window")
+                or metadata.get("full_text")
+                or doc.text
+                or metadata.get("table_origin", ""),
+                EVIDENCE_MODE_TABLE,
+            )
         if metadata.get("type", "") == "chatbot":
             return metadata.get("window", doc.text), EVIDENCE_MODE_CHATBOT
         if metadata.get("type", "") == "image":

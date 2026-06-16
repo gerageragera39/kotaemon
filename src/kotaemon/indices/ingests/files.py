@@ -137,12 +137,24 @@ class DocumentIngestor(BaseComponent):
         documents = self._get_reader(input_files=file_paths)()
         print(f"Read {len(file_paths)} files into {len(documents)} documents.")
 
-        splitter = (
-            UniversityPDFChunker()
-            if self.pdf_mode == "university"
-            else self.text_splitter
-        )
-        nodes = splitter(documents)
+        if self.pdf_mode == "university":
+            splitter = UniversityPDFChunker()
+            grouped_documents: dict[str, list[Document]] = {}
+            for document in documents:
+                metadata = document.metadata or {}
+                key = str(
+                    metadata.get("source_file")
+                    or metadata.get("file_name")
+                    or metadata.get("file_path")
+                    or "__unknown__"
+                )
+                grouped_documents.setdefault(key, []).append(document)
+            nodes = []
+            for group in grouped_documents.values():
+                nodes.extend(splitter(group))
+        else:
+            splitter = self.text_splitter
+            nodes = splitter(documents)
         print(f"Transform {len(documents)} documents into {len(nodes)} nodes.")
         self.log_progress(".num_docs", num_docs=len(nodes))
 
