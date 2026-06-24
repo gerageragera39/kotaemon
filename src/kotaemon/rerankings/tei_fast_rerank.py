@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+import logging
 import requests
 
 from kotaemon.base import Document, Param
@@ -9,6 +10,7 @@ from kotaemon.base import Document, Param
 from .base import BaseReranking
 
 session = requests.session()
+logger = logging.getLogger(__name__)
 
 
 class TeiFastReranking(BaseReranking):
@@ -38,6 +40,7 @@ class TeiFastReranking(BaseReranking):
     )
 
     def client(self, query, texts):
+        truncated_texts = texts
         if self.is_truncated:
             max_tokens = self.max_tokens  # default is 512 tokens.
             truncated_texts = [text[:max_tokens] for text in texts]
@@ -49,8 +52,10 @@ class TeiFastReranking(BaseReranking):
                 "texts": truncated_texts,
                 "is_truncated": self.is_truncated,  # default is True
             },
-        ).json()
-        return response
+            timeout=30,
+        )
+        response.raise_for_status()
+        return response.json()
 
     def run(self, documents: list[Document], query: str) -> list[Document]:
         """Use the deployed TEI rerankings service to re-order documents
@@ -76,7 +81,19 @@ class TeiFastReranking(BaseReranking):
                 mini_batch = documents[batch_size * i : batch_size * (i + 1)]
 
             _docs = [d.content for d in mini_batch]
-            rerank_resp = self.client(query, _docs)
+            try:
+                rerank_resp = self.client(query, _docs)
+            except requests.RequestException as exc:
+                message = (
+                    f"TEI reranker endpoint {self.endpoint_url!r} is unavailable; "
+                    "returning unre-ranked retrieval results. Start the local TEI "
+                    "reranker service or disable 'Use reranking'."
+                )
+                logger.warning("%s Error: %s", message, exc)
+                print(f"[reranker] {message} Error: {exc}", flush=True)
+                for doc in documents:
+                    doc.metadata.setdefault("reranking_error", str(exc))
+                return documents
             for r in rerank_resp:
                 doc = mini_batch[r["index"]]
                 doc.metadata["reranking_score"] = r["score"]

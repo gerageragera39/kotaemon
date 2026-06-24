@@ -69,6 +69,18 @@ class VectorIndexing(BaseIndexing):
             **kwargs,
         )
 
+    def prepare_chunk_export(self, file_name: str) -> None:
+        """Reset cached chunk files for one newly indexed source."""
+
+        if not self.cache_dir:
+            return
+        stem = Path(file_name).stem
+        cache_dir = Path(self.cache_dir)
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        for path in cache_dir.glob(f"{stem}_*.md"):
+            path.unlink()
+        self.count_ = 0
+
     def write_chunk_to_file(self, docs: list[Document]):
         # save the chunks content into markdown format
         if self.cache_dir:
@@ -96,8 +108,11 @@ class VectorIndexing(BaseIndexing):
                 if docs[i].text:
                     markdown_content += f"\ntext:\n{docs[i].text}"
 
+                export_index = docs[i].metadata.get(
+                    "ingestion_index", self.count_ + i
+                )
                 with open(
-                    Path(self.cache_dir) / f"{file_name.stem}_{self.count_+i}.md",
+                    Path(self.cache_dir) / f"{file_name.stem}_{export_index}.md",
                     "w",
                     encoding="utf-8",
                 ) as f:

@@ -1,14 +1,14 @@
 {
   "owner": "hud",
-  "pid": 1096,
-  "cwd": "/mnt/c/Users/SED/Documents/my_ktem/test4/kotaemon",
-  "heartbeat_at": "2026-06-15T19:47:42.092Z",
+  "pid": 2463,
+  "cwd": "/mnt/c/Users/SED/Documents/my_ktem/felix/kotaemon",
+  "heartbeat_at": "2026-06-24T23:05:18.670Z",
   "cooldown_ms": 5000,
-  "jitter_ms": 92,
-  "skip_count": 30039,
+  "jitter_ms": 87,
+  "skip_count": 43586,
   "last_status": "skipped",
   "last_reason": "rate_limited",
-  "last_spawn_at": "2026-06-15T19:47:39.108Z",
-  "last_skip_at": "2026-06-15T19:47:42.092Z",
-  "next_allowed_at": "2026-06-15T19:47:44.200Z"
+  "last_spawn_at": "2026-06-24T23:05:13.953Z",
+  "last_skip_at": "2026-06-24T23:05:18.670Z",
+  "next_allowed_at": "2026-06-24T23:05:19.040Z"
 }

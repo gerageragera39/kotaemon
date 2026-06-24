@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -21,12 +20,11 @@ if str(SRC) not in sys.path:
 
 from ktem.evaluation import find_default_dataset_path, run_evaluation  # noqa: E402
 from ktem.main import App  # noqa: E402
-from kotaemon.indices.ingests import DocumentIngestor  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
     default_dataset = find_default_dataset_path(ROOT)
-    parser = argparse.ArgumentParser(description="Evaluate Kotaemon RAG with RAGAS.")
+    parser = argparse.ArgumentParser(description="Evaluate Kotaemon RAG with the Felix evaluator.")
     parser.add_argument(
         "--dataset",
         default=str(default_dataset or "rag_eval_dataset.json"),
@@ -46,63 +44,28 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--no-ragas",
         action="store_true",
-        help="Only collect answers/contexts, skip RAGAS scoring.",
+        help="Only collect answers/contexts/retrieval diagnostics, skip optional LLM-judge scoring.",
+    )
+    parser.add_argument(
+        "--scope",
+        choices=["expected-source", "all"],
+        default="expected-source",
+        help=(
+            "Retrieve from each sample's source_file or from all visible documents."
+        ),
     )
     parser.add_argument(
         "--output-dir",
         default="eval_results",
         help="Directory for CSV/JSON artifacts.",
     )
-    parser.add_argument(
-        "--index-documents-dir",
-        default=os.environ.get("UNIVERSITY_RAG_DOCUMENTS_DIR", ""),
-        help=(
-            "Optional university PDF directory to chunk as a preflight check before "
-            "evaluation. This does not write into the Kotaemon app index; reindex "
-            "the PDFs in the UI/API to change retrieval."
-        ),
-    )
-    parser.add_argument(
-        "--pdf-mode",
-        default=os.environ.get("UNIVERSITY_RAG_PDF_MODE", "university"),
-        choices=["normal", "mathpix", "ocr", "multimodal", "university"],
-        help="PDF ingestion mode for --index-documents-dir preflight.",
-    )
     return parser.parse_args()
-
-
-def preflight_university_ingest(documents_dir: str, pdf_mode: str) -> None:
-    if not documents_dir:
-        return
-    pdfs = sorted(Path(documents_dir).expanduser().resolve().glob("*.pdf"))
-    if not pdfs:
-        raise FileNotFoundError(f"No PDFs found in --index-documents-dir={documents_dir}")
-    if pdf_mode != "university":
-        raise ValueError(
-            "The university dataset must be ingested with pdf_mode='university' "
-            f"(got {pdf_mode!r})."
-        )
-
-    print(
-        f"Preflight chunking {len(pdfs)} PDFs with pdf_mode=university "
-        "(DoclingStructuredPDFReader + UniversityPDFChunker); this does not "
-        "persist chunks into the app index",
-        flush=True,
-    )
-    chunks = DocumentIngestor(pdf_mode="university").run(pdfs)
-    parents = sum(1 for doc in chunks if doc.metadata.get("index_role") == "parent")
-    children = sum(1 for doc in chunks if doc.metadata.get("index_role") == "child")
-    print(
-        f"University ingest preflight complete: parents={parents}, children={children}",
-        flush=True,
-    )
 
 
 def main() -> int:
     args = parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    preflight_university_ingest(args.index_documents_dir, args.pdf_mode)
 
     app = App()
     settings = app.default_settings.flatten()
@@ -117,19 +80,37 @@ def main() -> int:
         dataset_path=args.dataset,
         question_limit=args.limit,
         run_ragas_metrics=not args.no_ragas,
+        retrieval_scope=args.scope,
         progress=progress,
     )
 
     result.samples.to_csv(output_dir / "rag_eval_samples.csv", index=False)
     result.ragas_scores.to_csv(output_dir / "ragas_scores.csv", index=False)
+    result.retrieval_metrics.to_csv(
+        output_dir / "retrieval_metrics.csv", index=False
+    )
+    result.retrieval_candidates.to_json(
+        output_dir / "retrieval_candidates.jsonl",
+        orient="records",
+        lines=True,
+        force_ascii=False,
+    )
     (output_dir / "summary.json").write_text(
         json.dumps(result.summary, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (output_dir / "runtime_config.json").write_text(
+        json.dumps(result.runtime_config, indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
+    (output_dir / "failures.md").write_text(
+        result.failure_report,
         encoding="utf-8",
     )
     if result.warnings:
         (output_dir / "warnings.txt").write_text("\n".join(result.warnings), encoding="utf-8")
 
-    print(json.dumps({**result.summary, "run_dir": result.run_dir}, indent=2, ensure_ascii=False))
+    print(json.dumps(result.summary, indent=2, ensure_ascii=False))
     if result.warnings:
         print("\nWarnings:")
         for warning in result.warnings:

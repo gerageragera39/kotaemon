@@ -50,6 +50,7 @@ from kotaemon.loaders import DoclingStructuredPDFReader
 from kotaemon.utils.rag_debug import rag_log
 
 from .base import BaseFileIndexIndexing, BaseFileIndexRetriever
+from .ingestion_v2 import build_ingestion_v2
 
 logger = logging.getLogger(__name__)
 
@@ -418,6 +419,7 @@ class IndexPipeline(BaseComponent):
     private: bool = False
     run_embedding_in_thread: bool = False
     embedding: BaseEmbeddings
+    ingestion_v2_max_chunk_chars: int = 4200
 
     @Node.auto(depends_on=["Source", "Index", "embedding"])
     def vector_indexing(self) -> VectorIndexing:
@@ -452,7 +454,35 @@ class IndexPipeline(BaseComponent):
             doc.metadata["page_label"]: doc.doc_id for doc in thumbnail_docs
         }
 
-        if self.splitter:
+        using_voldemort = any(
+            (doc.metadata or {}).get("docling_page_elements") for doc in text_docs
+        )
+        if using_voldemort:
+            result = build_ingestion_v2(
+                text_docs,
+                non_text_docs,
+                str(file_name),
+                max_chunk_chars=self.ingestion_v2_max_chunk_chars,
+            )
+            all_chunks = [
+                chunk
+                for chunk in result.records
+                if (chunk.metadata or {}).get("type") == "text"
+            ]
+            non_text_docs = [
+                chunk
+                for chunk in result.records
+                if (chunk.metadata or {}).get("type") != "text"
+            ]
+            _index_log(
+                f"[{file_name}] Voldemort chunking finished: "
+                f"records={len(result.records)}, text_chunks={len(all_chunks)}"
+            )
+            yield Document(
+                f" => [{file_name}] Created {len(result.records)} Voldemort structured chunks",
+                channel="debug",
+            )
+        elif self.splitter:
             splitter_start = time.time()
             _index_log(f"[{file_name}] Chunking started with splitter={self.splitter}")
             yield Document(
@@ -493,6 +523,8 @@ class IndexPipeline(BaseComponent):
             f"non_text={len(non_text_docs)}, thumbnails={len(thumbnail_docs)}, "
             f"total={len(to_index_chunks)}"
         )
+        if using_voldemort:
+            self.vector_indexing.prepare_chunk_export(str(file_name))
 
         # add to doc store
         chunks = []
@@ -830,17 +862,12 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
     def get_user_settings(cls):
         return {
             "reader_mode": {
-                "name": "File loader",
-                "value": "university",
+                "name": "Chunking method",
+                "value": "default",
                 "choices": [
-                    ("Default (open-source)", "default"),
-                    ("Adobe API (figure+table extraction)", "adobe"),
-                    (
-                        "Azure AI Document Intelligence (figure+table extraction)",
-                        "azure-di",
-                    ),
-                    ("Docling (figure+table extraction)", "docling"),
+                    ("default", "default"),
                     ("University PDF structural chunking", "university"),
+                    ("voldemort", "voldemort"),
                 ],
                 "component": "dropdown",
             },
@@ -983,7 +1010,10 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             if self.reader_mode == "university" and ext == ".pdf":
                 university_trigger = "ui"
 
-            if university_trigger != "none" and ext == ".pdf":
+            if self.reader_mode == "voldemort" and ext == ".pdf":
+                reader = docling_reader
+                splitter = None
+            elif university_trigger != "none" and ext == ".pdf":
                 reader = DoclingStructuredPDFReader()
                 splitter = self._university_chunker()
             else:
@@ -1003,11 +1033,13 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         reader_name = reader.__class__.__name__
         splitter_name = splitter.__class__.__name__
         university_pdf_mode = splitter_name == "UniversityPDFChunker"
+        voldemort_mode = self.reader_mode == "voldemort" and splitter is None
         trigger = locals().get("university_trigger", "none")
         _index_log(
             f"file_path={file_path}, reader_class={reader_name}, "
             f"splitter_class={splitter_name}, "
             f"university_pdf_mode={str(university_pdf_mode).lower()}, "
+            f"voldemort_mode={str(voldemort_mode).lower()}, "
             f"university_trigger={trigger}, chunk_size={chunk_size or 1024}, "
             f"chunk_overlap={chunk_overlap or 256}"
         )
@@ -1023,6 +1055,9 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
             user_id=self.user_id,
             private=self.private,
             embedding=self.embedding,
+            ingestion_v2_max_chunk_chars=getattr(
+                settings, "INGESTION_V2_MAX_CHUNK_CHARS", 4200
+            ),
         )
 
         return pipeline
