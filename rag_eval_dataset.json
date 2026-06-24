@@ -220,7 +220,155 @@
   "question": "Which modules are listed in the Application Competence elective area in the SoSe 2026 catalogue?",
   "ground_truth": "The Application Competence elective area lists Steuerbilanzen und Rechtsformwahl, Marketing and Management, Operations Analytics, and Kapitalmarkttheorie.",
   "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-}
+},
+{
+    "id": "eval_v2_01",
+    "question": "What is the standard duration of the D3B Bachelor program?",
+    "ground_truth": "The standard duration of the Bachelor program Digital and Data-Driven Business is six semesters.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_02",
+    "question": "Can students start the D3B Bachelor program in the summer semester?",
+    "ground_truth": "No. The D3B Bachelor program starts in the winter semester.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_03",
+    "question": "How many ECTS credits are required to complete the D3B Bachelor program?",
+    "ground_truth": "The program requires 180 ECTS credits.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_04",
+    "question": "What kind of students is the D3B Bachelor program designed for?",
+    "ground_truth": "The program is designed for motivated prospective students with a general or subject-specific higher education entrance qualification who want to combine digital business ideas, business models, digital systems, and data-analytical methods with a solid education in business administration.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_05",
+    "question": "Which main subject areas does the D3B program combine?",
+    "ground_truth": "The program combines information-processing systems, methods and concepts, business administration with a focus on the digital economy, quantitative methods, and language, social, communication, action skills, soft skills, and ethics.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_06",
+    "question": "Is a semester abroad possible in the D3B Bachelor program?",
+    "ground_truth": "Yes. Students can spend part of their studies abroad, and the fifth semester is especially suitable for this.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_07",
+    "question": "What can students use the Wahlbereich, or elective area, for?",
+    "ground_truth": "The elective area can be used to gain additional competences, deepen a study profile, learn additional foreign languages and intercultural skills, broaden business or economics knowledge, or take modules useful for later Master's studies.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_08",
+    "question": "What career fields can D3B graduates enter?",
+    "ground_truth": "Graduates can work in specialist or leadership roles with a digital or data-analytical focus, in cross-functional digital tasks, and in areas such as accounting, controlling, taxation, finance, economics, marketing, organization, innovation, supply chain management, logistics, public organizations, non-profit organizations, or continue with a Master's degree.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+  },
+  {
+    "id": "eval_v2_09",
+    "question": "How many ECTS credits are required in the Pflichtbereich?",
+    "ground_truth": "Students must earn 80 ECTS credits in the Pflichtbereich.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_10",
+    "question": "How are the Pflichtbereich ECTS credits distributed?",
+    "ground_truth": "The Pflichtbereich consists of 30 ECTS in Business Administration and Digital Business, 20 ECTS in Information Management, 20 ECTS in Quantitative Methods, and 10 ECTS in Economics.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_11",
+    "question": "How many ECTS credits are required in the Wahlpflichtbereich?",
+    "ground_truth": "Students must earn 55 ECTS credits in the Wahlpflichtbereich.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_12",
+    "question": "Which areas must be covered in the Wahlpflichtbereich?",
+    "ground_truth": "Students must complete 25 ECTS in Digitalization & Analytics, 10 ECTS in Business Language and Management Skills, 5 ECTS in Studium.Pro, 5 ECTS in Data Competence, 5 ECTS in Application Competence, and 5 ECTS in Wirtschafts- und Unternehmensethik.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_13",
+    "question": "Can one module count twice if it belongs to more than one Wahlpflichtbereich area?",
+    "ground_truth": "No. If a module is assigned to more than one Wahlpflichtbereich area, it can only be counted once in the Wahlpflichtbereich.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_14",
+    "question": "How many ECTS credits are required in the Wahlbereich?",
+    "ground_truth": "Students must successfully complete 25 ECTS credits in the Wahlbereich.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_15",
+    "question": "How many ECTS credits are needed for a study profile to appear on the certificate according to the PO?",
+    "ground_truth": "According to the PO, at least 25 ECTS credits must be chosen within a specific study profile in the Wahlpflichtbereich or Wahlbereich for the profile to be shown on the certificate.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_16",
+    "question": "Are all study profiles guaranteed to be offered every time?",
+    "ground_truth": "No. The PO states that there is no entitlement that all study profiles are offered.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_17",
+    "question": "What must students achieve to pass the Grundlagen- und Orientierungsprüfung?",
+    "ground_truth": "Students pass the Grundlagen- und Orientierungsprüfung if they successfully complete modules worth 40 ECTS credits by the end of the second semester.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_18",
+    "question": "When is the Grundlagen- und Orientierungsprüfung finally failed?",
+    "ground_truth": "It is finally failed if the student does not successfully complete modules worth 60 ECTS credits by the end of the third semester for reasons they are responsible for.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+  },
+  {
+    "id": "eval_v2_19",
+    "question": "What is the exact tuition fee for international students in the D3B Bachelor program next semester?",
+    "ground_truth": "The provided documents do not contain the exact tuition fee for international students for the next semester. The chatbot should state that this information is not available in the provided documents.",
+    "source_file": "NONE"
+  },
+  {
+    "id": "eval_v2_20",
+    "question": "What is the exact admission NC grade for the next D3B intake?",
+    "ground_truth": "The provided documents do not contain the exact admission NC grade for the next D3B intake. The chatbot should not invent an admission grade.",
+    "source_file": "NONE"
+  },
+  {
+    "id": "eval_v2_21",
+    "question": "Can the university guarantee me a student job or internship at Audi during the D3B program?",
+    "ground_truth": "The provided documents do not guarantee a student job or internship at Audi. The chatbot should not claim that such a position is guaranteed.",
+    "source_file": "NONE"
+  },
+  {
+    "id": "eval_v2_22",
+    "question": "What is the guaranteed acceptance rate for D3B students applying for an exchange semester abroad?",
+    "ground_truth": "The provided documents do not contain a guaranteed acceptance rate for D3B students applying for an exchange semester abroad. The chatbot should state that this information is not available in the provided documents.",
+    "source_file": "NONE"
+  },
+  {
+    "id": "eval_v2_23",
+    "question": "Which exact companies will offer Digital Project topics for D3B students next semester?",
+    "ground_truth": "The provided documents do not list the exact companies that will offer Digital Project topics next semester. The chatbot should not invent company names or future project partners.",
+    "source_file": "NONE"
+  },
+  {
+    "id": "eval_v2_24",
+    "question": "What is the exact deadline for registering the Bachelor thesis this semester?",
+    "ground_truth": "The provided documents do not contain the exact Bachelor thesis registration deadline for the current semester. The chatbot should state that this information is not available in the provided documents and should not invent a date.",
+    "source_file": "NONE"
+  },
+  {
+    "id": "eval_v2_25",
+    "question": "Which specific rooms and weekly times are assigned to the D3B modules next semester?",
+    "ground_truth": "The provided documents do not contain the specific room assignments and weekly class times for D3B modules next semester. The chatbot should not invent timetable or room information.",
+    "source_file": "NONE"
+  }
 ]
-
-  
