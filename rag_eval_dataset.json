@@ -1,374 +1,670 @@
 [
   {
-    "id": "apo_orig_01",
-    "question": "How many times can a student repeat a failed exam at KU Eichstätt-Ingolstadt (excluding the bachelor's thesis)?",
-    "ground_truth": "A student can repeat a failed exam twice. The exam can be repeated a maximum of two times, excluding the bachelor's or master's thesis.",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
+    "id": "apo_2024_01",
+    "question": "Under what conditions may I use ChatGPT or another AI tool for an unsupervised written assignment?",
+    "ground_truth": "AI tools may be used only if they are admitted as an allowed aid for the relevant assessment. For unsupervised written work such as papers, study papers or portfolios, students must attach a list of the aids used. Text or ideas taken literally or in substance from publications or other sources must be marked as such. If AI is not admitted as an aid, its use can be treated under the rules on deception.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      3,
+      5
+    ],
+    "required_phrases": [
+      "AI",
+      "allowed aid",
+      "list of the aids used",
+      "deception"
+    ]
   },
   {
-    "id": "apo_orig_03",
-    "question": "How many ECTS points is the bachelor's thesis worth at KU Eichstätt-Ingolstadt?",
-    "ground_truth": "The bachelor's thesis is worth 10 ECTS points.",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
+    "id": "apo_2024_02",
+    "question": "If I feel unable to continue during a supervised exam, what must I do so that the withdrawal is documented properly?",
+    "ground_truth": "The incapacity must be asserted immediately during the supervised exam. It should be recorded in the exam protocol by the invigilator, and the student must also make the withdrawal and the reasons credible in writing to the examination office or the responsible examination board.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      4
+    ],
+    "required_phrases": [
+      "immediately",
+      "exam protocol",
+      "examination office",
+      "reasons"
+    ]
   },
   {
-    "id": "apo_orig_05",
-    "question": "When is the earliest a student can receive the topic for their bachelor's thesis?",
-    "ground_truth": "The topic of the bachelor's thesis can be issued at the earliest when mandatory or required elective modules worth at least 60 percent of the total ECTS points of the program have been successfully completed.",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
+    "id": "apo_2024_03",
+    "question": "For a semester-accompanying assessment, at what point am I registered and no longer allowed to deregister?",
+    "ground_truth": "For semester-accompanying examinations, starting the assessment itself counts as registration. Examples include submitting a paper or giving a presentation. From that point onward, deregistration from the examination is no longer permitted.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      7
+    ],
+    "required_phrases": [
+      "semester-accompanying",
+      "registration",
+      "deregistration",
+      "no longer permitted"
+    ]
   },
   {
-    "id": "apo_orig_06",
-    "question": "Within what time period must a student submit a request for file inspection (Akteneinsicht) after a grade is announced?",
-    "ground_truth": "The request for file inspection must be submitted within one month after the grade is announced.",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
+    "id": "apo_2024_04",
+    "question": "What happens if two examiners give different grades for the same assessment?",
+    "ground_truth": "The two examiners should first try to agree on one common grade. If they cannot agree, the grade is calculated from the arithmetic mean rounded down to one decimal place.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      7
+    ],
+    "required_phrases": [
+      "two examiners",
+      "arithmetic mean",
+      "rounded down",
+      "one decimal place"
+    ]
   },
   {
-    "id": "apo_orig_07",
-    "question": "What happens if the deadline for completing the bachelor's or master's exam is exceeded by more than two semesters for reasons the student is responsible for?",
-    "ground_truth": "The bachelor's or master's exam is considered definitively failed (endgültig nicht bestanden).",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
+    "id": "apo_2024_05",
+    "question": "How long is a practical study semester normally supposed to last if the program rules do not say otherwise?",
+    "ground_truth": "Unless the program examination regulations provide a different rule, the practical study semester including accompanying courses covers a continuous period of 22 weeks. Its required time commitment must not be impaired by examinations.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      6
+    ],
+    "required_phrases": [
+      "practical study semester",
+      "22 weeks",
+      "accompanying courses",
+      "examinations"
+    ]
   },
   {
-    "id": "apo_orig_08",
-    "question": "What percentage of a course may a student miss and still fulfill the attendance requirement at KU Eichstätt-Ingolstadt?",
-    "ground_truth": "A student may miss no more than 25 percent of the course sessions and still fulfill the attendance requirement.",
-    "source_file": "a_APO_ab_WS_14_15.pdf"
+    "id": "apo_2024_06",
+    "question": "Can unpaid volunteering at KU be included in my Diploma Supplement, and what minimum workload is required?",
+    "ground_truth": "Yes. Volunteer work can be entered in the Diploma Supplement if it was performed in the KU context, unpaid, over the duration of the study program, for at least 90 hours, and cannot otherwise be confirmed by certificates, work references or similar documents. The examination board decides on the entry upon application.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      5,
+      6
+    ],
+    "required_phrases": [
+      "Diploma Supplement",
+      "unpaid",
+      "90 hours",
+      "examination board"
+    ]
   },
   {
-    "id": "apo_2022_01",
-    "question": "According to the 2022 amended APO, how is it treated if an exam is written wholly or partly by someone else on behalf of the author, including through the use of artificial intelligence (AI)?",
-    "ground_truth": "It is treated as deception (Täuschung), specifically ghostwriting: the rule applies when someone writes all or part of the exam in another person’s name and on their behalf, including when artificial intelligence is used.",
-    "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
+    "id": "bachelor_thesis_form_01",
+    "question": "What do I have to declare before the D3B bachelor thesis topic can be issued to me?",
+    "ground_truth": "The student declares that the conditions required by the PO or APO for issuing the bachelor thesis topic have been fulfilled, that they have not definitively failed the bachelor examination in D3B, and that they are enrolled in the program and not on leave during the entire processing period.",
+    "source_file": "Anmeldung_Bachelorarbeit_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "conditions",
+      "not definitively failed",
+      "enrolled",
+      "not on leave"
+    ]
   },
   {
-    "id": "apo_2022_02",
-    "question": "What is the Studium.Pro program at KU and how many areas does it have?",
-    "ground_truth": "Studium.Pro is an interdisciplinary study offering at KU that complements a student's main program and enables the acquisition of competencies reflecting a culture of academic responsibility. It is divided into five areas: Pro Diskurs, Pro Horizont, Pro Gesellschaft, Pro Beruf, and Pro International.",
-    "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
+    "id": "bachelor_thesis_form_02",
+    "question": "After my thesis topic has been issued, can I still change it?",
+    "ground_truth": "A change of topic after it has been issued by the topic setter is only possible upon application. The application is available on the examination office website under the frequently asked questions.",
+    "source_file": "Anmeldung_Bachelorarbeit_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "topic",
+      "issued",
+      "only possible upon application",
+      "examination office"
+    ]
   },
   {
-    "id": "apo_2022_03",
-    "question": "When an electronic remote exam (elektronische Fernprüfung) is offered, must an in-person alternative also be provided?",
-    "ground_truth": "Yes. When an electronic remote exam is held, the same exam must also be offered in person (in Präsenzform) during the same examination period.",
-    "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
+    "id": "bachelor_thesis_form_03",
+    "question": "In which languages can I write my D3B bachelor thesis, and how long is the processing period?",
+    "ground_truth": "The D3B bachelor thesis can be written in German or English. The processing period is two months from the assignment of the topic.",
+    "source_file": "Anmeldung_Bachelorarbeit_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "German",
+      "English",
+      "two months",
+      "topic"
+    ]
   },
   {
-    "id": "apo_2022_04",
-    "question": "What is a Take-Home-Prüfung and how is it conducted according to the 2022 APO?",
-    "ground_truth": "A Take-Home-Prüfung is an exam in electronic form that does not take place in person at KU, but is instead completed at home without supervision within a specified time frame. Exam materials are issued and submitted electronically. Limited aids may be permitted.",
-    "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
+    "id": "bachelor_thesis_form_04",
+    "question": "How exactly should I submit the finished D3B bachelor thesis to the examination office?",
+    "ground_truth": "The thesis must be submitted at the same time in two printed copies and one digital version. The preferred digital submission is a PDF email attachment to pruefungsamt-in@ku.de with the supervisor in CC; if that is not possible, a USB stick may be submitted to the examination office.",
+    "source_file": "Anmeldung_Bachelorarbeit_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "two printed copies",
+      "digital version",
+      "PDF email attachment",
+      "pruefungsamt-in@ku.de"
+    ]
   },
   {
-    "id": "apo_2022_07",
-    "question": "According to the 2022 amended APO, how is carrying mobile devices and digital storage media during an exam treated?",
-    "ground_truth": "Carrying mobile devices and digital storage media is treated as an attempt to cheat (Täuschungsversuch).",
-    "source_file": "APO_3.Aenderung_Senatsbeschluss_27.7.22.pdf"
+    "id": "bachelor_thesis_form_05",
+    "question": "Who determines the final submission date for my D3B bachelor thesis?",
+    "ground_truth": "After the topic has been assigned, the examination office determines the final submission deadline, taking the maximum study duration under the examination regulations into account.",
+    "source_file": "Anmeldung_Bachelorarbeit_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "examination office",
+      "submission deadline",
+      "topic",
+      "maximum study duration"
+    ]
   },
   {
-    "id": "d3b_01",
-    "question": "How many total ECTS points must a student earn to complete the Digital & Data-Driven Business bachelor's program at KU?",
-    "ground_truth": "A student must earn a total of 180 ECTS points to complete the Digital & Data-Driven Business bachelor's program.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "flyer_2026_01",
+    "question": "Where do I apply for D3B, and what does the flyer say about admission and the start semester?",
+    "ground_truth": "Applications are submitted through KU's central application portal. The flyer says that D3B is currently admission-free and that the program starts in the winter semester.",
+    "source_file": "D3B_BSc_Flyer.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "central application portal",
+      "admission-free",
+      "winter semester"
+    ]
   },
   {
-    "id": "d3b_02",
-    "question": "What academic degree is awarded upon completing the Digital & Data-Driven Business program at KU Eichstätt-Ingolstadt?",
-    "ground_truth": "Graduates receive the degree of Bachelor of Science (B.Sc.).",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "flyer_2026_02",
+    "question": "What is the main idea behind the D3B program according to the flyer?",
+    "ground_truth": "The program responds to digital transformation by combining Data Analytics and Digitalization. Students gain methodological and problem-oriented competencies so that they can contribute to digital transformation processes in companies or startups and help design and manage relevant business models.",
+    "source_file": "D3B_BSc_Flyer.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "Data Analytics",
+      "Digitalization",
+      "digital transformation",
+      "business models"
+    ]
   },
   {
-    "id": "d3b_03",
-    "question": "How many ECTS points is the Digital Project worth in the D3B program, and what is the maximum time horizon to complete it?",
-    "ground_truth": "The Digital Project is worth 10 ECTS points and represents 2 working months within a maximum time horizon of 9 months.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "flyer_2026_03",
+    "question": "Which job examples does the D3B flyer mention for graduates?",
+    "ground_truth": "The flyer lists future-oriented roles such as AI specialist, data consultant, data engineer, data scientist, IT security specialist, chief digital officer and digital product manager.",
+    "source_file": "D3B_BSc_Flyer.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "AI specialist",
+      "data consultant",
+      "data engineer",
+      "digital product manager"
+    ]
   },
   {
-    "id": "d3b_04",
-    "question": "Which four study profiles (Studienprofile) are generally offered in the Digital & Data-Driven Business program?",
-    "ground_truth": "The four study profiles generally offered are: Accounting, Taxation & Controlling; Finance & Economics; Marketing, Organization, Innovation; and Supply Chain Management & Logistics.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "flyer_2026_04",
+    "question": "What arguments does the flyer give for choosing WFI as the place to study D3B?",
+    "ground_truth": "The flyer highlights WFI as a highly ranked faculty with an excellent supervision ratio, innovative and practice-oriented teaching, a career springboard with a career portal, recruiting events and career advice, an active student community and alumni network, and more than 90 partner universities worldwide.",
+    "source_file": "D3B_BSc_Flyer.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "highly ranked faculty",
+      "supervision ratio",
+      "career portal",
+      "90 partner universities"
+    ]
   },
   {
-    "id": "d3b_05",
-    "question": "How many ECTS points must a student complete within a specific study profile for it to appear on their final certificate (Zeugnis)?",
-    "ground_truth": "A student must successfully complete at least 30 ECTS points within a specific study profile for it to be listed on their final certificate.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "flyer_2026_05",
+    "question": "What practical experience does the flyer connect with the Digital Project?",
+    "ground_truth": "In the Digital Project, a team of students works on a current research topic or a project related to company practice, possibly in cooperation with company practice. The aim is to apply the knowledge gained in digitalization and data analysis in a concrete practical project.",
+    "source_file": "D3B_BSc_Flyer.pdf",
+    "expected_pages": [
+      2
+    ],
+    "required_phrases": [
+      "Digital Project",
+      "team of students",
+      "company practice",
+      "data analysis"
+    ]
   },
   {
-    "id": "d3b_06",
-    "question": "Which faculty is primarily responsible for the Digital & Data-Driven Business program, and which faculty also participates?",
-    "ground_truth": "The Wirtschaftswissenschaftliche Fakultät (Faculty of Business and Economics) is primarily responsible, with the Mathematisch-Geographische Fakultät (Faculty of Mathematics and Geography) also participating.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_01",
+    "question": "What do students learn in the Basics of Information Systems module?",
+    "ground_truth": "Students learn foundations of digital logic and automata theory, the basic hardware and software structure of computers, computer networks and protocols especially on the internet, database management systems and structured communication with databases. Topics include Boolean algebra, logic gates, number representations, finite automata, computer architecture, operating systems, TCP/IP, databases and SQL.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      13,
+      14
+    ],
+    "required_phrases": [
+      "digital logic",
+      "automata theory",
+      "computer networks",
+      "SQL"
+    ]
   },
   {
-    "id": "d3b_07",
-    "question": "Which study semester is especially suitable for studying abroad in the D3B program, and why?",
-    "ground_truth": "The fifth study semester is especially suitable for studying abroad because no modules are assigned to it that would be difficult to study abroad except with considerable effort.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_02",
+    "question": "What is covered in the Digital Systems module, and how is it assessed?",
+    "ground_truth": "Digital Systems covers management of and with information, business information systems, system development, process and data modeling, data communication and analysis, networked information systems, internet-based business models, ERP systems, database management systems, web applications, IT security, platforms and recommendation systems. The assessment is a 90-minute written exam worth 100% of the module grade.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      25,
+      26
+    ],
+    "required_phrases": [
+      "Digital Systems",
+      "ERP systems",
+      "IT security",
+      "90-minute written exam"
+    ]
   },
   {
-    "id": "d3b_08",
-    "question": "What are the four core subject areas that the Digital & Data-Driven Business program combines?",
-    "ground_truth": "The four core subject areas are: (1) Information processing systems, methods and concepts; (2) Business and economics with a focus on the digital economy; (3) Quantitative methods; and (4) Language, social, communication and action competence (soft skills) and ethics.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_03",
+    "question": "Which methods should I expect in Data Mining and Business Analytics?",
+    "ground_truth": "The module teaches data-analytical procedures for typical Business Analytics problems, including structured process models, data preprocessing, exploration and reduction, clustering, classification, dimensionality reduction and association rules. Students use realistic datasets in exercises and the module is assessed by a written exam at the end of the semester.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      33,
+      34
+    ],
+    "required_phrases": [
+      "Business Analytics",
+      "data preprocessing",
+      "clustering",
+      "classification"
+    ]
   },
   {
-  "id": "apo_2024_02",
-  "question": "According to the 2024 APO amendment, what must be included with written examination work completed without supervision?",
-  "ground_truth": "Written examination work completed without supervision, such as term papers, study papers, portfolios and similar work, must include a list of the aids used. Content taken directly or indirectly from publications or other sources must be marked as such.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "apo_2024_03",
-  "question": "According to the 2024 APO amendment, who decides which aids may be used in an examination?",
-  "ground_truth": "The examiner decides and informs students in good time which aids may be used in the examination.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "apo_2024_04",
-  "question": "According to the 2024 APO amendment, under what condition is the use of artificial intelligence not treated as deception?",
-  "ground_truth": "The use of artificial intelligence is not treated as deception if AI is permitted as an aid under the conditions of § 12 Abs. 7 or § 16 Abs. 6.",
-  "source_file": "APO_4.Aenderungssatzung_Senat_19.7.23_12.6.24.pdf"
-},
-{
-  "id": "study_plan_01",
-  "question": "Which four exemplary study profiles are shown in the D3B study plan document?",
-  "ground_truth": "The D3B study plan document shows four exemplary study profiles: Accounting, Taxation and Controlling; Finance and Economics; Marketing, Organization, Innovation; and Supply Chain Management and Logistics.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_02",
-  "question": "How many ECTS are planned for each semester in the exemplary D3B study plans?",
-  "ground_truth": "Each semester in the exemplary D3B study plans is planned with 30 ECTS.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_04",
-  "question": "In the Finance and Economics study profile, in which semester is the Bachelor thesis shown?",
-  "ground_truth": "In the Finance and Economics study profile, the Bachelor thesis is shown in the sixth semester.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_05",
-  "question": "Which study profile includes the module Digital & Data Project in Marketing, Organization, Innovation?",
-  "ground_truth": "The module Digital & Data Project in Marketing, Organization, Innovation is included in the Marketing, Organization, Innovation study profile.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_06",
-  "question": "Which study profile includes Digital Project in SCM, Logistics and Operations Research?",
-  "ground_truth": "Digital Project in SCM, Logistics and Operations Research is included in the Supply Chain Management and Logistics study profile.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "study_plan_07",
-  "question": "Which common modules appear in the first two semesters of the D3B study plans?",
-  "ground_truth": "Common early modules include Grundlagen: Informationssysteme, Mathe für WiWi, Betriebliches Rechnungswesen, Digital Business Models, Einf. VWL, Business English I, Business Analytics, Einführung Quantitative Methoden, Statistik I, Digital Business Strategies, Organisation, Innovation, Mikroökonomie, and Business English II.",
-  "source_file": "Studienverlaufsplan_BA_D3B.pdf"
-},
-{
-  "id": "elective_2026_01",
-  "question": "Which elective areas are listed in the SoSe 2026 D3B elective module catalogue?",
-  "ground_truth": "The SoSe 2026 D3B elective module catalogue lists the elective areas Digitalization & Analytics, Data Competence, Application Competence, Business Language and Management Skills, and Wirtschafts- und Unternehmensethik.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_02",
-  "question": "How many ECTS is the module Digital Seminar in Data Science & Quantitative Applications worth in the SoSe 2026 elective module catalogue?",
-  "ground_truth": "The module Digital Seminar in Data Science & Quantitative Applications is worth 10 ECTS.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_03",
-  "question": "Which modules are listed in the Data Competence elective area in the SoSe 2026 catalogue?",
-  "ground_truth": "The Data Competence elective area lists Algorithmen und Datenstrukturen, Rechnergestützte Statistik mit R, and Hands-on Machine Learning and Data Science.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_04",
-  "question": "What examination form is listed for Business English I in the SoSe 2026 elective catalogue?",
-  "ground_truth": "Business English I has the examination form Klausur plus mündliche Prüfung.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_05",
-  "question": "What prerequisite is listed for Business English II in the SoSe 2026 elective catalogue?",
-  "ground_truth": "Business English II requires Business English I.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_06",
-  "question": "How many ECTS must students complete from a study profile catalogue for the profile to be shown on the certificate?",
-  "ground_truth": "Students must successfully complete at least 30 ECTS from a study profile catalogue for the profile to be shown on the certificate.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_07",
-  "question": "Which modules are listed in the Supply Chain Management and Logistics study profile in the SoSe 2026 catalogue?",
-  "ground_truth": "The Supply Chain Management and Logistics profile lists Digital Seminar in Data Science & Quantitative Applications, Retail Management Fundamentals, Systementwicklung, Operations Analytics, Supply Chain Analytics, SCM Projektstudium, and Internat. Transportlogistik und Distributionssysteme (VHB).",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_09",
-  "question": "Which modules are listed in the Sustainability in Business and Economics study profile?",
-  "ground_truth": "The Sustainability in Business and Economics profile lists Ringvorlesung: Nachhaltige Wirtschaft, Innovating for Sustainability: Frameworks and Practices from Global and Local Organizations, Sustainable Entrepreneurship, Umweltökonomie & Umweltpolitik, Öffentliche Finanzen und nachhaltige Wirtschaftspolitik, Sustainable Development, and Company Taxation in the EU: Towards more Fairness and Sustainability.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-  "id": "elective_2026_10",
-  "question": "Which modules are listed in the Application Competence elective area in the SoSe 2026 catalogue?",
-  "ground_truth": "The Application Competence elective area lists Steuerbilanzen und Rechtsformwahl, Marketing and Management, Operations Analytics, and Kapitalmarkttheorie.",
-  "source_file": "Wahlpflichtkatalalog_BA_D3B_SoSe_2026.pdf"
-},
-{
-    "id": "eval_v2_01",
-    "question": "What is the standard duration of the D3B Bachelor program?",
-    "ground_truth": "The standard duration of the Bachelor program Digital and Data-Driven Business is six semesters.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_04",
+    "question": "What programming and software-development topics does Software Engineering and Programming teach?",
+    "ground_truth": "The module teaches the basic process of software development and programming. Topics include computers and programs, software development principles and process models, data types and data structures, program flow and decision structures, functions and modularization, programming paradigms and object orientation, debugging and testing, chaos and simulation, and implementing subject-related tasks in a modern programming language such as Python, Ruby or Java.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      38,
+      39
+    ],
+    "required_phrases": [
+      "software development",
+      "data structures",
+      "object orientation",
+      "Python"
+    ]
   },
   {
-    "id": "eval_v2_02",
-    "question": "Can students start the D3B Bachelor program in the summer semester?",
-    "ground_truth": "No. The D3B Bachelor program starts in the winter semester.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_05",
+    "question": "How is the Digital Project module graded in the module catalog?",
+    "ground_truth": "The Digital Project is a 10 ECTS module. Its grade consists of a written paper worth 50%, project management, teamwork and coordination with the mentor worth 25%, and the final presentation worth 25%.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      51,
+      52
+    ],
+    "required_phrases": [
+      "10 ECTS",
+      "written paper",
+      "50%",
+      "final presentation"
+    ]
   },
   {
-    "id": "eval_v2_03",
-    "question": "How many ECTS credits are required to complete the D3B Bachelor program?",
-    "ground_truth": "The program requires 180 ECTS credits.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_06",
+    "question": "What does the Digital Seminar in Data Science & Quantitative Applications require besides the usual seminar work?",
+    "ground_truth": "Students take the Proseminar Supply Chain Management and, in addition to the usual seminar requirements, implement the relevant data, simulation or optimization models in a software system and conduct numerical analyses. The module grade consists of software implementation worth 50%, a term paper worth 30% and a presentation worth 20%.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      53,
+      55
+    ],
+    "required_phrases": [
+      "Proseminar Supply Chain Management",
+      "software implementation",
+      "numerical analyses",
+      "50%"
+    ]
   },
   {
-    "id": "eval_v2_04",
-    "question": "What kind of students is the D3B Bachelor program designed for?",
-    "ground_truth": "The program is designed for motivated prospective students with a general or subject-specific higher education entrance qualification who want to combine digital business ideas, business models, digital systems, and data-analytical methods with a solid education in business administration.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_07",
+    "question": "What kind of work is expected in the Data Analytics Lab?",
+    "ground_truth": "Students work in mentored teams on data-science questions and build solutions for Business Analytics, data analysis, AI integration and software or data engineering. They structure and categorize tasks, develop data-analytical process models, coordinate project work in moderated teams, use modern data-science programming languages or software tools, and present, evaluate and document their solutions.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      66,
+      67
+    ],
+    "required_phrases": [
+      "mentored teams",
+      "Business Analytics",
+      "AI integration",
+      "data-analytical process models"
+    ]
   },
   {
-    "id": "eval_v2_05",
-    "question": "Which main subject areas does the D3B program combine?",
-    "ground_truth": "The program combines information-processing systems, methods and concepts, business administration with a focus on the digital economy, quantitative methods, and language, social, communication, action skills, soft skills, and ethics.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "mod_catalog_08",
+    "question": "Which machine-learning concepts, tools and algorithms are named in Hands-on Machine Learning and Data Science?",
+    "ground_truth": "The module focuses on applied machine learning with practical computer examples. It covers concepts such as overfitting, empirical risk minimization, data splitting into training, validation and test sets, model classes, loss functions, feature normalization, precision, recall, F1 score and regularization. Tools include NumPy, Matplotlib, scikit-learn and pandas, and algorithms include k-means, PCA, linear and ridge regression, logistic regression, Naive Bayes, decision trees, SGD, SVMs and neural networks.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      82
+    ],
+    "required_phrases": [
+      "overfitting",
+      "scikit-learn",
+      "k-means",
+      "neural networks"
+    ]
   },
   {
-    "id": "eval_v2_06",
-    "question": "Is a semester abroad possible in the D3B Bachelor program?",
-    "ground_truth": "Yes. Students can spend part of their studies abroad, and the fifth semester is especially suitable for this.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "po_d3b_01",
+    "question": "What must I complete for the D3B bachelor examination to be considered passed?",
+    "ground_truth": "The bachelor examination is passed when the student has passed the foundation and orientation examination, has completed all modules by the end of the eighth subject semester with at least sufficient (4.0) or passed, and has acquired a total of 180 ECTS credits.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      2
+    ],
+    "required_phrases": [
+      "foundation and orientation examination",
+      "eighth subject semester",
+      "sufficient",
+      "180 ECTS"
+    ]
   },
   {
-    "id": "eval_v2_07",
-    "question": "What can students use the Wahlbereich, or elective area, for?",
-    "ground_truth": "The elective area can be used to gain additional competences, deepen a study profile, learn additional foreign languages and intercultural skills, broaden business or economics knowledge, or take modules useful for later Master's studies.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "po_d3b_02",
+    "question": "How is the overall bachelor grade calculated in D3B?",
+    "ground_truth": "The overall grade is calculated as the weighted arithmetic mean of the grades of all modules required for the bachelor examination and the bachelor thesis. The weighting is based on the number of ECTS credits. The result is calculated to one decimal place and all further decimal places are cut off without rounding.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "weighted arithmetic mean",
+      "ECTS credits",
+      "one decimal place",
+      "without rounding"
+    ]
   },
   {
-    "id": "eval_v2_08",
-    "question": "What career fields can D3B graduates enter?",
-    "ground_truth": "Graduates can work in specialist or leadership roles with a digital or data-analytical focus, in cross-functional digital tasks, and in areas such as accounting, controlling, taxation, finance, economics, marketing, organization, innovation, supply chain management, logistics, public organizations, non-profit organizations, or continue with a Master's degree.",
-    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf"
+    "id": "po_d3b_03",
+    "question": "How many ECTS do I need in the D3B compulsory area and how are they distributed across fields?",
+    "ground_truth": "The compulsory area requires 75 ECTS credits: 25 ECTS in Business Administration and Digital Business, 20 ECTS in Information Management, 20 ECTS in Quantitative Methods and 10 ECTS in Economics.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "75 ECTS",
+      "Business Administration and Digital Business",
+      "Information Management",
+      "Quantitative Methods"
+    ]
   },
   {
-    "id": "eval_v2_09",
-    "question": "How many ECTS credits are required in the Pflichtbereich?",
-    "ground_truth": "Students must earn 80 ECTS credits in the Pflichtbereich.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "po_d3b_04",
+    "question": "What are the D3B rules for the Digital Project team and processing time?",
+    "ground_truth": "The Digital Project is worth 10 ECTS and is assessed by a portfolio. It is completed in a team of at least two and at most five students. The processing time for the portfolio is a maximum of nine months.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "Digital Project",
+      "10 ECTS",
+      "two and at most five students",
+      "nine months"
+    ]
   },
   {
-    "id": "eval_v2_10",
-    "question": "How are the Pflichtbereich ECTS credits distributed?",
-    "ground_truth": "The Pflichtbereich consists of 30 ECTS in Business Administration and Digital Business, 20 ECTS in Information Management, 20 ECTS in Quantitative Methods, and 10 ECTS in Economics.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "po_d3b_05",
+    "question": "What size and presentation length does the D3B examination regulation give for a portfolio in team projects?",
+    "ground_truth": "A portfolio can include a written component and a presentation. For team projects with a presentation, the written part is usually five to ten pages per team member, and the presentation usually lasts ten to 20 minutes.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      4
+    ],
+    "required_phrases": [
+      "portfolio",
+      "five to ten pages",
+      "per team member",
+      "ten to 20 minutes"
+    ]
   },
   {
-    "id": "eval_v2_11",
-    "question": "How many ECTS credits are required in the Wahlpflichtbereich?",
-    "ground_truth": "Students must earn 55 ECTS credits in the Wahlpflichtbereich.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "po_d3b_06",
+    "question": "When may my D3B bachelor thesis topic be issued, and what does the topic have to relate to?",
+    "ground_truth": "The bachelor thesis topic must come from the compulsory or elective compulsory program of the degree program, or exceptionally from another KU subject that has a meaningful connection to the bachelor program. The topic must have a business-administration or economics-related connection and may only be issued after the student has successfully passed the Digital Project.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      5
+    ],
+    "required_phrases": [
+      "bachelor thesis topic",
+      "compulsory or elective compulsory",
+      "business-administration or economics-related",
+      "Digital Project"
+    ]
   },
   {
-    "id": "eval_v2_12",
-    "question": "Which areas must be covered in the Wahlpflichtbereich?",
-    "ground_truth": "Students must complete 25 ECTS in Digitalization & Analytics, 10 ECTS in Business Language and Management Skills, 5 ECTS in Studium.Pro, 5 ECTS in Data Competence, 5 ECTS in Application Competence, and 5 ECTS in Wirtschafts- und Unternehmensethik.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "program_desc_01",
+    "question": "Who is the intended target group for the D3B bachelor program?",
+    "ground_truth": "The target group is engaged prospective students with a general or subject-specific university entrance qualification who want to combine their interest in digital business ideas, models and systems as well as data-analytical methods with a solid education in business and economics.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "prospective students",
+      "digital business ideas",
+      "data-analytical methods",
+      "business and economics"
+    ]
   },
   {
-    "id": "eval_v2_13",
-    "question": "Can one module count twice if it belongs to more than one Wahlpflichtbereich area?",
-    "ground_truth": "No. If a module is assigned to more than one Wahlpflichtbereich area, it can only be counted once in the Wahlpflichtbereich.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "program_desc_02",
+    "question": "Which four study areas does D3B combine to prepare students for digital and data-driven business systems?",
+    "ground_truth": "D3B combines information-processing systems, methods and concepts; business and economics with a focus on the digital economy; quantitative methods; and language, social, communication and action competencies, soft skills and ethics.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "information-processing systems",
+      "digital economy",
+      "quantitative methods",
+      "soft skills"
+    ]
   },
   {
-    "id": "eval_v2_14",
-    "question": "How many ECTS credits are required in the Wahlbereich?",
-    "ground_truth": "Students must successfully complete 25 ECTS credits in the Wahlbereich.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "program_desc_03",
+    "question": "What abilities should D3B graduates have as a bridge between IT experts and business units?",
+    "ground_truth": "Graduates should be able to analyze, formulate and solve complex economic, digital and data-driven problems, select suitable tools and methods for decision support, and communicate complex questions and solutions clearly. They should have the vocabulary and knowledge needed to act as an interface between specialists in business informatics or IT and the business units of a company.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      6
+    ],
+    "required_phrases": [
+      "decision support",
+      "interface",
+      "IT",
+      "business units"
+    ]
   },
   {
-    "id": "eval_v2_15",
-    "question": "How many ECTS credits are needed for a study profile to appear on the certificate according to the PO?",
-    "ground_truth": "According to the PO, at least 25 ECTS credits must be chosen within a specific study profile in the Wahlpflichtbereich or Wahlbereich for the profile to be shown on the certificate.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "program_desc_04",
+    "question": "What can I use the free elective area for in D3B?",
+    "ground_truth": "The free elective area is used to gain competencies beyond the core study program. Students can take modules from WFI bachelor programs or recognized modules from a study abroad period. It is suitable for deepening a study profile, learning additional foreign languages and intercultural skills, broadening business or economics knowledge, or taking modules useful for a later subject-specific master's program at another university.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      11
+    ],
+    "required_phrases": [
+      "free elective area",
+      "study abroad",
+      "foreign languages",
+      "master's program"
+    ]
   },
   {
-    "id": "eval_v2_16",
-    "question": "Are all study profiles guaranteed to be offered every time?",
-    "ground_truth": "No. The PO states that there is no entitlement that all study profiles are offered.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "program_desc_05",
+    "question": "Which semester is especially suitable for studying abroad in D3B, and why?",
+    "ground_truth": "The fifth semester is especially suitable for studying abroad because no modules are assigned to that semester that would be difficult to study abroad. Students can benefit from the many partner universities of the university and faculty.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      13
+    ],
+    "required_phrases": [
+      "fifth semester",
+      "studying abroad",
+      "partner universities",
+      "difficult to study abroad"
+    ]
   },
   {
-    "id": "eval_v2_17",
-    "question": "What must students achieve to pass the Grundlagen- und Orientierungsprüfung?",
-    "ground_truth": "Students pass the Grundlagen- und Orientierungsprüfung if they successfully complete modules worth 40 ECTS credits by the end of the second semester.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "program_desc_06",
+    "question": "How does the D3B program description say practice is integrated into the degree?",
+    "ground_truth": "Practice is integrated especially through the Digital Project, which is designed for practice-related digital or data-driven problems. Further practice-oriented offers exist in the elective and elective compulsory program and in study profiles, for example the Digital Seminar in Data Science & Quantitative Applications. The program also leaves room for internships during lecture-free periods, includes lecturers and guest talks from practice, allows projects and workshops with companies, and makes it possible to write the bachelor thesis in cooperation with company practice.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      12
+    ],
+    "required_phrases": [
+      "Digital Project",
+      "internships",
+      "guest talks",
+      "bachelor thesis"
+    ]
   },
   {
-    "id": "eval_v2_18",
-    "question": "When is the Grundlagen- und Orientierungsprüfung finally failed?",
-    "ground_truth": "It is finally failed if the student does not successfully complete modules worth 60 ECTS credits by the end of the third semester for reasons they are responsible for.",
-    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderungssatzung_Senat_15.01.25.pdf"
+    "id": "setzer_thesis_01",
+    "question": "How much lead time should I plan before starting a thesis at the Setzer chair?",
+    "ground_truth": "The lead time depends on the type of thesis and the topic, especially if a practice partner is involved. It can take between four and about six weeks before the processing period starts.",
+    "source_file": "Umfrage_Abschlussarbeiten__LST_Setzer.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "lead time",
+      "practice partner",
+      "four",
+      "six weeks"
+    ]
   },
   {
-    "id": "eval_v2_19",
-    "question": "What is the exact tuition fee for international students in the D3B Bachelor program next semester?",
-    "ground_truth": "The provided documents do not contain the exact tuition fee for international students for the next semester. The chatbot should state that this information is not available in the provided documents.",
-    "source_file": "NONE"
+    "id": "setzer_thesis_02",
+    "question": "What are the application deadlines for bachelor and master theses at the Setzer chair?",
+    "ground_truth": "The same deadlines apply for bachelor and master theses: the application deadline is July 15 for the winter semester and February 1 for the summer semester.",
+    "source_file": "Umfrage_Abschlussarbeiten__LST_Setzer.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "July 15",
+      "winter semester",
+      "February 1",
+      "summer semester"
+    ]
   },
   {
-    "id": "eval_v2_20",
-    "question": "What is the exact admission NC grade for the next D3B intake?",
-    "ground_truth": "The provided documents do not contain the exact admission NC grade for the next D3B intake. The chatbot should not invent an admission grade.",
-    "source_file": "NONE"
+    "id": "setzer_thesis_03",
+    "question": "Do I have to have taken specific Setzer chair courses before applying for a thesis there?",
+    "ground_truth": "There is no formal requirement to have taken specific chair courses. However, successful participation in chair courses is recommended because thesis topics often require design-oriented and implementation-related skills.",
+    "source_file": "Umfrage_Abschlussarbeiten__LST_Setzer.pdf",
+    "expected_pages": [
+      2
+    ],
+    "required_phrases": [
+      "no formal requirement",
+      "chair courses",
+      "recommended",
+      "implementation-related"
+    ]
   },
   {
-    "id": "eval_v2_21",
-    "question": "Can the university guarantee me a student job or internship at Audi during the D3B program?",
-    "ground_truth": "The provided documents do not guarantee a student job or internship at Audi. The chatbot should not claim that such a position is guaranteed.",
-    "source_file": "NONE"
+    "id": "setzer_thesis_04",
+    "question": "Can I propose my own thesis topic or work with a company at the Setzer chair?",
+    "ground_truth": "Yes. The survey indicates that theses with company cooperation are possible, students may suggest their own topics, empirically oriented theses are possible with suitable statistical knowledge, and the chair has a topic list for final theses.",
+    "source_file": "Umfrage_Abschlussarbeiten__LST_Setzer.pdf",
+    "expected_pages": [
+      2
+    ],
+    "required_phrases": [
+      "company cooperation",
+      "own topics",
+      "empirically oriented",
+      "topic list"
+    ]
   },
   {
-    "id": "eval_v2_22",
-    "question": "What is the guaranteed acceptance rate for D3B students applying for an exchange semester abroad?",
-    "ground_truth": "The provided documents do not contain a guaranteed acceptance rate for D3B students applying for an exchange semester abroad. The chatbot should state that this information is not available in the provided documents.",
-    "source_file": "NONE"
+    "id": "certificate_request_01",
+    "question": "Which personal details do I need when requesting my D3B bachelor certificate and diploma?",
+    "ground_truth": "The request form asks for family name and, if applicable, birth name; first names according to the birth certificate; current correspondence address; date and place of birth; private email address; number of subject semesters in the bachelor program; chosen business language; date of the last examination achievement; and matriculation number.",
+    "source_file": "Zeugnisantrag_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "birth certificate",
+      "correspondence address",
+      "business language",
+      "matriculation number"
+    ]
   },
   {
-    "id": "eval_v2_23",
-    "question": "Which exact companies will offer Digital Project topics for D3B students next semester?",
-    "ground_truth": "The provided documents do not list the exact companies that will offer Digital Project topics next semester. The chatbot should not invent company names or future project partners.",
-    "source_file": "NONE"
+    "id": "certificate_request_02",
+    "question": "What must I confirm before the examination office issues my D3B degree documents?",
+    "ground_truth": "The student confirms that all examination achievements totaling 180 ECTS credits have been completed in the required subareas: compulsory area, elective compulsory area, free elective area and final thesis. The student also confirms that no further examinations will be taken.",
+    "source_file": "Zeugnisantrag_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "180 ECTS",
+      "compulsory area",
+      "free elective area",
+      "no further examinations"
+    ]
   },
   {
-    "id": "eval_v2_24",
-    "question": "What is the exact deadline for registering the Bachelor thesis this semester?",
-    "ground_truth": "The provided documents do not contain the exact Bachelor thesis registration deadline for the current semester. The chatbot should state that this information is not available in the provided documents and should not invent a date.",
-    "source_file": "NONE"
+    "id": "certificate_request_03",
+    "question": "What do I need to check in KU-Campus before submitting the D3B certificate request?",
+    "ground_truth": "The student must confirm that all examination achievements required for successful completion of the degree are recorded in KU-Campus and that the student has checked that they have been booked correctly.",
+    "source_file": "Zeugnisantrag_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "KU-Campus",
+      "examination achievements",
+      "recorded",
+      "booked correctly"
+    ]
   },
   {
-    "id": "eval_v2_25",
-    "question": "Which specific rooms and weekly times are assigned to the D3B modules next semester?",
-    "ground_truth": "The provided documents do not contain the specific room assignments and weekly class times for D3B modules next semester. The chatbot should not invent timetable or room information.",
-    "source_file": "NONE"
+    "id": "certificate_request_04",
+    "question": "Can I ask for a study profile or extra modules to be handled when requesting my final D3B documents?",
+    "ground_truth": "Yes. The form lets the student request the entry of a study profile by giving the profile name and module names. It also lets the student request the deletion of modules by giving the module name and module number, and ask for an overview of the deleted additional achievements.",
+    "source_file": "Zeugnisantrag_D3B_DE.pdf",
+    "expected_pages": [
+      1
+    ],
+    "required_phrases": [
+      "study profile",
+      "module names",
+      "deletion of modules",
+      "additional achievements"
+    ]
   }
 ]

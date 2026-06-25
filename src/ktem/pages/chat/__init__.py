@@ -30,6 +30,15 @@ from kotaemon.utils.rag_debug import rag_log
 
 from ...utils import SUPPORTED_LANGUAGE_MAP, get_file_names_regex, get_urls
 from ...utils.commands import WEB_SEARCH_COMMAND
+from ...utils.feedback_repair import (
+    FEEDBACK_REPAIR_REASON_LABELS,
+    FEEDBACK_REPAIR_REASONS,
+    append_feedback_event,
+    apply_feedback_repair_settings,
+    normalize_feedback_reason,
+    snapshot_feedback_repair_settings,
+    update_feedback_event,
+)
 from ...utils.hf_papers import get_recommended_papers
 from ...utils.rate_limit import check_rate_limit
 from .chat_panel import ChatPanel
@@ -214,6 +223,7 @@ class ChatPage(BasePage):
         )
         self._info_panel_expanded = gr.State(value=True)
         self._command_state = gr.State(value=None)
+        self._feedback_regen_state = gr.State(value=None)
         self._user_api_key = gr.Text(value="", visible=False)
 
     def on_building_ui(self):
@@ -314,6 +324,25 @@ class ChatPage(BasePage):
                     self.paper_list = PaperListPage(self._app)
 
                 self.chat_panel = ChatPanel(self._app)
+
+                with gr.Group(visible=False) as self.feedback_repair_group:
+                    gr.Markdown("### What is wrong with the answer?")
+                    self.feedback_reason = gr.Radio(
+                        choices=FEEDBACK_REPAIR_REASONS,
+                        label="Dislike reason",
+                        value=None,
+                    )
+                    self.feedback_comment = gr.Textbox(
+                        label="Comment (optional)",
+                        lines=2,
+                        placeholder="Briefly describe what should be improved",
+                    )
+                    with gr.Row():
+                        self.feedback_regenerate_btn = gr.Button(
+                            "Regenerate",
+                            variant="primary",
+                        )
+                        self.feedback_cancel_btn = gr.Button("Cancel")
 
                 with gr.Accordion(
                     label="Chat settings",
@@ -777,8 +806,17 @@ class ChatPage(BasePage):
             # user feedback events
             self.chat_panel.chatbot.like(
                 fn=self.is_liked,
-                inputs=[self.chat_control.conversation_id],
-                outputs=None,
+                inputs=[
+                    self.chat_control.conversation_id,
+                    self.chat_panel.chatbot,
+                    self._app.settings_state,
+                ],
+                outputs=[
+                    self.feedback_repair_group,
+                    self._feedback_regen_state,
+                    self.feedback_reason,
+                    self.feedback_comment,
+                ],
             )
             self.report_issue.report_btn.click(
                 self.report_issue.report,
@@ -795,6 +833,107 @@ class ChatPage(BasePage):
                 ]
                 + self._indices_input,
                 outputs=None,
+            )
+
+            (
+                self.feedback_regenerate_btn.click(
+                    self.prepare_feedback_regen,
+                    inputs=[
+                        self.feedback_reason,
+                        self.feedback_comment,
+                        self._feedback_regen_state,
+                        self.chat_panel.chatbot,
+                        self.state_chat,
+                    ],
+                    outputs=[
+                        self.chat_panel.chatbot,
+                        self.state_chat,
+                        self.feedback_repair_group,
+                    ],
+                    show_progress="hidden",
+                )
+                .success(
+                    fn=self.chat_fn,
+                    inputs=[
+                        self.chat_control.conversation_id,
+                        self.chat_panel.chatbot,
+                        self._app.settings_state,
+                        self._reasoning_type,
+                        self.model_type,
+                        self.use_mindmap,
+                        self.citation,
+                        self.language,
+                        self.state_chat,
+                        self._command_state,
+                        self._app.user_id,
+                    ]
+                    + self._indices_input,
+                    outputs=[
+                        self.chat_panel.chatbot,
+                        self.info_panel,
+                        self.plot_panel,
+                        self.state_plot_panel,
+                        self.state_chat,
+                    ],
+                    concurrency_limit=20,
+                    show_progress="minimal",
+                )
+                .then(
+                    fn=lambda: True,
+                    inputs=None,
+                    outputs=[self._preview_links],
+                    js=pdfview_js,
+                )
+                .success(**onSuggestChatEvent)
+                .then(
+                    fn=self.persist_data_source,
+                    inputs=[
+                        self.chat_control.conversation_id,
+                        self._app.user_id,
+                        self.info_panel,
+                        self.state_plot_panel,
+                        self.state_retrieval_history,
+                        self.state_plot_history,
+                        self.chat_panel.chatbot,
+                        self.state_chat,
+                    ]
+                    + self._indices_input,
+                    outputs=[
+                        self.state_retrieval_history,
+                        self.state_plot_history,
+                    ],
+                    concurrency_limit=20,
+                )
+                .then(
+                    lambda: (
+                        gr.update(visible=False),
+                        None,
+                        gr.update(value=None),
+                        gr.update(value=""),
+                    ),
+                    outputs=[
+                        self.feedback_repair_group,
+                        self._feedback_regen_state,
+                        self.feedback_reason,
+                        self.feedback_comment,
+                    ],
+                    show_progress="hidden",
+                )
+            )
+            self.feedback_cancel_btn.click(
+                lambda: (
+                    gr.update(visible=False),
+                    None,
+                    gr.update(value=None),
+                    gr.update(value=""),
+                ),
+                outputs=[
+                    self.feedback_repair_group,
+                    self._feedback_regen_state,
+                    self.feedback_reason,
+                    self.feedback_comment,
+                ],
+                show_progress="hidden",
             )
 
         self.reasoning_type.change(
@@ -1108,8 +1247,55 @@ class ChatPage(BasePage):
             data_source = result.data_source
             old_selecteds = data_source.get("selected", {})
             is_owner = result.user == user_id
+            feedback_regen = state.get("app", {}).get("feedback_regen")
+            if feedback_regen:
+                message_index = feedback_regen.get("message_index")
+                new_answer = None
+                if (
+                    isinstance(message_index, int)
+                    and 0 <= message_index < len(messages)
+                    and len(messages[message_index]) > 1
+                ):
+                    new_answer = messages[message_index][1]
+
+                updated = update_feedback_event(
+                    data_source,
+                    feedback_regen.get("event_id"),
+                    message_index=message_index,
+                    liked=False,
+                    reason=feedback_regen.get("reason"),
+                    comment=feedback_regen.get("comment"),
+                    question=feedback_regen.get("question"),
+                    old_answer=feedback_regen.get("old_answer"),
+                    new_answer=new_answer,
+                    repair_preset_name=feedback_regen.get("repair_preset_name"),
+                    selected=selecteds_,
+                    settings_before=feedback_regen.get("settings_before"),
+                    settings_after=feedback_regen.get("settings_after"),
+                    retrieval_before=feedback_regen.get("retrieval_before"),
+                    retrieval_after=retrieval_msg,
+                )
+                if not updated:
+                    append_feedback_event(
+                        data_source,
+                        event_id=feedback_regen.get("event_id"),
+                        message_index=message_index,
+                        liked=False,
+                        reason=feedback_regen.get("reason"),
+                        comment=feedback_regen.get("comment"),
+                        question=feedback_regen.get("question"),
+                        old_answer=feedback_regen.get("old_answer"),
+                        new_answer=new_answer,
+                        repair_preset_name=feedback_regen.get("repair_preset_name"),
+                        selected=selecteds_,
+                        settings_before=feedback_regen.get("settings_before"),
+                        settings_after=feedback_regen.get("settings_after"),
+                        retrieval_before=feedback_regen.get("retrieval_before"),
+                        retrieval_after=retrieval_msg,
+                    )
 
             # Write down to db
+            state["app"]["feedback_regen"] = None
             result.data_source = {
                 "selected": selecteds_ if is_owner else old_selecteds,
                 "messages": messages,
@@ -1117,6 +1303,7 @@ class ChatPage(BasePage):
                 "plot_history": plot_history,
                 "state": state,
                 "likes": deepcopy(data_source.get("likes", [])),
+                "feedback_events": deepcopy(data_source.get("feedback_events", [])),
             }
             session.add(result)
             session.commit()
@@ -1129,7 +1316,20 @@ class ChatPage(BasePage):
             gr.Info("Reasoning type changed to `{}`".format(reasoning_type))
         return reasoning_type
 
-    def is_liked(self, convo_id, liked: gr.LikeData):
+    def _feedback_message_index(self, event_index) -> int | None:
+        if isinstance(event_index, (list, tuple)) and event_index:
+            event_index = event_index[0]
+        try:
+            return int(event_index)
+        except (TypeError, ValueError):
+            return None
+
+    def is_liked(self, convo_id, chat_history, settings, liked: gr.LikeData):
+        message_index = self._feedback_message_index(liked.index)
+        question = old_answer = retrieval_before = None
+        if message_index is not None and 0 <= message_index < len(chat_history):
+            question, old_answer = chat_history[message_index]
+
         with Session(engine) as session:
             statement = select(Conversation).where(Conversation.id == convo_id)
             result = session.exec(statement).one()
@@ -1138,10 +1338,92 @@ class ChatPage(BasePage):
             likes = data_source.get("likes", [])
             likes.append([liked.index, liked.value, liked.liked])
             data_source["likes"] = likes
+            retrieval_history = data_source.get("retrieval_messages", [])
+            if message_index is not None and 0 <= message_index < len(retrieval_history):
+                retrieval_before = retrieval_history[message_index]
+            event_id = append_feedback_event(
+                data_source,
+                message_index=message_index,
+                liked=bool(liked.liked),
+                question=question,
+                old_answer=old_answer,
+                retrieval_before=retrieval_before,
+                settings_before=snapshot_feedback_repair_settings(settings or {}),
+            )
 
             result.data_source = data_source
             session.add(result)
             session.commit()
+
+        if liked.liked:
+            return (
+                gr.update(visible=False),
+                None,
+                gr.update(value=None),
+                gr.update(value=""),
+            )
+
+        latest_index = len(chat_history) - 1
+        if message_index != latest_index:
+            gr.Warning(
+                "Adaptive regeneration is currently supported only for the latest answer."
+            )
+            return (
+                gr.update(visible=False),
+                None,
+                gr.update(value=None),
+                gr.update(value=""),
+            )
+
+        pending_feedback = {
+            "event_id": event_id,
+            "message_index": message_index,
+            "question": question,
+            "old_answer": old_answer,
+            "liked_index": liked.index,
+            "retrieval_before": retrieval_before,
+        }
+        return (
+            gr.update(visible=True),
+            pending_feedback,
+            gr.update(value=None),
+            gr.update(value=""),
+        )
+
+    def prepare_feedback_regen(
+        self,
+        reason,
+        comment,
+        pending_feedback,
+        chat_history,
+        chat_state,
+    ):
+        if not pending_feedback:
+            raise gr.Error("No disliked answer is selected for regeneration.")
+        reason = normalize_feedback_reason(reason)
+        message_index = pending_feedback.get("message_index")
+        if message_index != len(chat_history) - 1:
+            raise gr.Error(
+                "Adaptive regeneration is currently supported only for the latest answer."
+            )
+        question, old_answer = chat_history[message_index]
+        if not old_answer:
+            raise gr.Error("The selected answer is empty and cannot be regenerated.")
+
+        feedback_regen = {
+            **pending_feedback,
+            "reason": reason,
+            "reason_label": FEEDBACK_REPAIR_REASON_LABELS.get(reason, reason),
+            "comment": (comment or "").strip() or None,
+            "question": question,
+            "old_answer": old_answer,
+            "repair_preset_name": reason,
+        }
+        chat_state.setdefault("app", {})
+        chat_state["app"]["regen"] = True
+        chat_state["app"]["feedback_regen"] = feedback_regen
+        gr.Info("Regenerating the answer with feedback-aware repair settings.")
+        return chat_history, chat_state, gr.update(visible=False)
 
     def message_selected(self, retrieval_history, plot_history, msg: gr.SelectData):
         index = msg.index[0]
@@ -1211,6 +1493,19 @@ class ChatPage(BasePage):
 
         if session_language not in (DEFAULT_SETTING, None):
             settings["reasoning.lang"] = session_language
+
+        feedback_regen = state.get("app", {}).get("feedback_regen")
+        if feedback_regen:
+            reason = normalize_feedback_reason(feedback_regen.get("reason"))
+            feedback_regen["repair_preset_name"] = reason
+            feedback_regen["settings_before"] = snapshot_feedback_repair_settings(settings)
+            settings = apply_feedback_repair_settings(
+                settings,
+                reason,
+                reasoning_id=reasoning_id,
+            )
+            feedback_regen["settings_after"] = snapshot_feedback_repair_settings(settings)
+            state["app"]["feedback_regen"] = feedback_regen
 
         # get retrievers
         retrievers = []

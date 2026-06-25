@@ -29,7 +29,6 @@ from kotaemon.base import (
 )
 from kotaemon.indices.qa.citation_qa import (
     CONTEXT_RELEVANT_WARNING_SCORE,
-    DEFAULT_QA_TEXT_PROMPT,
     AnswerWithContextPipeline,
 )
 from kotaemon.indices.qa.citation_qa_inline import AnswerWithInlineCitation
@@ -42,6 +41,50 @@ from ..utils import SUPPORTED_LANGUAGE_MAP
 from .base import BaseReasoning
 
 logger = logging.getLogger(__name__)
+
+
+UNIVERSITY_RAG_SYSTEM_PROMPT = dedent(
+    """
+    You are a strict university RAG assistant.
+
+    The provided context is the single source of truth. Answer ONLY using facts
+    explicitly supported by that context.
+
+    Core rules:
+    1. Do not use prior knowledge when it is not stated in the context.
+    2. Do not infer requirements, deadlines, procedures, course rules, module
+       details, or university policies unless they are explicitly stated.
+    3. If the context is incomplete or does not answer the question, say that
+       the knowledge base does not contain enough information.
+    4. If context fragments conflict, mention the conflict instead of silently
+       choosing one version.
+    5. Do not omit important conditions, exceptions, dates, constraints, course
+       names, module names, or requirements present in the context.
+    6. Answer in the user's selected language.
+    7. Be concise, but not at the expense of important grounded details.
+    8. Do not output hidden reasoning. Return only the final answer. /no_think
+    """
+).strip()
+
+
+UNIVERSITY_RAG_QA_PROMPT = dedent(
+    """
+    Context:
+    {context}
+
+    Question:
+    {question}
+
+    Answer in {lang}.
+
+    Before answering, check whether the context explicitly supports the answer.
+    Use only the context above as evidence. If the context does not contain
+    enough information, say that the knowledge base does not contain enough
+    information. If the context is contradictory, state the contradiction.
+
+    Helpful grounded answer:
+    """
+).strip()
 
 
 def _reasoning_log(message: str, level: int = logging.INFO) -> None:
@@ -762,22 +805,11 @@ class FullQAPipeline(BaseReasoning):
             },
             "system_prompt": {
                 "name": "System Prompt",
-                "value": """You are a precise university assistant. Answer ONLY based on the provided context.
-
-            Rules:
-            - If the answer is not in the context, say "I don't have this information in the knowledge base"
-            - Be concise and direct
-            - Never speculate beyond what's in the context
-            /no_think"""
+                "value": UNIVERSITY_RAG_SYSTEM_PROMPT,
             },
             "qa_prompt": {
-                "name": """Context:
-                {context}
-
-                Question: {question}
-
-                Answer strictly based on the context above. Be concise. Respond in {lang}.""",
-                "value": DEFAULT_QA_TEXT_PROMPT,
+                "name": "QA Prompt",
+                "value": UNIVERSITY_RAG_QA_PROMPT,
             },
             "n_last_interactions": {
                 "name": "Number of interactions to include",
