@@ -241,14 +241,6 @@ class EvaluationPage(BasePage):
                 label="Number of questions to ask the chatbot",
                 info="Run a quick smoke test or the full dataset.",
             )
-            self.enable_ragas = gr.Checkbox(
-                label="Compute optional LLM-judge metrics",
-                value=False,
-                info=(
-                    "Optional LLM-judge phase using local Kotaemon models. "
-                    "Leave off for the lowest-memory retrieval and answer evaluation."
-                ),
-            )
 
         self.dataset_preview = gr.DataFrame(
             label="Dataset preview",
@@ -269,9 +261,9 @@ class EvaluationPage(BasePage):
         self.summary_html = gr.HTML()
 
         with gr.Tabs():
-            with gr.Tab("Optional judge scores"):
+            with gr.Tab("Quality scores"):
                 gr.Markdown(
-                    "Numeric metrics only in the scrollable matrix. Long text fields "
+                    "Numeric local metrics only in the scrollable matrix. Long text fields "
                     "(question, answer, contexts) are in **sample detail** below."
                 )
                 self.ragas_scores_html = gr.HTML(
@@ -527,7 +519,7 @@ class EvaluationPage(BasePage):
         if df.empty:
             return (
                 '<div class="eval-ragas-panel">'
-                '<div class="eval-ragas-empty">No optional judge scores yet. Run evaluation.</div>'
+                '<div class="eval-ragas-empty">No quality scores yet. Run evaluation.</div>'
                 "</div>"
             )
 
@@ -535,7 +527,7 @@ class EvaluationPage(BasePage):
         if not metrics:
             return (
                 '<div class="eval-ragas-panel">'
-                '<div class="eval-ragas-empty">No numeric metrics found in optional judge output.</div>'
+                '<div class="eval-ragas-empty">No numeric metrics found in quality output.</div>'
                 "</div>"
             )
 
@@ -776,7 +768,6 @@ class EvaluationPage(BasePage):
         self,
         dataset_path: str,
         question_limit: float,
-        enable_ragas: bool,
         settings: dict,
         user_id: Any,
         progress=gr.Progress(track_tqdm=False),
@@ -794,18 +785,13 @@ class EvaluationPage(BasePage):
                 user_id=user_id,
                 dataset_path=dataset_path,
                 question_limit=total,
-                run_ragas_metrics=enable_ragas,
+                run_ragas_metrics=False,
                 progress=on_progress,
             )
             progress((total, total), desc="Done")
 
             status_icon = "✅" if result.summary.get("samples_failed", 0) == 0 else "⚠️"
             warnings_text = "\n".join(result.warnings)
-            if enable_ragas and result.ragas_scores.empty:
-                warnings_text = (warnings_text + "\n" if warnings_text else "") + (
-                    "Optional judge table is empty. Check that optional judge dependencies are installed and a local "
-                    "LangChain-compatible LLM/embedding model is configured in Kotaemon."
-                )
 
             ragas_html, ragas_dropdown, ragas_detail, ragas_records = self._build_ragas_ui(
                 result.ragas_scores
@@ -866,7 +852,6 @@ class EvaluationPage(BasePage):
             inputs=[
                 self.dataset_path,
                 self.question_limit,
-                self.enable_ragas,
                 self._app.settings_state,
                 self._app.user_id,
             ],

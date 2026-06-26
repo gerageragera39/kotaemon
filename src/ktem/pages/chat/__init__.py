@@ -29,6 +29,7 @@ from kotaemon.indices.qa.utils import strip_think_tag
 from kotaemon.utils.rag_debug import rag_log
 
 from ...utils import SUPPORTED_LANGUAGE_MAP, get_file_names_regex, get_urls
+from ...utils.chat_export import export_chat_csv
 from ...utils.commands import WEB_SEARCH_COMMAND
 from ...utils.feedback_repair import (
     FEEDBACK_REPAIR_REASON_LABELS,
@@ -1307,6 +1308,15 @@ class ChatPage(BasePage):
             }
             session.add(result)
             session.commit()
+
+        csv_path = export_chat_csv(
+            convo_id,
+            messages,
+            retrival_history,
+            plot_history,
+            selecteds_,
+        )
+        print(f"Saved chat CSV: {csv_path}")
 
         return retrival_history, plot_history
 

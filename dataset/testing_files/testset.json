@@ -1,0 +1,514 @@
+[
+  {
+    "id": "po_d3b_01",
+    "question": "What academic degree will I receive after successfully completing the Digital and Data-Driven Business bachelor's program?",
+    "ground_truth": "After successful completion, students receive the academic degree Bachelor of Science, abbreviated B. Sc.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      2
+    ],
+    "required_phrases": [
+      "akademische Grad „Bachelor of Science“",
+      "abgekürzt: „B. Sc.“"
+    ]
+  },
+  {
+    "id": "po_d3b_02",
+    "question": "How long is the standard period of study, and when can I start the program?",
+    "ground_truth": "The standard period of study is six semesters, and the program can only be started in the winter semester.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      2
+    ],
+    "required_phrases": [
+      "Regelstudienzeit des Bachelorstudiengangs beträgt sechs Semester",
+      "nur zum Wintersemester aufgenommen werden"
+    ]
+  },
+  {
+    "id": "po_d3b_03",
+    "question": "How many ECTS do I need in the compulsory area, and how are they distributed across subjects?",
+    "ground_truth": "The compulsory area requires 80 ECTS: 30 ECTS in Business Administration and Digital Business, 20 ECTS in Information Management, 20 ECTS in Quantitative Methods, and 10 ECTS in Economics.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "Im Pflichtbereich muss die oder der Studierende 80 ECTS-Punkte erwerben",
+      "30 ECTS-Punkte im Fach Betriebswirtschaftslehre und Digital Business",
+      "20 ECTS-Punkte im Fach Informationsmanagement",
+      "10 ECTS-Punkte im Fach Volkswirtschaftslehre"
+    ]
+  },
+  {
+    "id": "po_d3b_04",
+    "question": "How is the Digital Project team organized, and how much time is allowed for the portfolio?",
+    "ground_truth": "The Digital Project is completed in a team of at least two and at most five students. The processing time for the portfolio is a maximum of nine months.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "wird im Team",
+      "mindestens zwei und höchstens fünf Studierenden",
+      "maximal neun Monate"
+    ]
+  },
+  {
+    "id": "po_d3b_05",
+    "question": "How many ECTS do I need in the elective compulsory area, and how many must come from Digitalization & Analytics?",
+    "ground_truth": "The elective compulsory area requires 55 ECTS in total. Of these, 25 ECTS must come from the Digitalization & Analytics area.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "Im Wahlpflichtbereich muss die oder der Studierende 55 ECTS-Punkte erwerben",
+      "25 ECTS-Punkten aus dem Bereich \"Digitalization & Analytics\""
+    ]
+  },
+  {
+    "id": "po_d3b_06",
+    "question": "For a portfolio exam, how long is the written part usually expected to be?",
+    "ground_truth": "A portfolio includes a written elaboration and may also include a presentation. For individual work, the written part is usually up to 25 pages; for team projects with presentation, it is usually five to ten pages per team member, with a presentation of usually ten to 20 minutes.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      4
+    ],
+    "required_phrases": [
+      "schriftliche Ausarbeitung",
+      "Einzelarbeiten in der Regel bis zu 25 Seiten",
+      "fünf bis zehn Seiten pro Teammitglied",
+      "zehn bis 20 Minuten"
+    ]
+  },
+  {
+    "id": "po_d3b_07",
+    "question": "When is the foundations and orientation exam considered passed?",
+    "ground_truth": "It is passed if the student has successfully completed modules worth 40 ECTS by the end of the second semester at the latest. An exam opportunity offered at the start of the next semester for organizational reasons counts toward the previous semester.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      5
+    ],
+    "required_phrases": [
+      "bis spätestens zum Ende des zweiten Fachsemesters",
+      "40 ECTS-Punkten erfolgreich absolviert",
+      "zählt dabei zum vorangehenden Fachsemester"
+    ]
+  },
+  {
+    "id": "po_d3b_08",
+    "question": "When can the bachelor's thesis topic be issued, and how much time and credit is assigned to the thesis?",
+    "ground_truth": "The bachelor's thesis topic may only be issued after the Digital Project has been successfully passed. The thesis processing time is two months and it carries 10 ECTS.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      5
+    ],
+    "required_phrases": [
+      "darf erst ausgegeben werden",
+      "Digital Project gem. § 6 Abs. 2 erfolgreich bestanden",
+      "Bearbeitungszeit der Bachelorarbeit beträgt zwei Monate",
+      "10 ECTS-Punkte"
+    ]
+  },
+  {
+    "id": "study_desc_01",
+    "question": "Which main study areas does the program combine?",
+    "ground_truth": "The program combines information-processing systems, methods and concepts; business studies with a focus on the digital economy; quantitative methods; and language, social, communication and action competencies, including soft skills and ethics.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "Informationsverarbeitende Systeme, Methoden und Konzepte",
+      "Wirtschaftswissenschaften mit einem Schwerpunkt auf der digitalen Wirtschaft",
+      "Quantitative Methoden",
+      "Soft Skills) und Ethik"
+    ]
+  },
+  {
+    "id": "study_desc_02",
+    "question": "Who is the bachelor's program aimed at?",
+    "ground_truth": "It is aimed at engaged prospective students with a general or subject-specific university entrance qualification who want to combine an interest in digital business ideas, models and systems and data-analytical methods with a solid education in business studies.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "Engagierte, angehende Studierende",
+      "allgemeiner bzw. fachgebundener Hochschulreife",
+      "Interesse an digitalen Geschäftsideen",
+      "fundierten Ausbildung in den Wirtschaftswissenschaften"
+    ]
+  },
+  {
+    "id": "study_desc_03",
+    "question": "What teaching and learning methods are used in the program?",
+    "ground_truth": "Knowledge and competencies are taught using modern teaching and learning methods such as practical exercises and applications, project work in agile working groups, flipped classrooms and trial-and-error approaches.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "modernen Lehrkonzepten und Lernmethoden",
+      "praktische Übungen und Anwendungen",
+      "Projektarbeiten in agilen Arbeitsgruppen",
+      "Flipped Classrooms und Trial-and-Error-Ansätzen"
+    ]
+  },
+  {
+    "id": "study_desc_04",
+    "question": "What communication role should graduates be able to take between technical and business teams?",
+    "ground_truth": "Graduates should be able to formulate complex questions and solutions clearly for the audience, interpret others' messages correctly, and act as an interface between business informatics specialists and business units.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      6
+    ],
+    "required_phrases": [
+      "komplexe Fragestellungen und Lösungsansätze",
+      "anschaulich und empfängerorientiert formulieren",
+      "als Schnittstelle zwischen den Fachkräften",
+      "betriebswirtschaftlichen Einheiten"
+    ]
+  },
+  {
+    "id": "study_desc_05",
+    "question": "What foreign-language competence is expected as a qualification goal?",
+    "ground_truth": "Graduates should have foreign-language competence, especially English. They should acquire comprehensive business vocabulary and be able to use the language effectively and flexibly in social and professional life at at least B2+ level.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      7
+    ],
+    "required_phrases": [
+      "besitzen Fremdsprachenkompetenz",
+      "umfassendes wirtschaftliches Fachvokabular",
+      "gesellschaftlichen und beruflichen Leben",
+      "mindestens B2+-Niveau"
+    ]
+  },
+  {
+    "id": "study_desc_06",
+    "question": "What is the Digitalization & Analytics elective area meant to cover?",
+    "ground_truth": "It consists of modules that build directly on the foundation studies and cover data-analytical and quantitative methods and concepts as well as digital business models and systems. It provides a solid understanding and core competencies in the digital and data-driven economy while allowing individual specialization.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      10
+    ],
+    "required_phrases": [
+      "auf dem Grundstudium unmittelbar aufbauenden Modulen",
+      "datenanalytischen und quantitativen Methoden",
+      "digitalen Geschäftsmodellen und –systemen",
+      "individuelle Schwerpunktsetzung"
+    ]
+  },
+  {
+    "id": "study_desc_07",
+    "question": "What practical abilities is the Digital Project intended to develop?",
+    "ground_truth": "The Digital Project is intended to help students put learned knowledge into practice. It develops competencies in data preparation and analysis and/or in designing, implementing or analyzing digital models, systems and transformation processes, while also teaching students to organize and coordinate in a team.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      11
+    ],
+    "required_phrases": [
+      "erlerne Wissen praktisch umzusetzen",
+      "Datenaufbereitung und -analyse",
+      "Entwurf, der Implementierung oder der Analyse Digitaler Modelle",
+      "als Team zu koordinieren"
+    ]
+  },
+  {
+    "id": "study_desc_08",
+    "question": "Which semester is especially suitable for studying abroad, according to the program description?",
+    "ground_truth": "The fifth semester is especially suitable for a study period abroad because no modules are assigned to it that would be difficult to study abroad except with considerable effort.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      13
+    ],
+    "required_phrases": [
+      "Teil des Studiums im Ausland",
+      "fünfte Studiensemester",
+      "keine Module zugeordnet",
+      "nur mit erheblichem Aufwand im Ausland"
+    ]
+  },
+  {
+    "id": "apo_01",
+    "question": "What must I include when I use aids or sources in an unsupervised written assignment?",
+    "ground_truth": "For unsupervised written work such as term papers, study papers, portfolios and similar work, a list of the aids used must be attached. Passages taken verbatim or in meaning from publications or other sources must be marked as such.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      13
+    ],
+    "required_phrases": [
+      "Schriftlichen Prüfungsleistungen, die ohne Aufsicht angefertigt werden",
+      "Verzeichnis der benutzten Hilfsmittel",
+      "wörtlich oder sinngemäß",
+      "als solche kenntlich zu machen"
+    ]
+  },
+  {
+    "id": "apo_02",
+    "question": "What happens to an exam performance if a student tries to influence the result by cheating?",
+    "ground_truth": "The relevant exam performance is graded as 'nicht ausreichend' (5.0).",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      21
+    ],
+    "required_phrases": [
+      "durch Täuschung",
+      "zu eigenem oder fremdem Vorteil",
+      "nicht ausreichend“ (5,0) bewertet"
+    ]
+  },
+  {
+    "id": "apo_03",
+    "question": "When does the use of artificial intelligence count as cheating under the general exam rules?",
+    "ground_truth": "Use of artificial intelligence counts as cheating when it is used for an exam written wholly or partly in another person's name, unless the AI is admitted as an allowed aid under the applicable aid rules.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      21
+    ],
+    "required_phrases": [
+      "eine Prüfung ganz oder teilweise im Namen",
+      "Ghostwriter",
+      "Einsatz einer künstlichen Intelligenz",
+      "nicht als Hilfsmittel"
+    ]
+  },
+  {
+    "id": "apo_04",
+    "question": "What already counts as an attempted deception in a written or oral exam regarding unauthorized aids?",
+    "ground_truth": "In a written or oral exam, simply possessing unauthorized aids during and after the exam materials have been issued already counts as an attempt. Carrying mobile devices or digital storage media is also considered an attempted deception.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      21
+    ],
+    "required_phrases": [
+      "Besitz nicht zugelassener Hilfsmittel",
+      "während und nach Ausgabe der Prüfungsunterlagen",
+      "mobile Endgeräte und digitale Speichermedien",
+      "als Täuschungsversuch gewertet"
+    ]
+  },
+  {
+    "id": "apo_05",
+    "question": "How many times can I repeat a failed exam?",
+    "ground_truth": "A failed exam can be repeated twice, except for the bachelor's or master's thesis.",
+    "source_file": "APO_4.Aenderung_Senat_19.7.23_12.6.24.pdf",
+    "expected_pages": [
+      19
+    ],
+    "required_phrases": [
+      "nicht bestandene Prüfung",
+      "zweimal wiederholen",
+      "Ausnahme der Bachelor- oder Masterarbeit"
+    ]
+  },
+  {
+    "id": "mod_catalog_01",
+    "question": "What will I learn in the Digital and Sustainable Business Models module?",
+    "ground_truth": "Students learn the foundations and structure of business models, apply this knowledge to digital and sustainable business models, and learn the success factors of digital business models.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      10
+    ],
+    "required_phrases": [
+      "Grundlagen und Struktur von Geschäftsmodellen",
+      "Digitale Business und nachhaltige Geschäftsmodelle",
+      "Erfolgsfaktoren digitaler Geschäftsmodelle"
+    ]
+  },
+  {
+    "id": "mod_catalog_02",
+    "question": "How is the grade in Digital and Sustainable Business Models weighted between lecture and exercise material?",
+    "ground_truth": "The final exam counts 60% for lecture material and 40% for exercise material.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      12
+    ],
+    "required_phrases": [
+      "Abschlussklausur zum Vorlesungsstoff (60%)",
+      "zum Übungsstoff (40%)"
+    ]
+  },
+  {
+    "id": "mod_catalog_03",
+    "question": "What high-level competencies does Basics of Information Systems cover?",
+    "ground_truth": "It covers foundations of digital logic and automata theory, computer hardware and software architecture and information processing, computer network architecture and internet protocols, and database management systems and languages for structured communication with databases.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      13
+    ],
+    "required_phrases": [
+      "Grundlagen der digitalen Logik",
+      "Automatentheorie",
+      "Hard- und Software-Aufbau von Rechnern",
+      "Datenbankmanagementsysteme"
+    ]
+  },
+  {
+    "id": "mod_catalog_04",
+    "question": "Which business information systems topics are covered in Digital Systems?",
+    "ground_truth": "The module covers foundations of digital systems, enterprise software and ERP systems, database management systems, operational and analytical tasks, methods and processes, internet and web applications, IT security, and internet-based business models and systems.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      25
+    ],
+    "required_phrases": [
+      "Grundlagen digitaler Systeme",
+      "Unternehmenssoftware und ERP-Systeme",
+      "Datenbank-Managementsysteme",
+      "Internetbasierte Geschäftsmodelle"
+    ]
+  },
+  {
+    "id": "mod_catalog_05",
+    "question": "What data-mining methods will I encounter in Data Mining and Business Analytics?",
+    "ground_truth": "The module covers structured process models and data-mining methods including preprocessing, exploration and reduction of data, clustering, classification, dimensionality reduction and association rules. In exercises, students apply the knowledge to tasks with realistic datasets.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      33
+    ],
+    "required_phrases": [
+      "Daten-analytische Verfahren des Data Mining",
+      "Vorverarbeitung, Exploration und Reduktion von Daten",
+      "Clustering, Klassifikation",
+      "realistischen Datensätzen"
+    ]
+  },
+  {
+    "id": "mod_catalog_06",
+    "question": "What programming abilities should I gain in Software Engineering and Programming?",
+    "ground_truth": "Students learn to plan and solve technical tasks independently with a modern programming language, structure and modularize programs, understand phases of software development, and implement solutions using a modern programming language.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      38
+    ],
+    "required_phrases": [
+      "modernen Programmiersprache",
+      "Programme zu strukturieren und zu modularisieren",
+      "Phasen in der Software-Entwicklung",
+      "Lösungen mittels einer modernen Programmiersprache"
+    ]
+  },
+  {
+    "id": "mod_catalog_07",
+    "question": "How is the module grade for Software Tools for Simulation and Optimization composed?",
+    "ground_truth": "The module grade consists of a project sketch worth 50% and a written exam on theory contents worth 50%. All partial assessments must be passed.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      42,
+      43
+    ],
+    "required_phrases": [
+      "Projektskizze (50%)",
+      "Klausur zu den Theorieinhalten (50%)",
+      "Alle Teilleistungen müssen bestanden sein"
+    ]
+  },
+  {
+    "id": "mod_catalog_08",
+    "question": "What does the bachelor's thesis module require students to produce?",
+    "ground_truth": "Students independently work on a topic with an economics or business-related focus, formulate a research question, research and develop the state of knowledge, address the problem stated in the research question, and formulate a scientifically grounded judgment.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      49
+    ],
+    "required_phrases": [
+      "Selbstständige Bearbeitung eines Themas",
+      "wirtschaftswissenschaftlichem Bezug",
+      "Formulierung einer Forschungsfrage",
+      "wissenschaftlich begründeten Urteils"
+    ]
+  },
+  {
+    "id": "mod_catalog_09",
+    "question": "What are the main components of the Digital Project module grade?",
+    "ground_truth": "The grade consists of a written elaboration worth 50%, project management, teamwork and coordination with mentoring worth 25%, and a final presentation worth 25%.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      52
+    ],
+    "required_phrases": [
+      "Schriftliche Ausarbeitung (50 %)",
+      "Projektmanagement und Teamarbeit",
+      "Endpräsentation (25 %)"
+    ]
+  },
+  {
+    "id": "mod_catalog_10",
+    "question": "What kind of project work is done in the Digital Project module?",
+    "ground_truth": "Students work in small teams on practical or research tasks. They formalize, modularize, implement and evaluate complex tasks in data analysis and/or the design and development of digital processes and systems using structured methods and techniques.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      51
+    ],
+    "required_phrases": [
+      "kleinen Teams von Studierenden",
+      "Aufgabenstellungen aus der Praxis oder Forschung",
+      "Bereich der Datenanalyse",
+      "Gestaltung und Entwicklung digitaler Prozesse und Systeme"
+    ]
+  },
+  {
+    "id": "mod_catalog_11",
+    "question": "How is the Digital Seminar in Data Science & Quantitative Applications assessed?",
+    "ground_truth": "The module grade consists of software implementation worth 50%, a term paper worth 30%, and a presentation worth 20%.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      55
+    ],
+    "required_phrases": [
+      "Softwareimplementierung (50 %)",
+      "Hausarbeit (30 %)",
+      "Präsentation (20 %)"
+    ]
+  },
+  {
+    "id": "mod_catalog_12",
+    "question": "What algorithm topics are taught in Algorithms and Data Structures?",
+    "ground_truth": "The module covers algorithm properties such as efficiency, complexity and recursion; arrays, lists, trees and graphs; sorting and search algorithms; graph algorithms; object-oriented programming basics; and algorithmic paradigms.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      57
+    ],
+    "required_phrases": [
+      "Eigenschaften von Algorithmen",
+      "Effizienz, Komplexität, Rekursion",
+      "Datenstrukturen Array, Liste, Baum und Graph",
+      "Sortier- und Suchalgorithmen"
+    ]
+  },
+  {
+    "id": "mod_catalog_13",
+    "question": "What operations-management topics are included in Operations Analytics?",
+    "ground_truth": "The module includes network planning, production and service system design, demand forecasting, medium-term and operational planning, lot-sizing, and resource deployment planning.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      113,
+      114
+    ],
+    "required_phrases": [
+      "Netzwerkplanung",
+      "Gestaltung von Produktions- und Dienstleistungssystemen",
+      "Nachfrageprognose",
+      "Ressourceneinsatzplanung"
+    ]
+  },
+  {
+    "id": "mod_catalog_14",
+    "question": "What does Supply Chain Analytics cover in inventory and transport management?",
+    "ground_truth": "It covers foundations of inventory management, lot-size inventories, system inventories and safety inventories, as well as foundations of transport optimization, transport planning, packing problems, shortest-path problems and routing or tour planning.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      143,
+      144
+    ],
+    "required_phrases": [
+      "Bestandsmanagement",
+      "Losgrößenbestände",
+      "Transportoptimierung",
+      "Problem des kürzesten Weges"
+    ]
+  }
+]
