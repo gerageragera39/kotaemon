@@ -6,9 +6,8 @@ KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 
 if not KH_DEMO_MODE:
     PLACEHOLDER_TEXT = (
-        "This is the beginning of a new conversation.\n"
-        "Start by uploading a file or a web URL. "
-        "Visit Files tab for more options (e.g: GraphRAG)."
+        "This is a KU ChatBot assistant for your questions regarding the D3B Study program. Just ask your question below.\n\n"
+        "<small>Disclaimer: All answers are no legal advice and don’t replace proper consultation of the official documents or university staff regarding all legal questions.</small>"
     )
 else:
     PLACEHOLDER_TEXT = (
@@ -39,7 +38,7 @@ class ChatPanel(BasePage):
                 scale=20,
                 file_count="multiple",
                 placeholder=(
-                    "Type a message, search the @web, or tag a file with @filename"
+                    "Type your question here."
                 ),
                 container=False,
                 show_label=False,

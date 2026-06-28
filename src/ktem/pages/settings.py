@@ -184,6 +184,57 @@ class SettingsPage(BasePage):
                 },
             )
 
+            def toggle_settings_tabs_visibility(user_id):
+                if not user_id:
+                    return (
+                        gr.update(visible=self._render_app_tab),
+                        gr.update(visible=self._render_index_tab),
+                        gr.update(visible=self._render_reasoning_tab),
+                    )
+
+                with Session(engine) as session:
+                    user = session.exec(select(User).where(User.id == user_id)).first()
+                    if user is None:
+                        return (
+                            gr.update(visible=self._render_app_tab),
+                            gr.update(visible=self._render_index_tab),
+                            gr.update(visible=self._render_reasoning_tab),
+                        )
+                    is_admin = user.admin
+
+                if is_admin:
+                    return (
+                        gr.update(visible=self._render_app_tab),
+                        gr.update(visible=self._render_index_tab),
+                        gr.update(visible=self._render_reasoning_tab),
+                    )
+                else:
+                    return (
+                        gr.update(visible=False),
+                        gr.update(visible=False),
+                        gr.update(visible=False),
+                    )
+
+            self._app.subscribe_event(
+                name="onSignIn",
+                definition={
+                    "fn": toggle_settings_tabs_visibility,
+                    "inputs": self._user_id,
+                    "outputs": [self.app_tab_el, self.index_tab_el, self.reasoning_tab_el],
+                    "show_progress": "hidden",
+                },
+            )
+
+            self._app.subscribe_event(
+                name="onSignOut",
+                definition={
+                    "fn": toggle_settings_tabs_visibility,
+                    "inputs": self._user_id,
+                    "outputs": [self.app_tab_el, self.index_tab_el, self.reasoning_tab_el],
+                    "show_progress": "hidden",
+                },
+            )
+
     def on_register_events(self):
         if not KH_SSO_ENABLED:
             self.setting_save_btn.click(
@@ -275,7 +326,7 @@ class SettingsPage(BasePage):
         return "", ""
 
     def app_tab(self):
-        with gr.Tab("General", visible=self._render_app_tab):
+        with gr.Tab("General", visible=self._render_app_tab) as self.app_tab_el:
             for n, si in self._default_settings.application.settings.items():
                 obj = render_setting_item(si, si.value)
                 self._components[f"application.{n}"] = obj
@@ -292,7 +343,7 @@ class SettingsPage(BasePage):
         #         self._components[f"index.{n}"] = obj
 
         id2name = {k: v.name for k, v in self._app.index_manager.info().items()}
-        with gr.Tab("Retrieval settings", visible=self._render_index_tab):
+        with gr.Tab("Retrieval settings", visible=self._render_index_tab) as self.index_tab_el:
             for pn, sig in self._default_settings.index.options.items():
                 name = id2name.get(pn, f"<id {pn}>")
                 with gr.Tab(name):
@@ -305,7 +356,7 @@ class SettingsPage(BasePage):
                             self._embeddings.append(obj)
 
     def reasoning_tab(self):
-        with gr.Tab("Reasoning settings", visible=self._render_reasoning_tab):
+        with gr.Tab("Reasoning settings", visible=self._render_reasoning_tab) as self.reasoning_tab_el:
             with gr.Group():
                 for n, si in self._default_settings.reasoning.settings.items():
                     if n == "use":

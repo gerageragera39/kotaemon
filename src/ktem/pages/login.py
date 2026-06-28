@@ -32,10 +32,22 @@ class LoginPage(BasePage):
         self.on_building_ui()
 
     def on_building_ui(self):
+        import os
+        from pathlib import Path
+        img_path = str(Path(__file__).parent.parent / "assets" / "img" / "logo.jpg")
+        gr.Image(
+            value=img_path,
+            show_label=False,
+            show_download_button=False,
+            container=False,
+            interactive=False,
+            elem_id="login-logo",
+        )
         gr.Markdown(f"# Welcome to {self._app.app_name}!")
         self.usn = gr.Textbox(label="Username", visible=False)
         self.pwd = gr.Textbox(label="Password", type="password", visible=False)
-        self.btn_login = gr.Button("Login", visible=False)
+        self.btn_login = gr.Button("Login", visible=False, variant="primary")
+        self.btn_guest = gr.Button("Access as Guest", visible=False, variant="secondary")
 
     def on_register_events(self):
         onSignIn = gr.on(
@@ -48,13 +60,33 @@ class LoginPage(BasePage):
         ).then(
             self.toggle_login_visibility,
             inputs=[self._app.user_id],
-            outputs=[self.usn, self.pwd, self.btn_login],
+            outputs=[self.usn, self.pwd, self.btn_login, self.btn_guest],
         )
         for event in self._app.get_event("onSignIn"):
             onSignIn = onSignIn.success(**event)
 
+        onGuestSignIn = gr.on(
+            triggers=[self.btn_guest.click],
+            fn=self.guest_login,
+            inputs=[],
+            outputs=[self._app.user_id, self.usn, self.pwd],
+            show_progress="hidden",
+            js="""function() {
+                setStorage('username', 'guest');
+                setStorage('password', 'guest');
+                return [];
+            }"""
+        ).then(
+            self.toggle_login_visibility,
+            inputs=[self._app.user_id],
+            outputs=[self.usn, self.pwd, self.btn_login, self.btn_guest],
+        )
+        for event in self._app.get_event("onSignIn"):
+            onGuestSignIn = onGuestSignIn.success(**event)
+
     def toggle_login_visibility(self, user_id):
         return (
+            gr.update(visible=user_id is None),
             gr.update(visible=user_id is None),
             gr.update(visible=user_id is None),
             gr.update(visible=user_id is None),
@@ -70,7 +102,7 @@ class LoginPage(BasePage):
         ).then(
             self.toggle_login_visibility,
             inputs=[self._app.user_id],
-            outputs=[self.usn, self.pwd, self.btn_login],
+            outputs=[self.usn, self.pwd, self.btn_login, self.btn_guest],
         )
         for event in self._app.get_event("onSignIn"):
             onSignIn = onSignIn.success(**event)
@@ -81,10 +113,21 @@ class LoginPage(BasePage):
             definition={
                 "fn": self.toggle_login_visibility,
                 "inputs": [self._app.user_id],
-                "outputs": [self.usn, self.pwd, self.btn_login],
+                "outputs": [self.usn, self.pwd, self.btn_login, self.btn_guest],
                 "show_progress": "hidden",
             },
         )
+
+    def guest_login(self):
+        with Session(engine) as session:
+            stmt = select(User).where(User.username_lower == "guest")
+            result = session.exec(stmt).first()
+            if not result:
+                create_user("guest", "guest", is_admin=False)
+            
+            stmt = select(User).where(User.username_lower == "guest")
+            result = session.exec(stmt).first()
+            return result.id, "", ""
 
     def login(self, usn, pwd, request: gr.Request):
         try:
@@ -117,6 +160,21 @@ class LoginPage(BasePage):
         else:
             if not usn or not pwd:
                 return None, usn, pwd
+
+            # Auto-ensure admin/admin and user/user exist with correct roles
+            usn_clean = usn.lower().strip()
+            if usn_clean == "admin" and pwd == "admin":
+                with Session(engine) as session:
+                    stmt = select(User).where(User.username_lower == "admin")
+                    result = session.exec(stmt).first()
+                    if not result:
+                        create_user("admin", "admin", is_admin=True)
+            elif usn_clean == "user" and pwd == "user":
+                with Session(engine) as session:
+                    stmt = select(User).where(User.username_lower == "user")
+                    result = session.exec(stmt).first()
+                    if not result:
+                        create_user("user", "user", is_admin=False)
 
             hashed_password = hashlib.sha256(pwd.encode()).hexdigest()
             with Session(engine) as session:

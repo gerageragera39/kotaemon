@@ -25,15 +25,18 @@ if GRADIO_TEMP_DIR is None:
 
 from ktem.main import App  # noqa
 
+import gradio.routes
+gradio.routes.XSS_SAFE_MIMETYPES.add("image/svg+xml")
+
 app = App()
 demo = app.make()
 demo.queue().launch(
     favicon_path=app._favicon,
     inbrowser=True,
     allowed_paths=[
-        str(SRC_DIR / "ktem" / "assets"),
+        str(SRC_DIR / "ktem" / "assets").replace("\\", "/"),
         "libs/ktem/ktem/assets",
-        GRADIO_TEMP_DIR,
+        GRADIO_TEMP_DIR.replace("\\", "/") if GRADIO_TEMP_DIR else "",
     ],
     share=KH_GRADIO_SHARE,
 )

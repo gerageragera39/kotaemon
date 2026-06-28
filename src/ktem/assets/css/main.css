@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&display=swap');
+
 :root {
   --main-area-height: calc(100vh - 110px);
 }
@@ -137,7 +139,7 @@ td {
 }
 
 mark {
-  background-color: #10b981;
+  background-color: rgba(35, 47, 102, 0.2);
 }
 
 /* clpse */
@@ -193,6 +195,7 @@ mark {
 }
 
 #toggle-dark-button {
+  display: none !important;
   position: fixed;
   top: 6px;
   right: 30px;
@@ -396,7 +399,7 @@ details.evidence {
 }
 
 .message a.citation {
-  color: #10b981;
+  color: #232f66;
   text-decoration: none;
 }
 
@@ -455,4 +458,83 @@ div.markmap {
 #login-row {
   display: grid;
   place-items: center;
+}
+
+/* Custom Global Styles for Eichstätt-Ingolstadt Theme */
+*, body, input, button, select, textarea, .gradio-container {
+  font-family: 'Raleway', -apple-system, system-ui, BlinkMacSystemFont, "Segoe UI", Roboto, Noto, "Helvetica Neue", Arial, sans-serif !important;
+}
+
+/* Paragraph text stays black */
+p {
+  color: black !important;
+}
+
+/* Headings become the requested dark blue color */
+h1, h2, h3, h4, h5, h6 {
+  color: rgb(35, 47, 102) !important;
+}
+
+/* Custom styles for the login logo */
+#login-logo {
+  max-width: 450px !important;
+  margin: 0 auto 10px !important;
+  display: block !important;
+  background: transparent !important;
+  border: none !important;
+}
+
+#login-logo img {
+  pointer-events: none !important;
+  cursor: default !important;
+}
+
+/* Custom styles for the navigation logo */
+#nav-logo {
+  max-height: 40px !important;
+  object-fit: contain !important;
+}
+
+/* Global logout button positioning */
+.gradio-container {
+  position: relative !important;
+}
+
+#global-logout-button {
+  position: absolute !important;
+  top: 10px !important;
+  right: 120px !important;
+  width: auto !important;
+  min-width: 80px !important;
+  max-width: 120px !important;
+  height: 36px !important;
+  z-index: 9999 !important;
+}
+
+/* Hide header bar and version label on the login page */
+.gradio-container:has(#login-tab:not([style*="display: none"])) .header-bar {
+  display: none !important;
+}
+.gradio-container:has(#login-tab:not([style*="display: none"])) #app-version-label {
+  display: none !important;
+}
+
+/* Hide Chat tab selector button for guest user */
+body.role-guest #chat-tab-button {
+  display: none !important;
+}
+
+/* Force pure white background on all page layout elements */
+body, 
+.gradio-container, 
+.tabs, 
+.tab-nav, 
+.tabitem, 
+#login-row, 
+#chat-tab, 
+#settings-tab, 
+#help-tab,
+.fill-main-area-height {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
 }

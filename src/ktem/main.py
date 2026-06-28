@@ -122,13 +122,16 @@ class App(BaseApp):
                     self.settings_page = SettingsPage(self)
 
             with gr.Tab(
-                "Help",
+                "Help & Legal",
                 elem_id="help-tab",
                 id="help-tab",
                 visible=not self.f_user_management,
                 elem_classes=["fill-main-area-height", "scrollable"],
             ) as self._tabs["help-tab"]:
                 self.help_page = HelpPage(self)
+
+        if self.f_user_management:
+            self.btn_logout = gr.Button("Logout", elem_id="global-logout-button", visible=False)
 
         if KH_ENABLE_FIRST_SETUP:
             with gr.Column(visible=False) as self.setup_page_wrapper:
@@ -149,7 +152,7 @@ class App(BaseApp):
                             else gr.update(visible=False)
                         )
                         for k in self._tabs.keys()
-                    ) + [gr.update(selected="login-tab")]
+                    ) + [gr.update(selected="login-tab"), gr.update(visible=False)]
 
                 with Session(engine) as session:
                     user = session.exec(select(User).where(User.id == user_id)).first()
@@ -161,20 +164,24 @@ class App(BaseApp):
                                 else gr.update(visible=False)
                             )
                             for k in self._tabs.keys()
-                        )
+                        ) + [gr.update(selected="login-tab"), gr.update(visible=False)]
 
                     is_admin = user.admin
+                    is_guest = (user.username_lower == "guest")
 
                 tabs_update = []
                 for k in self._tabs.keys():
                     if k == "login-tab":
                         tabs_update.append(gr.update(visible=False))
-                    elif k == "resources-tab":
-                        tabs_update.append(gr.update(visible=is_admin))
-                    else:
+                    elif k == "chat-tab":
                         tabs_update.append(gr.update(visible=True))
+                    elif k in ["settings-tab", "help-tab"]:
+                        tabs_update.append(gr.update(visible=not is_guest))
+                    else:
+                        tabs_update.append(gr.update(visible=is_admin))
 
                 tabs_update.append(gr.update(selected="chat-tab"))
+                tabs_update.append(gr.update(visible=is_guest))
 
                 return tabs_update
 
@@ -183,7 +190,7 @@ class App(BaseApp):
                 definition={
                     "fn": toggle_login_visibility,
                     "inputs": [self.user_id],
-                    "outputs": list(self._tabs.values()) + [self.tabs],
+                    "outputs": list(self._tabs.values()) + [self.tabs, self.btn_logout],
                     "show_progress": "hidden",
                 },
             )
@@ -193,10 +200,25 @@ class App(BaseApp):
                 definition={
                     "fn": toggle_login_visibility,
                     "inputs": [self.user_id],
-                    "outputs": list(self._tabs.values()) + [self.tabs],
+                    "outputs": list(self._tabs.values()) + [self.tabs, self.btn_logout],
                     "show_progress": "hidden",
                 },
             )
+
+            # Bind global logout button click event
+            onSignOutClick = self.btn_logout.click(
+                lambda: None,
+                inputs=[],
+                outputs=[self.user_id],
+                show_progress="hidden",
+                js="""function() {
+                    removeFromStorage('username');
+                    removeFromStorage('password');
+                    return [];
+                }"""
+            )
+            for event in self.get_event("onSignOut"):
+                onSignOutClick = onSignOutClick.then(**event)
 
         if KH_ENABLE_FIRST_SETUP:
             self.subscribe_event(

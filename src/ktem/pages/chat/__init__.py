@@ -224,6 +224,7 @@ class ChatPage(BasePage):
 
             with gr.Column(scale=1, elem_id="conv-settings-panel") as self.conv_column:
                 self.chat_control = ConversationControl(self._app)
+                self.index_accordions = []
 
                 for index_id, index in enumerate(self._app.index_manager.indices):
                     index.selector = None
@@ -239,11 +240,14 @@ class ChatPage(BasePage):
                     if KH_DEMO_MODE and is_first_index:
                         index_name = "Select from Paper Collection"
 
-                    with gr.Accordion(
+                    acc = gr.Accordion(
                         label=index_name,
                         open=is_first_index,
                         elem_id=f"index-{index_id}",
-                    ):
+                        visible=False,
+                    )
+                    self.index_accordions.append(acc)
+                    with acc:
                         index_ui.render()
                         gr_index = index_ui.as_gradio_component()
 
@@ -275,7 +279,8 @@ class ChatPage(BasePage):
                         "Quick Upload" if not KH_DEMO_MODE else "Or input new paper URL"
                     )
 
-                    with gr.Accordion(label=quick_upload_label) as _:
+                    self.quick_upload_accordion = gr.Accordion(label=quick_upload_label)
+                    with self.quick_upload_accordion:
                         self.quick_file_upload_status = gr.Markdown()
                         if not KH_DEMO_MODE:
                             self.quick_file_upload = File(
@@ -317,7 +322,7 @@ class ChatPage(BasePage):
                     label="Chat settings",
                     elem_id="chat-settings-expand",
                     open=False,
-                    visible=not KH_DEMO_MODE,
+                    visible=False,
                 ) as self.chat_settings:
                     with gr.Row(elem_id="quick-setting-labels"):
                         gr.HTML("Reasoning method")
@@ -1034,6 +1039,58 @@ class ChatPage(BasePage):
                         self.state_chat,
                     ]
                     + self._indices_input,
+                    "show_progress": "hidden",
+                },
+            )
+
+            # Toggle component visibility for restricted users
+            def toggle_chat_components_visibility(user_id):
+                is_admin = True
+                is_guest = False
+                if user_id:
+                    from ktem.db.models import User
+                    from sqlmodel import Session, select
+                    from ktem.db.engine import engine
+
+                    with Session(engine) as session:
+                        user = session.exec(select(User).where(User.id == user_id)).first()
+                        if user is not None:
+                            is_admin = user.admin
+                            is_guest = (user.username_lower == "guest")
+
+                ret_list = [gr.update(visible=False)]  # chat_settings is ALWAYS hidden
+                if hasattr(self, "quick_upload_accordion"):
+                    ret_list.append(gr.update(visible=is_admin))
+                ret_list.append(gr.update(visible=is_admin))  # info_column
+                ret_list.append(gr.update(visible=not is_guest))  # conv_column (hidden for guest)
+                ret_list.extend([gr.update(visible=False) for _ in self.index_accordions])  # File Collection is ALWAYS hidden
+                return ret_list
+
+            outputs_list = [
+                self.chat_settings,
+                self.info_column,
+                self.conv_column,
+            ]
+            if hasattr(self, "quick_upload_accordion"):
+                outputs_list.insert(1, self.quick_upload_accordion)
+            outputs_list.extend(self.index_accordions)
+
+            self._app.subscribe_event(
+                name="onSignIn",
+                definition={
+                    "fn": toggle_chat_components_visibility,
+                    "inputs": [self._app.user_id],
+                    "outputs": outputs_list,
+                    "show_progress": "hidden",
+                },
+            )
+
+            self._app.subscribe_event(
+                name="onSignOut",
+                definition={
+                    "fn": toggle_chat_components_visibility,
+                    "inputs": [self._app.user_id],
+                    "outputs": outputs_list,
                     "show_progress": "hidden",
                 },
             )

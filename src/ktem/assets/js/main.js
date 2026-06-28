@@ -1,13 +1,40 @@
 function run() {
+  // Force light theme and prevent auto-switching to dark theme
+  document.documentElement.classList.remove('dark');
+  document.body.classList.remove('dark');
+  localStorage.setItem('theme', 'light');
+
+  const forceLightObserver = new MutationObserver(() => {
+    if (document.documentElement.classList.contains('dark')) {
+      document.documentElement.classList.remove('dark');
+    }
+    if (document.body.classList.contains('dark')) {
+      document.body.classList.remove('dark');
+    }
+  });
+  forceLightObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  forceLightObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
   let main_parent = document.getElementById("chat-tab").parentNode;
 
-  main_parent.childNodes[0].classList.add("header-bar");
+  if (main_parent && main_parent.childNodes && main_parent.childNodes[0]) {
+    main_parent.childNodes[0].classList.add("header-bar");
+    const header_bar = main_parent.childNodes[0];
+    if (!document.getElementById("nav-logo")) {
+      const logo_img = document.createElement("img");
+      logo_img.src = "/file=src/ktem/assets/img/logo.jpg";
+      logo_img.id = "nav-logo";
+      logo_img.style = "height: 40px; margin-right: 20px; display: inline-block; vertical-align: middle; padding: 2px;";
+      header_bar.insertBefore(logo_img, header_bar.firstChild);
+    }
+  }
   main_parent.style = "padding: 0; margin: 0";
   main_parent.parentNode.style = "gap: 0";
   main_parent.parentNode.parentNode.style = "padding: 0";
 
   const version_node = document.createElement("p");
   version_node.innerHTML = "version: KH_APP_VERSION";
+  version_node.id = "app-version-label";
   version_node.style = "position: fixed; top: 10px; right: 10px;";
   main_parent.appendChild(version_node);
 
@@ -15,8 +42,8 @@ function run() {
   const favicon = document.createElement("link");
   // set favicon attributes
   favicon.rel = "icon";
-  favicon.type = "image/svg+xml";
-  favicon.href = "/favicon.ico";
+  favicon.type = "image/jpeg";
+  favicon.href = "/file=src/ktem/assets/img/favicon.jpg";
   document.head.appendChild(favicon);
 
   // setup conversation dropdown placeholder
@@ -283,4 +310,15 @@ function run() {
     chatInput.dispatchEvent(new Event("input", { bubbles: true }));
     chatInput.focus();
   };
+
+  const updateRoleClasses = () => {
+    const username = localStorage.getItem('username');
+    if (username === 'guest') {
+      document.body.classList.add('role-guest');
+    } else {
+      document.body.classList.remove('role-guest');
+    }
+  };
+  updateRoleClasses();
+  setInterval(updateRoleClasses, 500);
 }

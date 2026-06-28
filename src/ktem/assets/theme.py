@@ -3,9 +3,24 @@ from typing import Iterable
 from gradio.themes import Soft
 from gradio.themes.utils import colors, fonts, sizes
 
+custom_blue = colors.Color(
+    name="custom_blue",
+    c50="#eaedf7",
+    c100="#cbd3ee",
+    c200="#aab8e5",
+    c300="#8a9edc",
+    c400="#6983d3",
+    c500="#232f66",
+    c600="#1e2857",
+    c700="#192149",
+    c800="#141a3a",
+    c900="#0f142c",
+    c950="#0a0d1d",
+)
+
 gray = colors.Color(
     name="dark",
-    c50="#f9fafb",
+    c50="#ffffff",
     c100="#edeef0",
     c200="#e1e2e6",
     c300="#d5d6dd",
@@ -19,8 +34,8 @@ gray = colors.Color(
 )
 
 err_txt = "#f05656"
-gradient = "linear-gradient(90deg, *primary_400 20%, *secondary_500 80%)"
-gradient_muted = "linear-gradient(90deg, *primary_500 20%, *secondary_600 80%)"
+gradient = "*primary_600"
+gradient_muted = "*primary_500"
 
 err_dark = "rgba(228, 98, 98, 1)"
 err_dark_muted = "rgba(228, 98, 98, 0.75)"
@@ -51,49 +66,51 @@ common = dict(
 )
 dark_mode = dict(
     # body attributes
-    body_text_color_subdued_dark="*neutral_300",
+    body_text_color_subdued_dark="*neutral_600",
     # element colours
-    background_fill_secondary_dark="*neutral_950",
+    background_fill_secondary_dark="*neutral_50",
     border_color_accent_dark="rgba(255,255,255,0)",
-    border_color_primary_dark="*neutral_600",
-    color_accent_soft_dark="*secondary_400",
+    border_color_primary_dark="*neutral_300",
+    color_accent_soft_dark="*secondary_100",
     # text
-    link_text_color_dark="*secondary_200",
-    link_text_color_active_dark="*secondary_300",
-    link_text_color_visited_dark="*secondary_400",
+    link_text_color_dark="*secondary_400",
+    link_text_color_active_dark="*secondary_400",
+    link_text_color_visited_dark="*secondary_700",
     # layout atoms
-    block_label_background_fill_dark="*neutral_800",
+    block_label_background_fill_dark="white",
     block_label_border_width_dark="0px",
-    block_label_text_color_dark="*primary_200",
+    block_label_text_color_dark="*primary_600",
     block_shadow_dark="none",
-    block_title_text_color_dark="*primary_200",
+    block_title_text_color_dark="*primary_600",
     panel_border_width_dark="0px",
     # component atoms
     checkbox_background_color_selected_dark="*primary_400",
     checkbox_border_color_focus_dark="*primary_400",
-    checkbox_border_color_selected_dark="*primary_500",
+    checkbox_border_color_selected_dark="*primary_400",
     checkbox_label_background_fill_selected_dark="*primary_200",
     checkbox_label_text_color_selected_dark="*neutral_700",
-    error_border_color_dark=err_dark,
-    error_text_color_dark="*neutral_100",
-    error_icon_color_dark=err_dark,
-    input_background_fill_dark="*neutral_600",
+    error_border_color_dark=err_muted,
+    error_text_color_dark="*neutral_800",
+    error_icon_color_dark=err_muted,
+    input_background_fill_dark="*neutral_200",
     input_border_color_dark="*input_background_fill",
     input_border_color_focus_dark="*input_background_fill",
     input_placeholder_color_dark="*neutral_500",
-    loader_color_dark="*primary_200",
-    slider_color_dark="*primary_300",
-    stat_background_fill_dark="*secondary_100",
-    table_border_color_dark="*neutral_800",
-    table_even_background_fill_dark="*neutral_900",
-    table_odd_background_fill_dark="*neutral_800",
-    table_row_focus_dark="*neutral_600",
+    loader_color_dark="*primary_300",
+    slider_color_dark="*primary_400",
+    stat_background_fill_dark="*secondary_300",
+    table_border_color_dark="*neutral_300",
+    table_even_background_fill_dark="*neutral_100",
+    table_odd_background_fill_dark="*neutral_300",
+    table_row_focus_dark="*secondary_200",
     # buttons
-    button_primary_background_fill_dark=gradient,
-    button_primary_background_fill_hover_dark=gradient_muted,
-    button_secondary_background_fill_hover_dark="*neutral_700",
-    button_cancel_background_fill_dark=err_dark,
-    button_cancel_background_fill_hover_dark=err_dark_muted,
+    button_primary_background_fill_dark=gradient_muted,
+    button_primary_background_fill_hover_dark=gradient,
+    button_secondary_background_fill_dark="*neutral_300",
+    button_secondary_background_fill_hover_dark="*neutral_100",
+    button_cancel_background_fill_dark=err_muted,
+    button_cancel_background_fill_hover_dark=err,
+    button_cancel_text_color_dark="*neutral_50",
 )
 light_mode = dict(
     background_fill_primary="*neutral_50",
@@ -152,7 +169,7 @@ class Kotaemon(Soft):
     def __init__(
         self,
         *,
-        primary_hue: colors.Color | str = colors.emerald,
+        primary_hue: colors.Color | str = custom_blue,
         secondary_hue: colors.Color | str = colors.blue,
         neutral_hue: colors.Color | str = gray,
         spacing_size: sizes.Size | str = sizes.spacing_md,
@@ -161,8 +178,15 @@ class Kotaemon(Soft):
         font: fonts.Font
         | str
         | Iterable[fonts.Font | str] = (
-            fonts.GoogleFont("Quicksand"),
-            "ui-sans-serif",
+            fonts.GoogleFont("Raleway"),
+            "-apple-system",
+            "system-ui",
+            "BlinkMacSystemFont",
+            "Segoe UI",
+            "Roboto",
+            "Noto",
+            "Helvetica Neue",
+            "Arial",
             "sans-serif",
         ),
         font_mono: fonts.Font
