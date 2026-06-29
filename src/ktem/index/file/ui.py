@@ -14,6 +14,11 @@ from gradio.data_classes import FileData
 from gradio.utils import NamedString
 from ktem.app import BasePage
 from ktem.db.engine import engine
+from ktem.db.models import User
+from ktem.utils.guest_scope import (
+    default_file_selection,
+    force_search_all_for_guest,
+)
 from ktem.utils.render import Render
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -28,6 +33,24 @@ KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
 DOWNLOAD_MESSAGE = "Start download"
 MAX_FILENAME_LENGTH = 20
 MAX_FILE_COUNT = 200
+GUEST_USERNAME = "guest"
+
+
+def is_guest_user(user_id) -> bool:
+    """Return whether ``user_id`` belongs to the reserved guest account."""
+    if not user_id:
+        return False
+
+    with Session(engine) as session:
+        return (
+            session.execute(
+                select(User.id).where(
+                    User.id == user_id,
+                    User.username_lower == GUEST_USERNAME,
+                )
+            ).first()
+            is not None
+        )
 
 chat_input_focus_js = """
 function() {
@@ -1621,9 +1644,7 @@ class FileSelector(BasePage):
         self.on_building_ui()
 
     def default(self):
-        if self._app.f_user_management:
-            return "disabled", [], -1
-        return "disabled", [], 1
+        return default_file_selection(self._app.f_user_management)
 
     def on_building_ui(self):
         default_mode, default_selector, user_id = self.default()
@@ -1669,8 +1690,23 @@ class FileSelector(BasePage):
     def as_gradio_component(self):
         return [self.mode, self.selector, self.selector_user_id]
 
+    def resolve_selection_for_user(self, components, user_id):
+        """Bind selector state to the authenticated user and force guest search-all."""
+        return force_search_all_for_guest(
+            components, user_id, guest_user=is_guest_user(user_id)
+        )
+
+    def resolve_selection_event(self, mode, selected, selector_user_id, user_id):
+        return self.resolve_selection_for_user(
+            [mode, selected, selector_user_id], user_id
+        )
+
     def get_selected_ids(self, components):
         mode, selected, user_id = components[0], components[1], components[2]
+        guest_user = is_guest_user(user_id)
+        if guest_user:
+            mode = "all"
+            selected = []
         print(
             f"[file-selector] mode={mode}, selected={selected}, user_id={user_id}",
             flush=True,
@@ -1690,9 +1726,19 @@ class FileSelector(BasePage):
         with Session(engine) as session:
             statement = select(self._index._resources["Source"].id)
             if self._index.config.get("private", False):
-                statement = statement.where(
-                    self._index._resources["Source"].user == user_id
-                )
+                if guest_user:
+                    admin_user_ids = list(
+                        session.execute(
+                            select(User.id).where(User.admin.is_(True))
+                        ).scalars()
+                    )
+                    statement = statement.where(
+                        self._index._resources["Source"].user.in_(admin_user_ids)
+                    )
+                else:
+                    statement = statement.where(
+                        self._index._resources["Source"].user == user_id
+                    )
             results = session.execute(statement).all()
             for (id,) in results:
                 file_ids.append(id)
@@ -1763,6 +1809,20 @@ class FileSelector(BasePage):
         )
         if self._app.f_user_management:
             for event_name in ["onSignIn", "onSignOut"]:
+                self._app.subscribe_event(
+                    name=event_name,
+                    definition={
+                        "fn": self.resolve_selection_event,
+                        "inputs": [
+                            self.mode,
+                            self.selector,
+                            self.selector_user_id,
+                            self._app.user_id,
+                        ],
+                        "outputs": [self.mode, self.selector, self.selector_user_id],
+                        "show_progress": "hidden",
+                    },
+                )
                 self._app.subscribe_event(
                     name=event_name,
                     definition={

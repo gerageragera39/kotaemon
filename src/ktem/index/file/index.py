@@ -469,6 +469,13 @@ class FileIndex(BaseIndex):
             if key.startswith(prefix):
                 stripped_settings[key[len(prefix) :]] = value
 
+        # Bind resource selection to the authenticated callback user. In particular,
+        # guest queries must not inherit the hidden selector's disabled/stale state.
+        if resolve_selection := getattr(
+            self._selector_ui, "resolve_selection_for_user", None
+        ):
+            selected = resolve_selection(selected, user_id)
+
         # transform selected id
         selected_ids: Optional[list[str]] = self._selector_ui.get_selected_ids(selected)
 
