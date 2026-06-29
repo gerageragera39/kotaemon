@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import gradio as gr
 from authlib.integrations.starlette_client import OAuth, OAuthError
@@ -91,7 +92,10 @@ app = gr.mount_gradio_app(
     main_demo,
     path="/app",
     allowed_paths=[
-        "libs/ktem/ktem/assets",
-        GRADIO_TEMP_DIR,
+        (Path(__file__).resolve().parent / "src" / "ktem" / "assets")
+        .resolve()
+        .as_posix(),
+        (Path(__file__).resolve().parent / "docs").resolve().as_posix(),
+        Path(GRADIO_TEMP_DIR).resolve().as_posix(),
     ],
 )

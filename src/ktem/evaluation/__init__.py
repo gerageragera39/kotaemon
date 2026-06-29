@@ -1,4 +1,4 @@
-"""Evaluation helpers for Kotaemon RAG pipelines."""
+"""Evaluation helpers for KURAGa RAG pipelines."""
 
 from .ragas_eval import (
     EvalRunResult,

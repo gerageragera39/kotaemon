@@ -4,6 +4,7 @@ from ktem.app import BaseApp
 from ktem.pages.chat import ChatPage
 from ktem.pages.evaluation import EvaluationPage
 from ktem.pages.help import HelpPage
+from ktem.pages.project_docs import ProjectDocsPage
 from ktem.pages.resources import ResourcesTab
 from ktem.pages.settings import SettingsPage
 from ktem.pages.setup import SetupPage
@@ -27,7 +28,7 @@ def toggle_first_setup_visibility():
 
 
 class App(BaseApp):
-    """The main app of Kotaemon
+    """The main app of KURAGa
 
     The main application contains app-level information:
         - setting state
@@ -60,6 +61,15 @@ class App(BaseApp):
                 visible=not self.f_user_management,
             ) as self._tabs["chat-tab"]:
                 self.chat_page = ChatPage(self)
+
+            with gr.Tab(
+                "Project Documentation",
+                elem_id="project-docs-tab",
+                id="project-docs-tab",
+                visible=not self.f_user_management,
+                elem_classes=["fill-main-area-height", "scrollable"],
+            ) as self._tabs["project-docs-tab"]:
+                self.project_docs_page = ProjectDocsPage(self)
 
             if len(self.index_manager.indices) == 1:
                 for index in self.index_manager.indices:
@@ -122,7 +132,7 @@ class App(BaseApp):
                     self.settings_page = SettingsPage(self)
 
             with gr.Tab(
-                "Help & Legal",
+                "Help",
                 elem_id="help-tab",
                 id="help-tab",
                 visible=not self.f_user_management,
@@ -172,8 +182,10 @@ class App(BaseApp):
                     if k == "login-tab":
                         tabs_update.append(gr.update(visible=False))
                     elif is_guest:
-                        # Guest access is intentionally limited to chat only.
-                        tabs_update.append(gr.update(visible=(k == "chat-tab")))
+                        # Guests can chat and read local project documentation only.
+                        tabs_update.append(
+                            gr.update(visible=(k in {"chat-tab", "project-docs-tab"}))
+                        )
                     elif k == "resources-tab":
                         tabs_update.append(gr.update(visible=is_admin))
                     else:

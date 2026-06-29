@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Start Kotaemon with Docker Compose (persistent ./ktem_app_data)
+# Start KURAGa with Docker Compose (persistent ./ktem_app_data)
 # Usage:
 #   ./scripts/docker-up.sh
 #   ./scripts/docker-up.sh --ollama
@@ -37,5 +37,5 @@ echo "${cmd[*]}"
 echo ""
 echo "App:  http://localhost:7860"
 echo "Data: $(pwd)/ktem_app_data"
-echo "Logs: docker compose logs -f kotaemon"
+echo "Logs: docker compose logs -f kuraga"
 echo "Stop: docker compose down   (data kept unless you use -v)"

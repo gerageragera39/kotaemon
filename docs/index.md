@@ -1,69 +1,36 @@
-# Getting Started
+# KURAG Documentation
 
-This documentation describes **this repository** — a custom fork of [Kotaemon](https://github.com/Cinnamon/kotaemon) with sources in `src/kotaemon` and `src/ktem`, Python 3.11+, and configuration via `flowsettings.py` and `.env`.
+Welcome to the documentation for **KURAGa** — the **KU Retrieval-Augmented Guide Assistant**.
 
-- **End users:** follow [Basic Usage](usage.md) and [Local models](local_model.md).
-- **Developers:** see [Development](development/index.md).
+KURAGa is a student-built university-document RAG chatbot for the KU / WFI Digital Projects course. It helps users ask questions over curated university and programme documents. It is based on the open-source Cinnamon/kotaemon project, but this repository has been heavily adapted for the course.
 
-## Prerequisites
+!!! warning "Not an official KU service"
+    KURAGa can make mistakes. Verify important decisions against official university documents and staff guidance.
 
-- **Python 3.11+**
-- An LLM and an embedding model (cloud API or local via Ollama / llama.cpp)
-- Optional: Docker for containerized deployment
+## Start here
 
-## Installation (recommended — from source)
+- [Project overview](project_overview.md) — architecture, scope, and key files.
+- [Guest guide](guest_guide.md) — how guest users can ask questions and read evidence.
+- [Admin guide](admin_guide.md) — how admins configure models and index documents.
+- [Local models](local_model.md) — Ollama/OpenAI-compatible local model setup.
+- [Development](development.md) — setup, tests, CI, and repository conventions.
+- [Attribution](attribution.md) — upstream Kotaemon license and project attribution.
 
-From the repository root:
+## Quick start
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # Linux/macOS
+.venv\Scripts\Activate.ps1      # Windows PowerShell
+# source .venv/bin/activate      # Linux/macOS
 
 pip install -r requirements_gerageragera39.txt
 pip install -e .
-cp .env.example .env            # set API keys or local model names
+cp .env.example .env
 python app.py
 ```
 
-Or with Make and uv:
+Open <http://localhost:7860>.
 
-```bash
-make install
-make run
-```
+## Runtime data
 
-The app opens at **http://localhost:7860** (port `7860` by default).
-
-When user management is enabled (`KH_FEATURE_USER_MANAGEMENT`, default in `flowsettings.py`), first login is typically **`admin` / `admin`** — change the password in Settings after login.
-
-## Installation (Docker Compose)
-
-```bash
-cp .env.example .env
-docker compose up -d --build
-```
-
-Data persists in `./ktem_app_data` on the host. See [README — Docker Compose](../README.md#docker-compose-recommended).
-
-## Installation (upstream zip / OS scripts)
-
-The original Kotaemon project ships zip releases and `scripts/run_*.bat|sh` installers that install from `libs/kotaemon`. **Those paths do not match this fork.** Prefer `pip install -e .` from this repo root.
-
-If you use upstream’s [Hugging Face Space template](online_install.md), you are deploying Cinnamon’s template, not necessarily this fork’s defaults.
-
-## First launch
-
-1. Open **Resources** and confirm LLM + embedding models (defaults often come from `flowsettings.py` and `.env`).
-2. Open your file collection tab (e.g. **File Collection**), upload documents, and click **Upload and Index**.
-3. Open **Chat**, select files or **Search All**, and ask a question.
-
-See [Basic Usage](usage.md) for details.
-
-## Help inside the app
-
-The **Help** tab mirrors much of the usage documentation.
-
-## Feedback
-
-Report issues in your project’s issue tracker. Upstream: [Cinnamon/kotaemon issues](https://github.com/Cinnamon/kotaemon/issues).
+KURAGa stores runtime data in `ktem_app_data/`: SQLite metadata, uploads, vector stores, chunk/markdown caches, and temporary Gradio files. Do not commit or delete this directory without a backup.

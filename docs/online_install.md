@@ -1,13 +1,11 @@
-# Installation (Hugging Face Space — upstream template)
+# Online deployment note
 
-These steps apply to the **upstream** [kotaemon_template](https://huggingface.co/spaces/cin-model/kotaemon_template) on Hugging Face, not necessarily this fork’s `flowsettings.py` or `src/` layout.
+The original upstream Kotaemon project documents Hugging Face Space and release-zip deployment flows. Those instructions are not maintained for KURAGa and may deploy upstream defaults rather than this KU Digital Projects fork.
 
-1. Open [HF kotaemon_template](https://huggingface.co/spaces/cin-model/kotaemon_template) or [duplicate directly](https://huggingface.co/spaces/cin-model/kotaemon_template?duplicate=true).
-   ![Duplicate space](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/duplicate_space.png)
-   ![Change space params](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/change_space_params.png)
-2. Wait for the build (~10 minutes).
-   ![Wait space build](https://raw.githubusercontent.com/Cinnamon/kotaemon/main/docs/images/space_build.png)
-3. Complete first-time setup (API keys as prompted).
-4. Use your private Space URL.
+For KURAGa, prefer one of the maintained paths:
 
-For this fork, prefer [Getting Started](index.md) (local `pip install` or Docker).
+- local source install from the repository root;
+- Docker Compose from this repository;
+- a reviewed institutional deployment that keeps `ktem_app_data/` persistent and protects any sensitive data.
+
+Do not use upstream release ZIP or the upstream `libs/*` layout installer assumptions for this fork without reviewing and updating them first.

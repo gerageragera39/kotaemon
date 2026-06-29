@@ -198,7 +198,7 @@ EVALUATION_OUTPUT_DIR = Path(
 
 
 class EvaluationPage(BasePage):
-    """UI for evaluating the Kotaemon RAG chatbot on a curated dataset."""
+    """UI for evaluating the KURAGa RAG chatbot on a curated dataset."""
 
     def __init__(self, app):
         super().__init__(app)
@@ -212,8 +212,8 @@ class EvaluationPage(BasePage):
             <div class="eval-hero">
               <h1>RAG Evaluation</h1>
               <p>
-                Runs questions from rag_eval_dataset through the current Kotaemon RAG,
-                collects retrieved contexts, and scores quality with local Kotaemon
+                Runs questions from rag_eval_dataset through the current KURAGa RAG,
+                collects retrieved contexts, and scores quality with local KURAGa
                 evaluator models.
               </p>
             </div>

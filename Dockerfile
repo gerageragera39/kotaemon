@@ -1,4 +1,4 @@
-# Lite version (Python 3.11, dependencies from requirements_gerageragera39.txt)
+# KURAGa lite image (Python 3.11, dependencies from requirements_gerageragera39.txt)
 FROM python:3.11-slim AS lite
 
 # Common dependencies
@@ -33,7 +33,7 @@ WORKDIR /app
 # Download pdfjs (script only; keeps this layer cacheable)
 COPY scripts/download_pdfjs.sh /app/scripts/download_pdfjs.sh
 RUN sed -i 's/\r$//' /app/scripts/download_pdfjs.sh && chmod +x /app/scripts/download_pdfjs.sh
-ENV PDFJS_PREBUILT_DIR="/app/libs/ktem/ktem/assets/prebuilt/pdfjs-dist"
+ENV PDFJS_PREBUILT_DIR="/app/src/ktem/assets/prebuilt/pdfjs-dist"
 RUN bash scripts/download_pdfjs.sh "$PDFJS_PREBUILT_DIR"
 
 # Install pinned dependencies before copying the full tree (better layer cache)

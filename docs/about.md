@@ -1,12 +1,23 @@
-# About Kotaemon
+# About KURAGa
 
-An open-source RAG tool for chatting with your documents. This repository is a **custom fork** with sources under `src/kotaemon` and `src/ktem`.
+**KURAGa** stands for **KU Retrieval-Augmented Guide Assistant**.
 
-| | |
-|--|--|
-| Upstream | [Cinnamon/kotaemon](https://github.com/Cinnamon/kotaemon) |
-| Demo (upstream) | [Hugging Face Space](https://huggingface.co/spaces/cin-model/kotaemon-demo) |
-| Architecture | [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) |
-| AI agents | [AI_GUIDE.md](../AI_GUIDE.md) |
+It is a university-document RAG chatbot built by a KU Digital Projects student team. The app is designed around a curated set of programme/university documents: administrators index documents, and guests ask questions over all indexed admin documents.
 
-Build the doc site from this repo with `mkdocs serve` (after `pip install mkdocs-material` and related plugins from your dev dependencies).
+## What KURAGa is for
+
+- Finding relevant passages in indexed university/programme documents.
+- Summarising document-backed answers with citations/evidence.
+- Supporting exploration of course or programme information in a local deployment.
+
+## What KURAGa is not
+
+- It is **not** an official KU service.
+- It is **not** a replacement for official documents, examination regulations, or staff advice.
+- It should not be treated as legal, academic, or administrative authority.
+
+## Upstream foundation
+
+KURAGa is based on [Cinnamon/kotaemon](https://github.com/Cinnamon/kotaemon), Apache-2.0. The internal package names `kotaemon` and `ktem` remain for compatibility, while user-facing docs and UI use KURAGa branding.
+
+See [Attribution](attribution.md) and the repository `NOTICE.md`.

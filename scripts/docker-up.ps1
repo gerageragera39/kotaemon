@@ -1,4 +1,4 @@
-# Start Kotaemon with Docker Compose (persistent ./ktem_app_data)
+# Start KURAGa with Docker Compose (persistent ./ktem_app_data)
 # Usage:
 #   .\scripts\docker-up.ps1
 #   .\scripts\docker-up.ps1 -Ollama
@@ -31,5 +31,5 @@ Write-Host "docker $($args -join ' ')"
 Write-Host ""
 Write-Host "App:     http://localhost:7860"
 Write-Host "Data:    $(Resolve-Path -ErrorAction SilentlyContinue ./ktem_app_data) (bind mount)"
-Write-Host "Logs:    docker compose logs -f kotaemon"
+Write-Host "Logs:    docker compose logs -f kuraga"
 Write-Host "Stop:    docker compose down   (keeps data; use -v only to delete volumes)"

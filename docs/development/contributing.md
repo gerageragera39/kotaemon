@@ -21,7 +21,7 @@ pip install -e ".[dev]"
 
 Python **3.11+** is required (`pyproject.toml` → `requires-python >= 3.11`).
 
-Legacy upstream installers (`scripts/run_windows.bat`, `run_linux.sh`, …) install from `libs/kotaemon` on GitHub. **They do not match this fork.** Use `pip install -e .` here.
+Legacy upstream OS installer scripts were removed because they installed from upstream `libs/*` release paths. Use `pip install -e .` here.
 
 ### Pre-commit
 
@@ -38,7 +38,7 @@ Hooks include black, isort, flake8, autoflake, mypy, codespell (see `.pre-commit
 pytest tests
 ```
 
-Run from the repo root. CI in `.github/workflows/unit-test.yaml` may still reference `libs/kotaemon` — if CI fails, align the workflow with `pytest tests` and Python 3.11.
+Run from the repo root. CI should run `pytest tests` from the repository root on Python 3.11+.
 
 ## Package overview
 

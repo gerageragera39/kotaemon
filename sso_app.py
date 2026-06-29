@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import gradiologin as grlogin
 from decouple import config
@@ -72,7 +73,10 @@ grlogin.mount_gradio_app(
     demo,
     "/app",
     allowed_paths=[
-        "libs/ktem/ktem/assets",
-        GRADIO_TEMP_DIR,
+        (Path(__file__).resolve().parent / "src" / "ktem" / "assets")
+        .resolve()
+        .as_posix(),
+        (Path(__file__).resolve().parent / "docs").resolve().as_posix(),
+        Path(GRADIO_TEMP_DIR).resolve().as_posix(),
     ],
 )

@@ -30,7 +30,7 @@ ProgressFn = Callable[[int, int, str], None]
 
 @dataclass
 class EvalRunResult:
-    """Result bundle returned by the local Kotaemon + RAGAS evaluation run."""
+    """Result bundle returned by the local KURAGa + RAGAS evaluation run."""
 
     samples: pd.DataFrame
     ragas_scores: pd.DataFrame
@@ -778,7 +778,7 @@ def _find_source_ids(
                 statement = statement.where(Source.user == user_id)
 
             # Prefer exact normalized basename match; fallback to contains match for
-            # uploads where Kotaemon preserved a prefix/suffix around the PDF name.
+            # uploads where KURAGa preserved a prefix/suffix around the PDF name.
             rows = session.execute(statement).scalars().all()
             exact: list[Any] = []
             fuzzy: list[Any] = []
@@ -1041,7 +1041,7 @@ def _ragas_metrics() -> list[Any]:
 
 
 def _to_langchain_llm(settings: dict[str, Any]) -> tuple[Any, str]:
-    """Resolve the active Kotaemon LLM as a LangChain model for RAGAS."""
+    """Resolve the active KURAGa LLM as a LangChain model for RAGAS."""
 
     from ktem.llms.manager import llms
 
@@ -1061,7 +1061,7 @@ def _to_langchain_llm(settings: dict[str, Any]) -> tuple[Any, str]:
         if langchain_llm is not None:
             return langchain_llm, llm_name
         raise RuntimeError(
-            f"Kotaemon LLM `{llm_name}` cannot be passed to RAGAS. "
+            f"KURAGa LLM `{llm_name}` cannot be passed to RAGAS. "
             "Use a local LangChain-compatible LLM such as Ollama or LlamaCpp."
         )
 
@@ -1072,19 +1072,19 @@ def _to_langchain_llm(settings: dict[str, Any]) -> tuple[Any, str]:
         if langchain_llm is not None:
             return langchain_llm, llm_name
         raise RuntimeError(
-            f"Kotaemon LLM `{llm_name}` exposes no LangChain adapter for RAGAS. "
+            f"KURAGa LLM `{llm_name}` exposes no LangChain adapter for RAGAS. "
             "Use a LangChain-compatible LLM or an OpenAI-compatible local endpoint."
         )
 
 
 def _openai_compatible_chat_to_langchain(llm: Any) -> Any | None:
-    """Adapt Kotaemon's OpenAI-compatible chat client to LangChain for RAGAS.
+    """Adapt KURAGa's OpenAI-compatible chat client to LangChain for RAGAS.
 
-    Kotaemon's own ``ChatOpenAI`` works for the app and for local Ollama
+    KURAGa's own ``ChatOpenAI`` works for the app and for local Ollama
     OpenAI-compatible endpoints, but it inherits ``to_langchain_format`` from the
     abstract base where it raises ``NotImplementedError``. RAGAS requires a
     LangChain model, so rebuild an equivalent ``langchain_openai.ChatOpenAI``
-    when the active Kotaemon LLM has the OpenAI-compatible chat shape.
+    when the active KURAGa LLM has the OpenAI-compatible chat shape.
     """
 
     if not all(
@@ -1130,7 +1130,7 @@ def _openai_compatible_chat_to_langchain(llm: Any) -> Any | None:
 
 
 def _kotaemon_embedding_adapter(embedding_model: Any) -> Any:
-    """Wrap any Kotaemon embedding model in LangChain's Embeddings interface."""
+    """Wrap any KURAGa embedding model in LangChain's Embeddings interface."""
 
     try:
         from langchain_core.embeddings import Embeddings
@@ -1149,7 +1149,7 @@ def _kotaemon_embedding_adapter(embedding_model: Any) -> Any:
 
 
 def _to_langchain_embeddings(settings: dict[str, Any]) -> tuple[Any, str]:
-    """Resolve the active Kotaemon embedding model for RAGAS."""
+    """Resolve the active KURAGa embedding model for RAGAS."""
 
     from ktem.embeddings.manager import embedding_models_manager
 
@@ -1171,7 +1171,7 @@ def _to_langchain_embeddings(settings: dict[str, Any]) -> tuple[Any, str]:
     if hasattr(embedding_model, "to_langchain_format"):
         return embedding_model.to_langchain_format(), embedding_name
 
-    # LangChain-based Kotaemon embeddings keep the underlying object in `_obj`.
+    # LangChain-based KURAGa embeddings keep the underlying object in `_obj`.
     raw_obj = getattr(embedding_model, "_obj", None)
     if raw_obj is not None and all(
         hasattr(raw_obj, method) for method in ("embed_documents", "embed_query")
@@ -1217,7 +1217,7 @@ def _local_ragas_evaluator_models(
 
     If these are omitted, RAGAS creates its default evaluator stack, which is
     OpenAI-backed and requires OPENAI_API_KEY. The app must stay local, so every
-    RAGAS evaluate() call receives Kotaemon's configured local models.
+    RAGAS evaluate() call receives KURAGa's configured local models.
     """
 
     llm, llm_name = _to_langchain_llm(settings)
@@ -1233,7 +1233,7 @@ def _local_ragas_evaluator_models(
         embeddings_name=embeddings_name,
         run_config=run_config,
         notes=[
-            "RAGAS evaluator uses Kotaemon local models: "
+            "RAGAS evaluator uses KURAGa local models: "
             f"llm={llm_name}, embeddings={embeddings_name}.",
             _run_config_note(run_config),
         ],
@@ -1834,7 +1834,7 @@ def run_evaluation(
     retrieval_scope: str = "expected-source",
     progress: ProgressFn | None = None,
 ) -> EvalRunResult:
-    """Run Kotaemon RAG over a dataset subset and optionally score it with RAGAS."""
+    """Run KURAGa RAG over a dataset subset and optionally score it with RAGAS."""
 
     if retrieval_scope not in {"expected-source", "all"}:
         raise ValueError("retrieval_scope must be 'expected-source' or 'all'")

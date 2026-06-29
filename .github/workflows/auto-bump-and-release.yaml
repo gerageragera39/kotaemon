@@ -29,23 +29,26 @@ jobs:
         if: ${{ steps.update-version.outputs.new_tag != steps.update-version.outputs.old_tag }}
         run: |
           echo Create release folder
-          mkdir kotaemon-app
-          echo ${{ steps.update-version.outputs.new_tag }} > kotaemon-app/VERSION
-          cp LICENSE.txt kotaemon-app/
-          cp flowsettings.py kotaemon-app/
-          cp app.py kotaemon-app/
-          cp .env.example kotaemon-app/.env
-          cp -r scripts kotaemon-app/
-          mkdir -p kotaemon-app/libs/ktem/ktem/
-          cp -r libs/ktem/ktem/assets kotaemon-app/libs/ktem/ktem/
+          mkdir kuraga-app
+          echo ${{ steps.update-version.outputs.new_tag }} > kuraga-app/VERSION
+          cp LICENSE.txt kuraga-app/
+          cp flowsettings.py kuraga-app/
+          cp app.py kuraga-app/
+          cp pyproject.toml kuraga-app/
+          cp requirements_gerageragera39.txt kuraga-app/
+          cp NOTICE.md kuraga-app/
+          cp .env.example kuraga-app/.env
+          cp -r scripts kuraga-app/
+          cp -r src kuraga-app/
+          cp -r docs kuraga-app/
 
-          tree kotaemon-app
-          zip -r kotaemon-app.zip kotaemon-app
+          tree kuraga-app
+          zip -r kuraga-app.zip kuraga-app
       - name: Release ${{ steps.update-version.outputs.new_tag }}
         if: ${{ steps.update-version.outputs.new_tag != steps.update-version.outputs.old_tag }}
         uses: softprops/action-gh-release@v2
         with:
-          files: kotaemon-app.zip
+          files: kuraga-app.zip
           fail_on_unmatched_files: true
           token: ${{ secrets.GITHUB_TOKEN }}
           generate_release_notes: true

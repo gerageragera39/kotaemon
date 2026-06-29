@@ -1,6 +1,6 @@
 ## Chat
 
-The kotaemon focuses on question and answering over a corpus of data. Below
+KURAGa focuses on question and answering over a corpus of data. Below
 is the gentle introduction about the chat functionality.
 
 - Users can upload corpus of files.
@@ -24,12 +24,12 @@ and a rich `feedback_events` entry is saved alongside the backward-compatible
 2. A thumbs-down is stored immediately and opens a compact reason selector near
    the chat area.
 3. The user selects why the answer is wrong and clicks **Regenerate**.
-4. Kotaemon regenerates the latest assistant answer for the same user question.
+4. KURAGa regenerates the latest assistant answer for the same user question.
 5. The regenerated answer replaces the previous answer for that turn, and the
    retrieval/reference panel is updated through the existing regeneration path.
 
 Adaptive regeneration currently targets the latest assistant answer. If a user
-dislikes an older answer, Kotaemon keeps the feedback but does not rewrite the
+dislikes an older answer, KURAGa keeps the feedback but does not rewrite the
 middle of the conversation history.
 
 #### Components and responsibilities
@@ -95,7 +95,7 @@ the active regeneration and are not written back to the user's global settings.
 
 #### Persistence format
 
-Kotaemon still writes the legacy `data_source["likes"]` list for backward
+KURAGa still writes the legacy `data_source["likes"]` list for backward
 compatibility. It also writes `data_source["feedback_events"]` entries with:
 
 - timestamp and event id;

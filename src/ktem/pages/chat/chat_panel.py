@@ -6,14 +6,14 @@ KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 
 if not KH_DEMO_MODE:
     PLACEHOLDER_TEXT = (
-        "This is a KU ChatBot assistant for questions about the D3B study "
-        "program. Ask your question below.\n\n"
+        "KURAGa is a university-document RAG chatbot for KU Digital Projects. "
+        "Ask a question about the indexed documents below.\n\n"
         "<small>Disclaimer: Answers are not legal advice and do not replace "
         "the official documents or consultation with university staff.</small>"
     )
 else:
     PLACEHOLDER_TEXT = (
-        "Welcome to Kotaemon Demo. "
+        "Welcome to the KURAGa demo. "
         "Start by browsing preloaded conversations to get onboard.\n"
         "Check out Hint section for more tips."
     )

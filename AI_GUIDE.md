@@ -1,101 +1,56 @@
-# AI Guide for this repository
+# AI guide for KURAGa
 
-Short instructions for Codex, Cursor, and other AI agents. Read [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) first, then only files relevant to the task.
-
----
+Short instructions for Codex, Cursor, and other AI agents. Read `PROJECT_CONTEXT.md` first, then inspect only the files needed for the task.
 
 ## What this is
 
-**Kotaemon fork** — RAG app for chatting with documents (PDF, Office, images, etc.). UI is **Gradio** (`ktem`); reusable RAG library is **`kotaemon`** in `src/`. No separate React frontend; the main API is Gradio callbacks, not REST.
+**KURAGa** — KU Retrieval-Augmented Guide Assistant — is a KU Digital Projects university-document RAG chatbot. It started from Cinnamon/kotaemon, but the current repository is project-specific and user-facing text should describe KURAGa, not a generic Kotaemon fork.
 
-Source layout: `src/kotaemon/`, `src/ktem/` (not upstream `libs/kotaemon`). Python **≥ 3.11** (`pyproject.toml`).
+Internal import packages are still **`kotaemon`** and **`ktem`**. Do not rename them unless the task explicitly includes a safe package-migration plan.
 
----
+## Read-first map
 
-## Most important files
+| Task | Files to inspect first |
+| --- | --- |
+| App launch/config | `app.py`, `flowsettings.py`, `.env.example`, `pyproject.toml` |
+| Chat behavior | `src/ktem/pages/chat/__init__.py`, `src/ktem/pages/chat/chat_panel.py`, `src/ktem/pages/chat/control.py` |
+| Guest access/scope | `src/ktem/pages/login.py`, `src/ktem/main.py`, `src/ktem/index/file/ui.py`, `src/ktem/utils/guest_scope.py`, `tests/test_guest_search_scope.py` |
+| In-app docs tab | `src/ktem/pages/project_docs.py`, `src/ktem/pages/help.py`, `docs/in_app_guest_docs.md`, `docs/project_overview.md` |
+| RAG pipeline | `src/ktem/reasoning/simple.py`, `src/ktem/index/file/pipelines.py`, `src/kotaemon/indices/qa/citation_qa.py`, `src/kotaemon/indices/qa/format_context.py` |
+| Indexing/PDF handling | `src/ktem/index/file/ui.py`, `src/ktem/index/file/ingestion_v2.py`, `src/kotaemon/indices/ingests/files.py`, `src/kotaemon/indices/splitters/university_pdf.py`, `src/kotaemon/loaders/docling_loader.py` |
+| Evaluation | `src/ktem/evaluation/ragas_eval.py`, `scripts/run_rag_eval.py`, `scripts/eval_university_retrieval.py`, `scripts/evaluate_llm_judge.py`, `rag_eval_dataset*.json`, `dataset/` |
+| Docker/CI | `Dockerfile`, `docker-compose.yml`, `launch.sh`, `Makefile`, `.github/workflows/` |
+| Documentation | `README.md`, `docs/`, `mkdocs.yml`, `NOTICE.md` |
 
-| Task | Read first |
-|------|------------|
-| Launch app | `app.py`, `launch.sh`, `Makefile` |
-| Models & indices config | `flowsettings.py`, `.env.example`, `config_example.txt` |
-| Chat UI & events | `src/ktem/pages/chat/__init__.py`, `src/ktem/main.py` |
-| Reasoning / RAG pipeline | `src/ktem/reasoning/simple.py`, `src/kotaemon/indices/qa/citation_qa.py` |
-| File indexing | `src/ktem/index/file/pipelines.py`, `src/ktem/index/file/index.py` |
-| LLM providers | `src/kotaemon/llms/`, `src/ktem/llms/manager.py`, `flowsettings.KH_LLMS` |
-| Embeddings | `src/kotaemon/embeddings/`, `src/ktem/embeddings/manager.py` |
-| Database | `src/ktem/db/models.py`, `src/ktem/db/engine.py`, `src/ktem/index/models.py` |
-| Docker | `Dockerfile`, `launch.sh`, `README.md` |
-| Tests / CI | `tests/`, `.github/workflows/unit-test.yaml`, `pyproject.toml` |
-| App shell | `src/ktem/app.py`, `src/ktem/components.py` |
-| Local `.gguf` (llama.cpp) | `scripts/serve_local.py`, `scripts/server_llamacpp_*.bat/sh` |
-| GraphRAG / LightRAG | `flowsettings.py` (`USE_*` flags), `src/ktem/index/file/graph/` |
+## Do not edit/delete without explicit reason
 
----
+- `.env` or secrets.
+- `ktem_app_data/` runtime data.
+- SQLite DBs, vector stores, `user_data`, uploaded files, markdown/chunk caches.
+- Course/evaluation datasets under `dataset/` and `rag_eval_dataset*.json` unless the task is specifically about evaluation data.
+- User uploads or generated stores, even if they look obsolete.
 
-## Usually skip unless the task requires them
+Generated caches such as `__pycache__/`, `.pytest_cache/`, and `*.pyc` can be removed when they are local/generated.
 
-| Path | Reason |
-|------|--------|
-| `ktem_app_data/` | Runtime: SQLite, uploads, vectorstore, HF cache |
-| `uv.lock` | Large lock; may reference legacy `libs/kotaemon` |
-| `__pycache__/`, `.venv/` | Cache / environment |
-| `docs/theme/assets/` | Generated MkDocs assets |
-| `.omx/` | Internal state files |
-| `dataset/` | Test documents, not application code |
-| `templates/project-default/` | Cookiecutter template |
-| Adobe / Azure DI / MS GraphRAG | Heavy optional integrations |
-| All of `src/kotaemon/loaders/` | Only when changing parsing for a specific format |
+## Current assumptions to preserve
 
----
+- Python **3.11+**.
+- Install from repo root with `pip install -r requirements_gerageragera39.txt` and `pip install -e .`.
+- No the upstream `libs/*` layout layout in this fork.
+- User-facing name: **KURAGa**.
+- Full name: **KU Retrieval-Augmented Guide Assistant**.
+- Short tagline: **A university-document RAG chatbot for KU Digital Projects**.
+- KURAGa is not an official KU service.
 
-## Common tasks
-
-| Task | Where to go |
-|------|-------------|
-| Change chat behavior | `src/ktem/pages/chat/`, `src/ktem/reasoning/` |
-| Change prompts / answer format | `src/kotaemon/indices/qa/`, `src/kotaemon/llms/prompts/`, `src/ktem/reasoning/prompt_optimization/` |
-| Change document indexing | `src/ktem/index/file/pipelines.py`, `src/kotaemon/indices/ingests/` |
-| Add Ollama / local model | `.env`, `flowsettings.py` (`LOCAL_MODEL`, `KH_OLLAMA_URL`), UI `src/ktem/llms/`, `config_example.txt` |
-| Run llama.cpp for `.gguf` | `scripts/serve_local.py` (`LOCAL_MODEL` = **path to file**), then add LLM in Resources with `base_url` pointing to port **31415** |
-| New LLM provider | `src/kotaemon/llms/`, entry in `KH_LLMS`, `src/ktem/llms/ui.py` + `db.py` |
-| Fix Docker | `docker-compose.yml`, `Dockerfile`, `launch.sh`, `README.md`, `make docker-up` |
-| Fix tests / CI | `tests/`, `.github/workflows/unit-test.yaml` — run `pytest tests` from repo root, Python 3.11+ |
-| GraphRAG / LightRAG | `flowsettings.GRAPHRAG_INDEX_TYPES`, `src/ktem/index/file/graph/`, `settings.yaml.example` |
-
----
-
-## Commands
+## Common commands
 
 ```bash
-# Install (from repo root)
-make install
-# or: python -m venv .venv && pip install -r requirements_gerageragera39.txt && pip install -e .
-
-# Run (Gradio :7860)
+python -m venv .venv
+pip install -r requirements_gerageragera39.txt
+pip install -e .
 python app.py
 
-# Local llama.cpp for .gguf (path in .env)
-python scripts/serve_local.py
-
-# Docker Compose (persistent ./ktem_app_data, restart unless-stopped)
-docker compose up -d --build
-docker compose --profile ollama up -d --build
-docker compose down          # keeps data
-
-# Tests
 pytest tests
-
-# Lint (if pre-commit is configured)
-pre-commit run --all-files
+python -m compileall src
+rg "upstream-only path or branding pattern"
 ```
-
----
-
-## Warnings
-
-1. **Never commit or print** `.env` contents — only variable names from `.env.example`.
-2. **Do not delete or edit** `ktem_app_data/` without a backup — user DB and indices live there.
-3. **Do not trust paths** `libs/kotaemon` in CI, `uv.lock`, `run_*.sh`, `mkdocs.yml` without verifying — this fork uses `src/` (see §2 in `PROJECT_CONTEXT.md`).
-4. **`LOCAL_MODEL`**: in `flowsettings`/Ollama — **model name**; in `serve_local.py` — **path to `.gguf`**. Different workflows.
-5. **`config_example.txt`** is not loaded by the app — example fields for the Resources tab.
-6. Before broad edits: **`PROJECT_CONTEXT.md` → 2–5 relevant files** — do not scan the whole repo.

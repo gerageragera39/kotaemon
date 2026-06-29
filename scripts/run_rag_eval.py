@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Kotaemon RAG evaluation from the command line.
+"""Run KURAGa RAG evaluation from the command line.
 
 Example:
     PYTHONPATH=src python scripts/run_rag_eval.py \
@@ -24,7 +24,7 @@ from ktem.main import App  # noqa: E402
 
 def parse_args() -> argparse.Namespace:
     default_dataset = find_default_dataset_path(ROOT)
-    parser = argparse.ArgumentParser(description="Evaluate Kotaemon RAG with the Felix evaluator.")
+    parser = argparse.ArgumentParser(description="Evaluate KURAGa RAG with the Felix evaluator.")
     parser.add_argument(
         "--dataset",
         default=str(default_dataset or "rag_eval_dataset.json"),
@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--user-id",
         default="default",
-        help="Kotaemon user id for private indexes.",
+        help="KURAGa user id for private indexes.",
     )
     parser.add_argument(
         "--no-ragas",
