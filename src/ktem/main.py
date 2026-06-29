@@ -122,13 +122,18 @@ class App(BaseApp):
                     self.settings_page = SettingsPage(self)
 
             with gr.Tab(
-                "Help",
+                "Help & Legal",
                 elem_id="help-tab",
                 id="help-tab",
                 visible=not self.f_user_management,
                 elem_classes=["fill-main-area-height", "scrollable"],
             ) as self._tabs["help-tab"]:
                 self.help_page = HelpPage(self)
+
+        if self.f_user_management:
+            self.btn_logout = gr.Button(
+                "Logout", elem_id="global-logout-button", visible=False
+            )
 
         if KH_ENABLE_FIRST_SETUP:
             with gr.Column(visible=False) as self.setup_page_wrapper:
@@ -140,41 +145,44 @@ class App(BaseApp):
             from ktem.db.models import User
             from sqlmodel import Session, select
 
+            def logged_out_updates():
+                tab_updates = [
+                    gr.update(visible=(key == "login-tab"))
+                    for key in self._tabs.keys()
+                ]
+                return tab_updates + [
+                    gr.update(selected="login-tab"),
+                    gr.update(visible=False),
+                ]
+
             def toggle_login_visibility(user_id):
                 if not user_id:
-                    return list(
-                        (
-                            gr.update(visible=True)
-                            if k == "login-tab"
-                            else gr.update(visible=False)
-                        )
-                        for k in self._tabs.keys()
-                    ) + [gr.update(selected="login-tab")]
+                    return logged_out_updates()
 
                 with Session(engine) as session:
                     user = session.exec(select(User).where(User.id == user_id)).first()
                     if user is None:
-                        return list(
-                            (
-                                gr.update(visible=True)
-                                if k == "login-tab"
-                                else gr.update(visible=False)
-                            )
-                            for k in self._tabs.keys()
-                        )
+                        return logged_out_updates()
 
                     is_admin = user.admin
+                    is_guest = user.username_lower == "guest"
 
                 tabs_update = []
                 for k in self._tabs.keys():
                     if k == "login-tab":
                         tabs_update.append(gr.update(visible=False))
+                    elif is_guest:
+                        # Guest access is intentionally limited to chat only.
+                        tabs_update.append(gr.update(visible=(k == "chat-tab")))
                     elif k == "resources-tab":
                         tabs_update.append(gr.update(visible=is_admin))
                     else:
+                        # Preserve the target branch's existing non-admin access to
+                        # chat, files, evaluation, settings, and help.
                         tabs_update.append(gr.update(visible=True))
 
                 tabs_update.append(gr.update(selected="chat-tab"))
+                tabs_update.append(gr.update(visible=is_guest))
 
                 return tabs_update
 
@@ -183,7 +191,8 @@ class App(BaseApp):
                 definition={
                     "fn": toggle_login_visibility,
                     "inputs": [self.user_id],
-                    "outputs": list(self._tabs.values()) + [self.tabs],
+                    "outputs": list(self._tabs.values())
+                    + [self.tabs, self.btn_logout],
                     "show_progress": "hidden",
                 },
             )
@@ -193,10 +202,25 @@ class App(BaseApp):
                 definition={
                     "fn": toggle_login_visibility,
                     "inputs": [self.user_id],
-                    "outputs": list(self._tabs.values()) + [self.tabs],
+                    "outputs": list(self._tabs.values())
+                    + [self.tabs, self.btn_logout],
                     "show_progress": "hidden",
                 },
             )
+
+            onSignOutClick = self.btn_logout.click(
+                lambda: None,
+                inputs=[],
+                outputs=[self.user_id],
+                show_progress="hidden",
+                js="""function() {
+                    removeFromStorage('username');
+                    removeFromStorage('password');
+                    return [];
+                }""",
+            )
+            for event in self.get_event("onSignOut"):
+                onSignOutClick = onSignOutClick.then(**event)
 
         if KH_ENABLE_FIRST_SETUP:
             self.subscribe_event(

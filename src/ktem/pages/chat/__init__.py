@@ -9,7 +9,7 @@ import gradio as gr
 from decouple import config
 from ktem.app import BasePage
 from ktem.components import reasonings
-from ktem.db.models import Conversation, engine
+from ktem.db.models import Conversation, User, engine
 from ktem.index.file.ui import File
 from ktem.reasoning.prompt_optimization.mindmap import MINDMAP_HTML_EXPORT_TEMPLATE
 from ktem.reasoning.prompt_optimization.suggest_conversation_name import (
@@ -237,6 +237,7 @@ class ChatPage(BasePage):
 
             with gr.Column(scale=1, elem_id="conv-settings-panel") as self.conv_column:
                 self.chat_control = ConversationControl(self._app)
+                self.index_accordions = []
 
                 for index_id, index in enumerate(self._app.index_manager.indices):
                     index.selector = None
@@ -256,7 +257,8 @@ class ChatPage(BasePage):
                         label=index_name,
                         open=is_first_index,
                         elem_id=f"index-{index_id}",
-                    ):
+                    ) as index_accordion:
+                        self.index_accordions.append(index_accordion)
                         index_ui.render()
                         gr_index = index_ui.as_gradio_component()
 
@@ -288,7 +290,9 @@ class ChatPage(BasePage):
                         "Quick Upload" if not KH_DEMO_MODE else "Or input new paper URL"
                     )
 
-                    with gr.Accordion(label=quick_upload_label) as _:
+                    with gr.Accordion(
+                        label=quick_upload_label
+                    ) as self.quick_upload_accordion:
                         self.quick_file_upload_status = gr.Markdown()
                         if not KH_DEMO_MODE:
                             self.quick_file_upload = File(
@@ -1179,6 +1183,48 @@ class ChatPage(BasePage):
                     "show_progress": "hidden",
                 },
             )
+
+            def toggle_guest_chat_controls(user_id):
+                is_guest = False
+                if user_id:
+                    with Session(engine) as session:
+                        user = session.exec(
+                            select(User).where(User.id == user_id)
+                        ).first()
+                    is_guest = bool(user and user.username_lower == "guest")
+
+                visible = not is_guest
+                updates = [
+                    gr.update(visible=visible),
+                    gr.update(visible=visible),
+                    gr.update(visible=visible and not KH_DEMO_MODE),
+                ]
+                if hasattr(self, "quick_upload_accordion"):
+                    updates.append(gr.update(visible=visible))
+                updates.extend(
+                    gr.update(visible=visible) for _ in self.index_accordions
+                )
+                return updates
+
+            guest_control_outputs = [
+                self.conv_column,
+                self.info_column,
+                self.chat_settings,
+            ]
+            if hasattr(self, "quick_upload_accordion"):
+                guest_control_outputs.append(self.quick_upload_accordion)
+            guest_control_outputs.extend(self.index_accordions)
+
+            for event_name in ("onSignIn", "onSignOut"):
+                self._app.subscribe_event(
+                    name=event_name,
+                    definition={
+                        "fn": toggle_guest_chat_controls,
+                        "inputs": [self._app.user_id],
+                        "outputs": guest_control_outputs,
+                        "show_progress": "hidden",
+                    },
+                )
 
     def _on_app_created(self):
         if KH_DEMO_MODE:

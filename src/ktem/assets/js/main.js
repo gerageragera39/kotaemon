@@ -1,23 +1,48 @@
 function run() {
-  let main_parent = document.getElementById("chat-tab").parentNode;
+  // This deployment intentionally uses a light WFI/KU theme.
+  document.documentElement.classList.remove("dark");
+  document.body.classList.remove("dark");
+  localStorage.setItem("theme", "light");
 
-  main_parent.childNodes[0].classList.add("header-bar");
+  const chatTab = document.getElementById("chat-tab");
+  if (!chatTab || !chatTab.parentNode) {
+    return;
+  }
+  let main_parent = chatTab.parentNode;
+
+  const headerBar = main_parent.childNodes[0];
+  if (headerBar) {
+    headerBar.classList.add("header-bar");
+    if (!document.getElementById("nav-logo")) {
+      const logo = document.createElement("img");
+      logo.src = "/file=src/ktem/assets/img/logo.jpg";
+      logo.alt = "WFI/KU";
+      logo.id = "nav-logo";
+      headerBar.insertBefore(logo, headerBar.firstChild);
+    }
+  }
   main_parent.style = "padding: 0; margin: 0";
   main_parent.parentNode.style = "gap: 0";
   main_parent.parentNode.parentNode.style = "padding: 0";
 
-  const version_node = document.createElement("p");
+  const version_node = document.getElementById("app-version-label") || document.createElement("p");
   version_node.innerHTML = "version: KH_APP_VERSION";
+  version_node.id = "app-version-label";
   version_node.style = "position: fixed; top: 10px; right: 10px;";
-  main_parent.appendChild(version_node);
+  if (!version_node.parentNode) {
+    main_parent.appendChild(version_node);
+  }
 
   // add favicon
-  const favicon = document.createElement("link");
+  const favicon = document.getElementById("wfi-favicon") || document.createElement("link");
   // set favicon attributes
+  favicon.id = "wfi-favicon";
   favicon.rel = "icon";
-  favicon.type = "image/svg+xml";
-  favicon.href = "/favicon.ico";
-  document.head.appendChild(favicon);
+  favicon.type = "image/jpeg";
+  favicon.href = "/file=src/ktem/assets/img/favicon.jpg";
+  if (!favicon.parentNode) {
+    document.head.appendChild(favicon);
+  }
 
   // setup conversation dropdown placeholder
   let conv_dropdown = document.querySelector("#conversation-dropdown input");

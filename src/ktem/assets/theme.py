@@ -3,9 +3,24 @@ from typing import Iterable
 from gradio.themes import Soft
 from gradio.themes.utils import colors, fonts, sizes
 
+custom_blue = colors.Color(
+    name="wfi_blue",
+    c50="#eaedf7",
+    c100="#cbd3ee",
+    c200="#aab8e5",
+    c300="#8a9edc",
+    c400="#6983d3",
+    c500="#232f66",
+    c600="#1e2857",
+    c700="#192149",
+    c800="#141a3a",
+    c900="#0f142c",
+    c950="#0a0d1d",
+)
+
 gray = colors.Color(
     name="dark",
-    c50="#f9fafb",
+    c50="#ffffff",
     c100="#edeef0",
     c200="#e1e2e6",
     c300="#d5d6dd",
@@ -19,8 +34,8 @@ gray = colors.Color(
 )
 
 err_txt = "#f05656"
-gradient = "linear-gradient(90deg, *primary_400 20%, *secondary_500 80%)"
-gradient_muted = "linear-gradient(90deg, *primary_500 20%, *secondary_600 80%)"
+gradient = "*primary_600"
+gradient_muted = "*primary_500"
 
 err_dark = "rgba(228, 98, 98, 1)"
 err_dark_muted = "rgba(228, 98, 98, 0.75)"
@@ -152,7 +167,7 @@ class Kotaemon(Soft):
     def __init__(
         self,
         *,
-        primary_hue: colors.Color | str = colors.emerald,
+        primary_hue: colors.Color | str = custom_blue,
         secondary_hue: colors.Color | str = colors.blue,
         neutral_hue: colors.Color | str = gray,
         spacing_size: sizes.Size | str = sizes.spacing_md,
@@ -161,8 +176,15 @@ class Kotaemon(Soft):
         font: fonts.Font
         | str
         | Iterable[fonts.Font | str] = (
-            fonts.GoogleFont("Quicksand"),
-            "ui-sans-serif",
+            fonts.GoogleFont("Raleway"),
+            "-apple-system",
+            "system-ui",
+            "BlinkMacSystemFont",
+            "Segoe UI",
+            "Roboto",
+            "Noto",
+            "Helvetica Neue",
+            "Arial",
             "sans-serif",
         ),
         font_mono: fonts.Font

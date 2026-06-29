@@ -1,6 +1,6 @@
 import logging
-import os
 from copy import deepcopy
+from pathlib import Path
 
 import gradio as gr
 from ktem.app import BasePage
@@ -17,9 +17,9 @@ logger = logging.getLogger(__name__)
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
-ASSETS_DIR = "assets/icons"
-if not os.path.isdir(ASSETS_DIR):
-    ASSETS_DIR = "libs/ktem/ktem/assets/icons"
+ASSETS_DIR = (
+    Path(__file__).resolve().parents[2] / "assets" / "icons"
+).as_posix()
 
 
 logout_js = """
@@ -53,14 +53,6 @@ class ConversationControl(BasePage):
         with gr.Row():
             title_text = "Conversations" if not KH_DEMO_MODE else "Kotaemon Papers"
             gr.Markdown("## {}".format(title_text))
-            self.btn_toggle_dark_mode = gr.Button(
-                value="",
-                icon=f"{ASSETS_DIR}/dark_mode.svg",
-                scale=1,
-                size="sm",
-                elem_classes=["no-background", "body-text-color"],
-                elem_id="toggle-dark-button",
-            )
             self.btn_chat_expand = gr.Button(
                 value="",
                 icon=f"{ASSETS_DIR}/expand.svg",
@@ -77,15 +69,6 @@ class ConversationControl(BasePage):
                 size="sm",
                 elem_classes=["no-background", "body-text-color"],
                 elem_id="info-expand-button",
-            )
-
-            self.btn_toggle_dark_mode.click(
-                None,
-                js="""
-                () => {
-                    document.body.classList.toggle('dark');
-                }
-                """,
             )
 
         self.conversation_id = gr.State(value="")
