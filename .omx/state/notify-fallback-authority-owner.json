@@ -1,13 +1,13 @@
 {
   "owner": "hud",
-  "pid": 1020,
+  "pid": 1014,
   "cwd": "/mnt/c/Users/SED/Documents/kuraga/version2/rag-transfer/kuraga",
-  "heartbeat_at": "2026-06-30T19:26:28.421Z",
+  "heartbeat_at": "2026-06-30T20:37:07.633Z",
   "cooldown_ms": 5000,
-  "jitter_ms": 53,
-  "skip_count": 51066,
+  "jitter_ms": 84,
+  "skip_count": 51545,
   "last_status": "spawned",
   "last_reason": "spawned",
-  "last_spawn_at": "2026-06-30T19:26:28.421Z",
-  "next_allowed_at": "2026-06-30T19:26:33.474Z"
+  "last_spawn_at": "2026-06-30T20:37:07.633Z",
+  "next_allowed_at": "2026-06-30T20:37:12.717Z"
 }

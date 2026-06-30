@@ -42,6 +42,75 @@ class EvalRunResult:
     warnings: list[str]
 
 
+_EXPORT_REQUIRED_COLUMNS = [
+    "id",
+    "question",
+    "reference",
+    "source_file",
+    "indexed_source",
+    "retrieval_scope",
+    "answer",
+    "contexts",
+    "context_count",
+    "top_context_preview",
+    "top_source",
+    "top_score",
+    "latency_sec",
+    "retrieval_latency_sec",
+    "generation_latency_sec",
+    "status",
+    "error",
+]
+
+
+def _merge_export_frame(
+    base: pd.DataFrame, extra: pd.DataFrame, prefix: str
+) -> pd.DataFrame:
+    """Merge one diagnostic row per sample without ambiguous columns."""
+
+    if extra.empty or "id" not in extra.columns:
+        return base
+    addition = extra.copy()
+    addition = addition.rename(
+        columns={
+            column: f"{prefix}_{column}"
+            for column in addition.columns
+            if column != "id" and column in base.columns
+        }
+    )
+    addition = addition.drop_duplicates(subset=["id"], keep="last")
+    return base.merge(addition, on="id", how="left")
+
+
+def build_evaluation_export_frame(result: EvalRunResult) -> pd.DataFrame:
+    """Build the complete per-question CSV frame for either evaluation mode."""
+
+    export = result.samples.copy()
+    export = _merge_export_frame(export, result.ragas_scores, "ragas")
+    export = _merge_export_frame(export, result.retrieval_metrics, "retrieval")
+
+    defaults: dict[str, Any] = {
+        "retrieval_scope": result.runtime_config.get("retrieval_scope", ""),
+        "contexts": [],
+    }
+    for column in _EXPORT_REQUIRED_COLUMNS:
+        if column not in export.columns:
+            default = defaults.get(column, "")
+            export[column] = [default for _ in range(len(export))]
+
+    ordered = _EXPORT_REQUIRED_COLUMNS + [
+        column for column in export.columns if column not in _EXPORT_REQUIRED_COLUMNS
+    ]
+    export = export[ordered]
+    for column in export.columns:
+        export[column] = export[column].map(
+            lambda value: json.dumps(value, ensure_ascii=False)
+            if isinstance(value, (list, tuple, dict))
+            else value
+        )
+    return export
+
+
 @dataclass
 class RagasEvaluatorModels:
     """Local evaluator models passed into RAGAS to avoid OpenAI defaults."""
@@ -1602,10 +1671,14 @@ def _run_ragas(
 
 
 def _effective_runtime_config(
-    settings: dict[str, Any], retrieval_scope: str
+    settings: dict[str, Any], retrieval_scope: str, run_ragas_metrics: bool
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
         "retrieval_scope": retrieval_scope,
+        "run_ragas_metrics": run_ragas_metrics,
+        "evaluation_mode": (
+            "with_quality_metrics" if run_ragas_metrics else "answers_only"
+        ),
         "retrieval_mode": settings.get("index.options.1.retrieval_mode"),
         "retrieval_count": settings.get("index.options.1.num_retrieval"),
         "reranking_enabled": settings.get("index.options.1.use_reranking"),
@@ -1998,37 +2071,18 @@ def run_evaluation(
             )
         except Exception as exc:
             warnings.append(f"RAGAS scoring failed: {exc}")
-    elif _env_bool("RAG_EVAL_LIGHTWEIGHT_METRICS", True):
-        valid_rows = [row for row in rows if row.get("status") == "ok"]
-        if valid_rows:
-            try:
-                _check_memory_guard("lightweight answer-quality metrics")
-                scoring_embeddings, _ = _to_langchain_embeddings(eval_settings)
-                with _temporary_model_attribute(
-                    embedding, "ollama_keep_alive", embedding_keep_alive
-                ):
-                    ragas_df, local_notes = _local_defined_scores(
-                        valid_rows,
-                        scoring_embeddings,
-                        note=(
-                            "Showing lightweight local answer-quality metrics. "
-                            "Enable RAGAS in the UI for LLM-judge metrics."
-                        ),
-                    )
-                warnings.extend(local_notes)
-            except Exception as exc:
-                warnings.append(f"Lightweight quality scoring failed: {exc}")
-            finally:
-                if unload_at_end:
-                    _unload_ollama_resource(
-                        embedding, warnings, "quality-metric embedding"
-                    )
 
     samples_df = pd.DataFrame(rows)
     retrieval_df = pd.DataFrame(retrieval_rows)
     candidates_df = pd.DataFrame(candidate_rows)
     summary = _summarize(samples_df, ragas_df, retrieval_df)
-    runtime_config = _effective_runtime_config(eval_settings, retrieval_scope)
+    summary["run_ragas_metrics"] = run_ragas_metrics
+    summary["evaluation_mode"] = (
+        "with_quality_metrics" if run_ragas_metrics else "answers_only"
+    )
+    runtime_config = _effective_runtime_config(
+        eval_settings, retrieval_scope, run_ragas_metrics
+    )
     failure_report = _build_failure_report(samples_df, retrieval_df)
     return EvalRunResult(
         samples=samples_df,
