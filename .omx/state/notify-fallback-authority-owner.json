@@ -1,14 +1,13 @@
 {
   "owner": "hud",
-  "pid": 1041,
-  "cwd": "/mnt/c/Users/SED/Desktop/kotaemon-merge/university-rag-improvements/university-rag-improvements",
-  "heartbeat_at": "2026-06-29T15:54:38.230Z",
+  "pid": 1020,
+  "cwd": "/mnt/c/Users/SED/Documents/kuraga/version2/rag-transfer/kuraga",
+  "heartbeat_at": "2026-06-30T19:26:28.421Z",
   "cooldown_ms": 5000,
-  "jitter_ms": 58,
-  "skip_count": 49469,
-  "last_status": "skipped",
-  "last_reason": "rate_limited",
-  "last_spawn_at": "2026-06-29T15:54:37.256Z",
-  "last_skip_at": "2026-06-29T15:54:38.230Z",
-  "next_allowed_at": "2026-06-29T15:54:42.314Z"
+  "jitter_ms": 53,
+  "skip_count": 51066,
+  "last_status": "spawned",
+  "last_reason": "spawned",
+  "last_spawn_at": "2026-06-30T19:26:28.421Z",
+  "next_allowed_at": "2026-06-30T19:26:33.474Z"
 }

@@ -801,7 +801,7 @@ def _build_retrievers(
     settings: dict[str, Any],
     user_id: Any,
     source_file: str,
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
 ):
     if retrieval_scope == "all":
         retrievers = []
@@ -844,7 +844,7 @@ def _retrieve_with_pipeline(
     settings: dict[str, Any],
     user_id: Any,
     sample: dict[str, Any],
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
 ) -> PreparedEvalSample:
     question = sample["question"]
     source_file = sample.get("source_file", "")
@@ -989,7 +989,7 @@ def _answer_with_pipeline(
     settings: dict[str, Any],
     user_id: Any,
     sample: dict[str, Any],
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
 ) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
     """Backward-compatible one-sample path used when phased execution is disabled."""
 
@@ -1831,7 +1831,7 @@ def run_evaluation(
     dataset_path: str | Path,
     question_limit: int,
     run_ragas_metrics: bool = True,
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
     progress: ProgressFn | None = None,
 ) -> EvalRunResult:
     """Run KURAGa RAG over a dataset subset and optionally score it with RAGAS."""

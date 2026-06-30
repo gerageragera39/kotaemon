@@ -49,7 +49,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--scope",
         choices=["expected-source", "all"],
-        default="expected-source",
+        default="all",
         help=(
             "Retrieve from each sample's source_file or from all visible documents."
         ),

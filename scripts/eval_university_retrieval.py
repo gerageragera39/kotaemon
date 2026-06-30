@@ -90,6 +90,16 @@ HARD_CASE_TERMS: dict[str, list[str]] = {
     ],
 }
 
+KNOWN_WEAK_CASE_IDS = {
+    "po_d3b_07",
+    "study_desc_01",
+    "study_desc_08",
+    "apo_01",
+    "apo_03",
+    "mod_catalog_08",
+    "mod_catalog_12",
+}
+
 
 def normalize(value: str) -> str:
     value = unicodedata.normalize("NFKD", value or "")
@@ -109,7 +119,27 @@ def normalize(value: str) -> str:
 def contains_term(text: str, term: str) -> bool:
     haystack = re.sub(r"[\s\-]+", " ", normalize(text))
     needle = re.sub(r"[\s\-]+", " ", normalize(term)).strip()
-    return needle in haystack or needle.replace(" ", "") in haystack.replace(" ", "")
+    if needle in haystack or needle.replace(" ", "") in haystack.replace(" ", ""):
+        return True
+    # Ground-truth phrases occasionally vary only by an article (for example
+    # "eine Prüfung" versus the PDF's "die Prüfung"). Ignore those function
+    # words so the script measures evidence retrieval rather than declension.
+    articles = {
+        "der",
+        "die",
+        "das",
+        "den",
+        "dem",
+        "des",
+        "ein",
+        "eine",
+        "einer",
+        "einem",
+        "einen",
+    }
+    haystack_tokens = [token for token in haystack.split() if token not in articles]
+    needle_tokens = [token for token in needle.split() if token not in articles]
+    return " ".join(needle_tokens) in " ".join(haystack_tokens)
 
 
 def default_terms(item: dict[str, Any]) -> list[str]:
@@ -211,12 +241,32 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-dir", default=str(ROOT / "dataset" / ".cache" / "university_retrieval_eval"))
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--candidate-multiplier", type=int, default=20)
+    parser.add_argument(
+        "--case-id",
+        action="append",
+        default=[],
+        help="Evaluate only this case id (repeatable).",
+    )
+    parser.add_argument(
+        "--known-weak-cases",
+        action="store_true",
+        help="Evaluate the seven historically partial cases only.",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
     args = parse_args()
-    dataset = json.loads(Path(args.dataset).read_text(encoding="utf-8"))
+    all_dataset = json.loads(Path(args.dataset).read_text(encoding="utf-8"))
+    selected_ids = set(args.case_id)
+    if args.known_weak_cases:
+        selected_ids.update(KNOWN_WEAK_CASE_IDS)
+    dataset = [
+        item for item in all_dataset if not selected_ids or item["id"] in selected_ids
+    ]
+    missing_ids = selected_ids - {item["id"] for item in dataset}
+    if missing_ids:
+        raise ValueError(f"Unknown case ids: {sorted(missing_ids)}")
     pdfs = sorted(Path(args.documents_dir).expanduser().resolve().glob("*.pdf"))
     if not pdfs:
         raise FileNotFoundError(f"No PDFs found in {args.documents_dir}")
@@ -224,7 +274,7 @@ def main() -> int:
     terms = sorted(
         {
             term
-            for item in dataset
+            for item in all_dataset
             for term in [item["source_file"], item["question"], item["ground_truth"], *HARD_CASE_TERMS.get(item["id"], [])]
             for term in re.findall(r"[\wÄÖÜäöüß&.-]+(?:\s+[\wÄÖÜäöüß&.-]+){0,5}", str(term))
             if len(term.strip()) > 2
@@ -264,7 +314,10 @@ def main() -> int:
                 "source_file": doc.metadata.get("source_file") or doc.metadata.get("file_name"),
                 "doc_type": doc.metadata.get("doc_type"),
                 "chunk_type": doc.metadata.get("chunk_type"),
+                "module_title": doc.metadata.get("module_title"),
+                "section_title": doc.metadata.get("section_title"),
                 "section_path": doc.metadata.get("section_path"),
+                "module_section": doc.metadata.get("module_section"),
                 "nearest_heading": doc.metadata.get("nearest_heading"),
                 "page_label_start": doc.metadata.get("page_label_start"),
                 "page_label_end": doc.metadata.get("page_label_end"),
@@ -275,9 +328,24 @@ def main() -> int:
         ]
         aggregate = "\n".join((doc.text or "") + "\n" + json.dumps(doc.metadata, ensure_ascii=False) for doc in docs)
         expected_source_hit = any(ctx["source_file"] == item["source_file"] for ctx in contexts)
-        required_terms = HARD_CASE_TERMS.get(item["id"], default_terms(item))
+        required_terms = item.get("required_phrases") or HARD_CASE_TERMS.get(
+            item["id"], default_terms(item)
+        )
         matched_terms = [term for term in required_terms if contains_term(aggregate, term)]
-        min_hits = len(required_terms) if item["id"] in HARD_CASE_TERMS else min(1, len(required_terms))
+        phrase_ranks = {
+            term: [
+                context["rank"]
+                for context, doc in zip(contexts, docs)
+                if contains_term(
+                    (doc.text or "")
+                    + "\n"
+                    + json.dumps(doc.metadata, ensure_ascii=False),
+                    term,
+                )
+            ]
+            for term in required_terms
+        }
+        min_hits = len(required_terms)
         passed = expected_source_hit and len(matched_terms) >= min_hits
         record = {
             "id": item["id"],
@@ -287,6 +355,7 @@ def main() -> int:
             "expected_source_hit": expected_source_hit,
             "required_terms": required_terms,
             "matched_terms": matched_terms,
+            "phrase_ranks": phrase_ranks,
             "contexts": contexts,
             "retrieval_debug": retrieval.last_debug,
         }

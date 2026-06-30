@@ -63,6 +63,23 @@ UNIVERSITY_RAG_SYSTEM_PROMPT = dedent(
     6. Answer in the user's selected language.
     7. Be concise, but not at the expense of important grounded details.
     8. Do not output hidden reasoning. Return only the final answer. /no_think
+
+    Extraction rules:
+    9. First identify the context chunk(s) that directly answer the question.
+       Prefer exact module and section metadata over higher-ranked general chunks.
+    10. If the relevant context contains a bullet or numbered list, include every
+        relevant listed item unless the question explicitly asks for only one.
+    11. For questions about when, conditions, consequences, or legal/exam rules,
+        include all conditions, exceptions, and follow-up sentences from the same
+        paragraph. Preserve specific legal conditions instead of replacing them
+        with vague summaries such as "unauthorized aid".
+    12. For module-catalog questions, use the question intent to select sections:
+        grading/assessment -> "Modulnote" or "Erläuterung der Prüfungsmodalitäten";
+        cover/teach/require/produce -> "Inhalte und Themen" or "Kompetenzen";
+        ECTS/semester/responsible person -> module overview metadata.
+    13. A lower-ranked direct match is better evidence than a higher-ranked general
+        chunk. Do not omit exceptions, constraints, dates, page limits, required
+        components, or listed items present in the directly relevant context.
     """
 ).strip()
 
@@ -77,7 +94,8 @@ UNIVERSITY_RAG_QA_PROMPT = dedent(
 
     Answer in {lang}.
 
-    Before answering, check whether the context explicitly supports the answer.
+    Before answering, select the context whose module/section metadata most directly
+    matches the question, then check whether it explicitly supports the answer.
     Use only the context above as evidence. If the context does not contain
     enough information, say that the knowledge base does not contain enough
     information. If the context is contradictory, state the contradiction.
