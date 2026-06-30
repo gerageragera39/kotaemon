@@ -252,6 +252,33 @@ class VectorRetrieval(BaseRetrieval):
         ("thesis", ("Bachelorarbeit", "Abschlussarbeit")),
         ("ects points", ("ECTS-Punkte", "Leistungspunkte")),
         ("ects", ("ECTS", "Leistungspunkte")),
+        (
+            "elective compulsory area",
+            ("Wahlpflichtbereich", "Wahlpflichtmodule", "§ 6", "Leistungspunkte"),
+        ),
+        (
+            "compulsory area",
+            ("Pflichtbereich", "Pflichtmodule", "§ 6", "Leistungspunkte"),
+        ),
+        (
+            "distributed across subjects",
+            ("Verteilung", "Fächergruppen", "Leistungspunkte", "§ 6"),
+        ),
+        ("aimed at", ("Zielgruppe", "richtet sich an")),
+        (
+            "teaching and learning methods",
+            (
+                "didaktische Konzepte",
+                "Übungen",
+                "Projektarbeiten",
+                "Gruppenarbeit",
+                "Flipped Classrooms",
+            ),
+        ),
+        (
+            "foreign-language competence",
+            ("Fremdsprachenkompetenz", "fremdsprachliche Kompetenz", "Qualifikationsziel"),
+        ),
         ("attendance requirement", ("Anwesenheitspflicht", "Fehlzeiten")),
         ("attendance", ("Anwesenheit", "Anwesenheitspflicht", "Fehlzeiten")),
         ("distinction", ("mit Auszeichnung",)),
@@ -541,6 +568,7 @@ class VectorRetrieval(BaseRetrieval):
                 metadata.get("semantic_title"),
                 metadata.get("table_caption"),
                 metadata.get("module_title"),
+                metadata.get("module_code"),
                 metadata.get("module_number"),
                 metadata.get("module_section"),
                 metadata.get("chunk_type"),
@@ -590,6 +618,56 @@ class VectorRetrieval(BaseRetrieval):
 
         return best
 
+    def _metadata_relevance_score(
+        self, query_variants: Sequence[str], doc: Document
+    ) -> float:
+        """Boost exact module-title and requested assessment metadata matches."""
+
+        metadata = doc.metadata or {}
+        queries = [self._lexical_normalize(query) for query in query_variants]
+        score = 0.0
+
+        module_title = self._lexical_normalize(str(metadata.get("module_title") or ""))
+        if module_title and any(module_title in query for query in queries):
+            score += 0.6
+
+        assessment_query = any(
+            re.search(
+                r"\b(modulnote|note|benotung|bewertung|grade|grading|assess|assessed|assessment|"
+                r"pruefungsleistung|pruefungsmodalitaet|pruefungsmodalitaeten)\b",
+                query,
+            )
+            for query in queries
+        )
+        module_section = self._lexical_normalize(
+            str(metadata.get("module_section") or "")
+        )
+        section_title = self._lexical_normalize(
+            str(metadata.get("section_title") or "")
+        )
+        if assessment_query and (
+            module_section == "assessment" or section_title == "modulnote"
+        ):
+            score += 0.4
+
+        program_prose_query = any(
+            re.search(
+                r"\b(aimed at|target group|zielgruppe|teaching and learning methods|"
+                r"lehr und lernformen|foreign language competence|"
+                r"fremdsprachenkompetenz|fremdsprachliche kompetenz)\b",
+                query,
+            )
+            for query in queries
+        )
+        if (
+            program_prose_query
+            and metadata.get("doc_type") == "study_description"
+            and metadata.get("chunk_type") != "table"
+        ):
+            score += 0.5
+
+        return min(1.0, score)
+
     def _filter_docs(
         self, documents: list[RetrievedDocument], top_k: int | None = None
     ):
@@ -607,6 +685,7 @@ class VectorRetrieval(BaseRetrieval):
         rrf_k: int = 60,
         query_variants: Sequence[str] | None = None,
         lexical_weight: float = 0.025,
+        metadata_weight: float = 0.04,
     ) -> list[RetrievedDocument]:
         """Fuse dense and full-text candidates using weighted RRF ranks.
 
@@ -665,11 +744,17 @@ class VectorRetrieval(BaseRetrieval):
                 if query_variants
                 else 0.0
             )
+            metadata_score = (
+                self._metadata_relevance_score(query_variants, entry["doc"])
+                if query_variants
+                else 0.0
+            )
             entry["metadata"]["_fusion_score"] = entry["score"]
             entry["metadata"]["_lexical_score"] = lexical_score
+            entry["metadata"]["_metadata_score"] = metadata_score
             entry["metadata"]["_ranking_score"] = entry["score"] + (
                 lexical_weight * lexical_score
-            )
+            ) + (metadata_weight * metadata_score)
             entry["metadata"]["_retrieval_sources"] = entry["sources"]
             entry["metadata"]["retrieval_source"] = (
                 "both"

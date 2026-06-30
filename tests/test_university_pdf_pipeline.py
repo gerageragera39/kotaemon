@@ -180,6 +180,41 @@ def test_study_description_uses_section_path_table_chunks():
     assert any("Wirtschaftswissenschaftliche Fakultät" in d.text for d in children)
 
 
+def test_study_description_prose_keeps_its_own_section_path():
+    file_name = "Studiengangsbeschreibung_BA_D3B.pdf"
+    docs = [
+        structured_doc("1. Studiengang", 0, "heading", page=2, file_name=file_name),
+        structured_doc("1.2. Zielgruppe", 1, "heading", page=3, file_name=file_name),
+        structured_doc(
+            "Der Studiengang richtet sich an analytisch interessierte Studierende.",
+            2,
+            page=3,
+            file_name=file_name,
+        ),
+        structured_doc("2.6. Studienprofile", 3, "heading", page=8, file_name=file_name),
+        structured_doc(
+            "| Profil | ECTS |\n| --- | --- |\n| Finance & Economics | 30 |",
+            4,
+            "table",
+            page=8,
+            file_name=file_name,
+        ),
+    ]
+
+    chunks = UniversityPDFChunker().run(docs)
+    prose = next(
+        doc
+        for doc in chunks
+        if doc.metadata.get("index_role") == "child"
+        and "analytisch interessierte" in doc.text
+    )
+
+    assert prose.metadata["section_path"] == ["1. Studiengang", "1.2. Zielgruppe"]
+    assert prose.metadata["nearest_heading"] == "1.2. Zielgruppe"
+    assert prose.metadata["chunk_type"] == "heading"
+    assert "Finance & Economics" not in prose.text
+
+
 def test_study_profile_heading_list_gets_summary_chunk():
     docs = [
         structured_doc(
@@ -244,6 +279,142 @@ def test_module_chunks_include_module_title():
     assert children
     assert children[0].metadata["doc_type"] == "module_catalog"
     assert children[0].metadata["module_title"] == "Data Analytics"
+
+
+def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
+    docs = [
+        structured_doc("Bachelorarbeit", 0, "heading", page=49, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc(
+            "| Modultitel | Bachelorarbeit |\n| --- | --- |\n"
+            "| Modultitel Englisch | Bachelor Thesis |\n"
+            "| Modulnummer | 82-021-H-BA-0507 |\n"
+            "| Leistungspunkte ECTS-Punkte | 10 ECTS |",
+            1,
+            "table",
+            page=49,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc("Modulnote :", 2, "heading", page=50, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc("Schriftliche Arbeit (100%)", 3, "list_item", page=50, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc("Digitales Projekt", 4, "heading", page=51, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc(
+            "| Modultitel | Digitales Projekt |\n| --- | --- |\n"
+            "| Modultitel Englisch | Digital Project |\n"
+            "| Modulnummer | 82-021-D3B03-H-0721 |\n"
+            "| Leistungspunkte ECTS-Punkte | 10 |",
+            5,
+            "table",
+            page=51,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc("Modulnote :", 6, "heading", page=52, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc("Schriftliche Ausarbeitung (50 %)", 7, "list_item", page=52, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc("Endpräsentation (25 %)", 8, "list_item", page=52, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc(
+            "Digital Seminar in Data Science & Quantitative Applications",
+            9,
+            "heading",
+            page=53,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc(
+            "| Modultitel | Digital Seminar in Data Science & Quantitative Applications |\n| --- | --- |\n"
+            "| Modultitel Englisch | Digital Seminar in Data Science & Quantitative Applications |\n"
+            "| Modulnummer | 82-021-D3B09-H-0124 |",
+            10,
+            "table",
+            page=53,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc("Modulnote :", 11, "heading", page=55, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc("Softwareimplementierung (50 %)", 12, "list_item", page=55, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+    ]
+
+    chunks = UniversityPDFChunker(max_child_size=120, target_child_size=90).run(docs)
+    children = [d for d in chunks if d.metadata.get("index_role") == "child"]
+    parents = [d for d in chunks if d.metadata.get("index_role") == "parent"]
+
+    assert all(d.metadata.get("module_title") for d in children)
+    assert {"Bachelor Thesis", "Digital Project", "Digital Seminar in Data Science & Quantitative Applications"} <= {
+        d.metadata.get("module_title") for d in children
+    }
+
+    digital_project = [
+        d for d in children if d.metadata.get("module_title") == "Digital Project"
+    ]
+    assert digital_project
+    assert all("Schriftliche Arbeit (100%)" not in d.text for d in digital_project)
+    assert all(
+        "Digital Seminar in Data Science & Quantitative Applications" not in d.text
+        for d in digital_project
+    )
+    assessment = next(
+        d for d in digital_project if "Schriftliche Ausarbeitung (50 %)" in d.text
+    )
+    assert assessment.metadata["section_title"] == "Modulnote"
+    assert assessment.metadata["module_code"] == "82-021-D3B03-H-0721"
+    assert assessment.metadata["section_path"] == ["Digital Project", "Modulnote"]
+    assert "Module: Digital Project" in assessment.text
+
+    project_parent = next(
+        d
+        for d in parents
+        if d.metadata.get("module_title") == "Digital Project"
+    )
+    assert "Schriftliche Arbeit (100%)" not in project_parent.text
+    assert "Softwareimplementierung (50 %)" not in project_parent.text
+
+
+def test_short_terminal_tail_is_finalized_before_next_module():
+    file_name = "Modulkatalog_Bachelor_D3B_DE.pdf"
+    docs = [
+        structured_doc("Modul: Previous Module", 0, "heading", page=10, file_name=file_name),
+        structured_doc("Modulnote", 1, "heading", page=11, file_name=file_name),
+        structured_doc("Klausur 100 %", 2, page=11, file_name=file_name),
+        structured_doc("Bemerkungen", 3, "heading", page=11, file_name=file_name),
+        structured_doc("Keine", 4, page=11, file_name=file_name),
+        structured_doc("Next Module", 5, "heading", page=12, file_name=file_name),
+        structured_doc(
+            "| Modultitel | Nächstes Modul |\n| --- | --- |\n"
+            "| Modultitel Englisch | Next Module |\n| Modulnummer | NEXT-101 |",
+            6,
+            "table",
+            page=12,
+            file_name=file_name,
+        ),
+        structured_doc("Modulnote", 7, "heading", page=13, file_name=file_name),
+        structured_doc("Projekt 50 %\nPräsentation 50 %", 8, page=13, file_name=file_name),
+    ]
+
+    chunks = UniversityPDFChunker(max_child_size=500).run(docs)
+    next_children = [
+        doc
+        for doc in chunks
+        if doc.metadata.get("index_role") == "child"
+        and doc.metadata.get("module_title") == "Next Module"
+    ]
+
+    assert next_children
+    assert all("Klausur 100 %" not in doc.text for doc in next_children)
+    assert all("Bemerkungen\n\nKeine" not in doc.text for doc in next_children)
+    assert all(doc.metadata.get("module_code") == "NEXT-101" for doc in next_children)
+    assert all(doc.metadata.get("section_title") for doc in next_children)
+    assert all(doc.metadata.get("module_section") for doc in next_children)
+    assert all(doc.metadata.get("page_label_start") is not None for doc in next_children)
+    assert all(doc.metadata.get("page_label_end") is not None for doc in next_children)
+
+    overview = next(doc for doc in next_children if doc.metadata["module_section"] == "overview")
+    assessment = next(
+        doc for doc in next_children if doc.metadata["module_section"] == "assessment"
+    )
+    assert overview.metadata["section_title"] == "Module overview"
+    assert overview.metadata["section_path"] == ["Next Module", "Module overview"]
+    assert overview.metadata["page_label_start"] == 12
+    assert overview.metadata["page_label_end"] == 12
+    assert assessment.metadata["section_title"] == "Modulnote"
+    assert assessment.metadata["section_path"] == ["Next Module", "Modulnote"]
+    assert assessment.metadata["page_label_start"] == 13
+    assert assessment.metadata["page_label_end"] == 13
 
 
 def test_long_module_splits_into_deterministic_sections_with_metadata():

@@ -27,10 +27,17 @@ def doc_to_record(doc) -> dict[str, Any]:
         "source_file": doc.metadata.get("source_file") or doc.metadata.get("file_name"),
         "doc_type": doc.metadata.get("doc_type"),
         "chunk_type": doc.metadata.get("chunk_type"),
+        "module_title": doc.metadata.get("module_title"),
+        "module_code": doc.metadata.get("module_code")
+        or doc.metadata.get("module_number"),
+        "section_title": doc.metadata.get("section_title"),
         "section_path": doc.metadata.get("section_path"),
         "nearest_heading": doc.metadata.get("nearest_heading"),
         "page_label_start": doc.metadata.get("page_label_start"),
         "page_label_end": doc.metadata.get("page_label_end"),
+        "page_label": doc.metadata.get("page_label"),
+        "used_in_evidence": doc.metadata.get("used_in_evidence"),
+        "evidence_header": doc.metadata.get("evidence_header"),
         "text_preview": (doc.text or "")[:500],
         "text": doc.text,
         "metadata": doc.metadata,
@@ -91,6 +98,122 @@ def assert_sanity(chunks) -> None:
             assert "|" in child.text and "---" in child.text, "table chunk lost markdown syntax"
         if child.metadata.get("doc_type") == "module_catalog":
             assert child.metadata.get("module_title"), "module child missing module_title"
+            module = child.metadata.get("module_title")
+            path = child.metadata.get("section_path") or []
+            assert not path or path[0] == module, "module child section_path lost module title"
+            if str(module).lower().startswith("modulkatalog"):
+                continue
+            for forbidden in _other_module_titles(child, children):
+                assert not _contains_module_start(child.text or "", str(forbidden)), (
+                    "module child appears to cross module boundary: "
+                    f"{module} contains heading {forbidden}"
+                )
+
+    suspicious = suspicious_module_chunks(chunks)
+    assert not suspicious, "suspicious module chunks:\n" + json.dumps(
+        suspicious, ensure_ascii=False, indent=2
+    )
+
+
+def suspicious_module_chunks(chunks) -> list[dict[str, Any]]:
+    """Describe module-boundary and assessment-metadata violations."""
+
+    children = [
+        doc
+        for doc in chunks
+        if doc.metadata.get("index_role") == "child"
+        and doc.metadata.get("doc_type") == "module_catalog"
+    ]
+    suspicious: list[dict[str, Any]] = []
+    terminal_headings = {
+        "Modulnote",
+        "Bemerkungen",
+        "Polyvalenz mit anderen Studiengängen",
+        "Erläuterung der Prüfungsmodalitäten",
+    }
+
+    for child in children:
+        metadata = child.metadata or {}
+        module = str(metadata.get("module_title") or "")
+        text = child.text or ""
+        body = text.split("\n\n", 1)[-1]
+        reasons: list[str] = []
+
+        other_starts = [
+            title
+            for title in _other_module_titles(child, children)
+            if _contains_module_start(body, title)
+        ]
+        if other_starts:
+            reasons.append(f"multiple_module_titles:{','.join(other_starts)}")
+
+        module_pos = text.find(module) if module else -1
+        note_pos = text.find("Modulnote")
+        if note_pos >= 0 and (module_pos < 0 or note_pos < module_pos):
+            reasons.append("modulnote_before_current_module_title")
+
+        if metadata.get("section_title") == "Modulnote" and not module:
+            reasons.append("modulnote_missing_module_title")
+
+        first_line = next(
+            (line.strip().strip(" :") for line in body.splitlines() if line.strip()),
+            "",
+        )
+        if (
+            first_line in terminal_headings
+            and metadata.get("section_title") != first_line
+        ):
+            reasons.append(f"body_starts_with_previous_module_tail:{first_line}")
+
+        if (
+            "Digital Project" in text
+            and "Digital Seminar in Data Science & Quantitative Applications" in text
+            and re.search(
+                r"Schriftliche Ausarbeitung|Projektmanagement und Teamarbeit|Endpr(?:ä|¨ a)sentation",
+                text,
+                flags=re.I,
+            )
+        ):
+            reasons.append("digital_project_grading_mixed_with_digital_seminar")
+
+        if reasons:
+            suspicious.append(
+                {
+                    "chunk_id": metadata.get("chunk_id") or child.doc_id,
+                    "module_title": module or None,
+                    "section_title": metadata.get("section_title"),
+                    "page_label_start": metadata.get("page_label_start"),
+                    "page_label_end": metadata.get("page_label_end"),
+                    "reasons": reasons,
+                    "text_preview": text[:500],
+                }
+            )
+
+    return suspicious
+
+
+def _other_module_titles(child, children) -> list[str]:
+    module = child.metadata.get("module_title")
+    titles = {
+        other.metadata.get("module_title")
+        for other in children
+        if other.metadata.get("doc_type") == "module_catalog"
+        and other.metadata.get("module_title")
+        and other.metadata.get("module_title") != module
+    }
+    # Short titles such as "Finance" are too collision-prone in body text.
+    return sorted(title for title in titles if len(str(title).split()) >= 2)
+
+
+def _contains_module_start(text: str, title: str) -> bool:
+    lines = (text or "").splitlines()
+    for idx, line in enumerate(lines):
+        if line.strip() != title:
+            continue
+        lookahead = "\n".join(lines[idx + 1 : idx + 12])
+        if re.search(r"(?i)\b(Modultitel|Modulnummer)\b", lookahead):
+            return True
+    return False
 
 
 def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str, Any]:
@@ -103,6 +226,12 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
     }
     missing_metadata.update(
         {
+            "module_title": sum(
+                1
+                for d in children
+                if d.metadata.get("doc_type") == "module_catalog"
+                and not d.metadata.get("module_title")
+            ),
             "page_label_start/end": sum(
                 1
                 for d in children
@@ -131,6 +260,7 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
         "parent_docs_embeddable_count": sum(
             1 for d in parents if d.metadata.get("index_role") != "parent"
         ),
+        "suspicious_module_chunks": len(suspicious_module_chunks(chunks)),
     }
 
 

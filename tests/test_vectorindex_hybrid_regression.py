@@ -487,6 +487,27 @@ def test_query_expansion_adds_german_oral_exam_variant():
     assert any("mündliche Prüfung" in variant for variant in variants)
 
 
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("How many ECTS are in the compulsory area?", "Pflichtbereich"),
+        ("How many ECTS are in the elective compulsory area?", "Wahlpflichtbereich"),
+        ("Who is the bachelor's program aimed at?", "Zielgruppe"),
+        ("What teaching and learning methods are used?", "didaktische Konzepte"),
+        ("What foreign-language competence is expected?", "Fremdsprachenkompetenz"),
+    ],
+)
+def test_query_expansion_adds_university_structure_terms(question, expected):
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+        enable_query_expansion=True,
+    )
+
+    assert any(expected in variant for variant in retrieval.query_variants(question))
+
+
 def test_sibling_expansion_includes_matched_child_before_neighbors():
     parent = "parent-1"
     docs = [
@@ -587,6 +608,72 @@ def test_rrf_lexical_signal_promotes_exact_university_candidate():
 
     assert fused[0].doc_id == "exact"
     assert fused[0].metadata["_lexical_score"] > fused[1].metadata["_lexical_score"]
+
+
+def test_rrf_metadata_signal_prefers_named_module_assessment_chunk():
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    wrong_module = doc(
+        "digital-project",
+        text="Modulnote: Schriftliche Ausarbeitung 50 Prozent.",
+        module_title="Digital Project",
+        module_section="assessment",
+        section_title="Modulnote",
+    )
+    requested_module = doc(
+        "digital-seminar",
+        text="Softwareimplementierung 50 Prozent, Hausarbeit 30 Prozent, Präsentation 20 Prozent.",
+        module_title="Digital Seminar in Data Science & Quantitative Applications",
+        module_section="assessment",
+        section_title="Modulnote",
+    )
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[wrong_module, requested_module],
+        vector_scores=[0.91, 0.89],
+        text_docs=[],
+        query_variants=[
+            "How is Digital Seminar in Data Science & Quantitative Applications assessed?"
+        ],
+    )
+
+    assert fused[0].doc_id == "digital-seminar"
+    assert fused[0].metadata["_metadata_score"] == 1.0
+    assert fused[1].metadata["_metadata_score"] == 0.4
+
+
+def test_rrf_metadata_signal_prefers_study_description_prose_for_program_question():
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    module = doc(
+        "module-teaching",
+        text="Lehr- und Lernformen: Vorlesung und Übung.",
+        doc_type="module_catalog",
+        chunk_type="module",
+    )
+    program = doc(
+        "program-teaching",
+        text="Die Lehre kombiniert Vorlesungen, Übungen und Projektarbeit.",
+        doc_type="study_description",
+        chunk_type="heading",
+        section_path=["Didaktisches Konzept"],
+    )
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[module, program],
+        vector_scores=[0.91, 0.89],
+        text_docs=[],
+        query_variants=["What teaching and learning methods are used in the program?"],
+    )
+
+    assert fused[0].doc_id == "program-teaching"
+    assert fused[0].metadata["_metadata_score"] == 0.5
 
 
 def test_context_formatter_uses_final_ranking_before_display_score():
