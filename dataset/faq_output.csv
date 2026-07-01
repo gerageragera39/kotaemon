@@ -1,0 +1,8 @@
+cluster_id,frequency,faq_question,questions
+1,5,hi,"['hi', 'hi', 'hi', 'hi', 'hi']"
+6,2,Für wen ist der Studiengang geeignet?,"['wie viele ECTS hat der Studiengang?', 'Für wen ist der Studiengang geeignet?']"
+7,2,Wie lange ist die Regelstudienzeit im Studiengang Digital and Data Driven Business,"['Wie viele ECTS hat der Studiengang Digital and Data Driven Business', 'Wie lange ist die Regelstudienzeit im Studiengang Digital and Data Driven Business']"
+0,1,hallo,['hallo']
+9,1,Wie viele Semester studiere ich D3B,['Wie viele Semester studiere ich D3B']
+10,1,Welche Wahlpfichtmodule gibt es,['Welche Wahlpfichtmodule gibt es']
+12,1,Was muss ich über die Projektarbeit wissen,['Was muss ich über die Projektarbeit wissen']
