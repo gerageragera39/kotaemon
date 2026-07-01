@@ -1,4 +1,10 @@
-from ktem.utils.guest_scope import default_file_selection, force_search_all_for_guest
+from ktem.utils.commands import WEB_SEARCH_COMMAND
+from ktem.utils.conversation import get_file_names_regex, get_urls
+from ktem.utils.guest_scope import (
+    default_file_selection,
+    force_search_all_for_guest,
+    prepare_guest_chat_submission,
+)
 
 
 def test_guest_selector_is_forced_to_search_all():
@@ -62,35 +68,17 @@ def test_retriever_rebinds_hidden_selector_to_callback_user():
     assert pipelines[0].user_id == "guest-id"
 
 
-def test_guest_submit_ignores_urls_and_web_search(monkeypatch):
-    import pytest
+def test_guest_submit_ignores_urls_and_web_search():
+    text = f'@"{WEB_SEARCH_COMMAND}" https://example.edu'
+    file_names, text = get_file_names_regex(text)
+    urls, text = get_urls(text)
 
-    pytest.importorskip("gradio")
-
-    import ktem.pages.chat.__init__ as chat_module
-    from ktem.pages.chat import ChatPage
-
-    page = object.__new__(ChatPage)
-
-    def fail_index(*args, **kwargs):  # pragma: no cover - should never be called
-        raise AssertionError("guest URL input must not trigger indexing")
-
-    page.first_indexing_url_fn = fail_index
-    page.chat_control = object()
-    monkeypatch.setattr(chat_module, "is_guest_user", lambda user_id: True)
-
-    result = page.submit_msg(
-        {"text": f"@{chat_module.WEB_SEARCH_COMMAND} https://example.edu"},
-        [],
-        "guest-id",
-        {},
-        "existing-conv",
-        "Guest conversation",
-        [],
-        request=None,
+    resolved_text, file_ids, used_command = prepare_guest_chat_submission(
+        text, [], "Default question"
     )
 
-    assert result[-3] == "all"
-    assert result[-2]["value"] == []
-    assert result[-1] is None
-    assert result[1][-1][0] == chat_module.DEFAULT_QUESTION
+    assert file_names == [WEB_SEARCH_COMMAND]
+    assert urls == ["https://example.edu"]
+    assert resolved_text == "Default question"
+    assert file_ids == []
+    assert used_command is None

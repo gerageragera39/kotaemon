@@ -38,4 +38,4 @@ jobs:
           python -m pip install -e . --no-deps
 
       - name: Run tests
-        run: pytest tests
+        run: pytest -q tests

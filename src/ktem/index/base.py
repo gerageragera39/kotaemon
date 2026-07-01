@@ -52,11 +52,11 @@ class BaseIndex(abc.ABC):
         get_retriever_pipelines: return the retriever pipelines when the user chat
     """
 
-    def __init__(self, app, id, name, config):
+    def __init__(self, app: Any, id: int, name: str, config: dict[str, Any]):
         self._app = app
         self.id = id
         self.name = name
-        self.config = config  # admin settings
+        self.config: dict[str, Any] = config  # admin settings
 
     def on_create(self):
         """Create the index for the first time"""

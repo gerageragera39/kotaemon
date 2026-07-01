@@ -48,6 +48,8 @@ def export_chat_csv(
     CHAT_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     rows = []
     exported_at = datetime.now().isoformat(timespec="seconds")
+    retrieval_items = retrieval_history or []
+    plot_items = plot_history or []
 
     for turn_index, message in enumerate(messages or [], start=1):
         if not isinstance(message, (list, tuple)) or len(message) < 2:
@@ -56,12 +58,12 @@ def export_chat_csv(
         question = "" if message[0] is None else str(message[0])
         answer = "" if message[1] is None else str(message[1])
         context_html = ""
-        if turn_index - 1 < len(retrieval_history or []):
-            context_html = retrieval_history[turn_index - 1] or ""
+        if turn_index - 1 < len(retrieval_items):
+            context_html = retrieval_items[turn_index - 1] or ""
         context_text = plain_context(context_html)
         plot_data = None
-        if turn_index - 1 < len(plot_history or []):
-            plot_data = plot_history[turn_index - 1]
+        if turn_index - 1 < len(plot_items):
+            plot_data = plot_items[turn_index - 1]
 
         rows.append(
             {

@@ -35,8 +35,9 @@ class FileIndex(BaseIndex):
         docstore, and (2) the source and the vector store.
     """
 
-    def __init__(self, app, id: int, name: str, config: dict):
+    def __init__(self, app: Any, id: int, name: str, config: dict[str, Any]):
         super().__init__(app, id, name, config)
+        self.config: dict[str, Any] = config
 
         self._indexing_pipeline_cls: Type[BaseFileIndexIndexing]
         self._retriever_pipeline_cls: list[Type[BaseFileIndexRetriever]]

@@ -3,7 +3,7 @@ import html
 import json
 import re
 from copy import deepcopy
-from typing import Optional
+from typing import Any, Optional
 
 import gradio as gr
 from decouple import config
@@ -27,6 +27,7 @@ from ktem.reasoning.prompt_optimization.suggest_conversation_name import (
 from ktem.reasoning.prompt_optimization.suggest_followup_chat import (
     SuggestFollowupQuesPipeline,
 )
+from ktem.utils.guest_scope import prepare_guest_chat_submission
 
 from ...utils import SUPPORTED_LANGUAGE_MAP, get_file_names_regex, get_urls
 from ...utils.chat_export import export_chat_csv
@@ -1024,7 +1025,7 @@ class ChatPage(BasePage):
             raise ValueError("Input is empty")
 
         chat_input_text = chat_input.get("text", "")
-        file_ids = []
+        file_ids: list[Any] = []
         used_command = None
 
         first_selector_choices_map = {
@@ -1042,8 +1043,9 @@ class ChatPage(BasePage):
             # Guests must always query all admin-indexed documents. Ignore file
             # mentions, pasted URLs, and web-search commands so a guest cannot turn
             # KURAGa into upload/select/web-only mode from hidden controls.
-            file_ids = []
-            used_command = None
+            chat_input_text, file_ids, used_command = prepare_guest_chat_submission(
+                chat_input_text, chat_history, DEFAULT_QUESTION
+            )
         elif WEB_SEARCH_COMMAND in file_names:
             used_command = WEB_SEARCH_COMMAND
 

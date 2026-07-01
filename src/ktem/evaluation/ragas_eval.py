@@ -14,7 +14,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import pandas as pd
 from decouple import config as env_config
@@ -870,17 +870,17 @@ def _build_retrievers(
 ):
     if retrieval_scope == "all":
         retrievers = []
-        used_sources: list[str] = []
+        all_used_sources: list[str] = []
         for index in app.index_manager.indices:
             if getattr(index, "_selector_ui", None) is None:
                 index.get_selector_component_ui()
             retrievers.extend(
                 index.get_retriever_pipelines(settings, user_id, ["all", [], user_id])
             )
-            used_sources.append(f"{index.name}: all visible documents")
+            all_used_sources.append(f"{index.name}: all visible documents")
         if not retrievers:
             raise ValueError("No retriever pipelines available for all-document scope")
-        return retrievers, used_sources
+        return retrievers, all_used_sources
 
     source_matches = _find_source_ids(app, source_file, user_id)
     if not source_matches:
@@ -1505,8 +1505,8 @@ def _local_defined_scores(
             answer_keyword_recall = 0.0
             context_keyword_recall = 0.0
 
-        score_values = [
-            value
+        score_values: list[float] = [
+            cast(float, value)
             for value in (
                 semantic_similarity,
                 string_similarity,

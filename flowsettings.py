@@ -206,9 +206,9 @@ USE_NANO_GRAPHRAG = False
 USE_LIGHTRAG = False
 USE_MS_GRAPHRAG = False
 
-GRAPHRAG_INDEX_TYPES = []
+GRAPHRAG_INDEX_TYPES: list[str] = []
 KH_INDEX_TYPES = ["ktem.index.file.FileIndex"]
-GRAPHRAG_INDICES = []
+GRAPHRAG_INDICES: list[dict] = []
 
 KH_INDICES = [
     {

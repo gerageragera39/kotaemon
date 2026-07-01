@@ -1201,7 +1201,7 @@ class UniversityPDFChunker(BaseSplitter):
                 summaries[tuple(parent_path)].append(doc)
 
         blocks: list[_Block] = []
-        for parent_path, heading_docs in summaries.items():
+        for summary_path, heading_docs in summaries.items():
             unique: list[str] = []
             elements: list[Document] = []
             for doc in heading_docs:
@@ -1211,7 +1211,7 @@ class UniversityPDFChunker(BaseSplitter):
                     elements.append(doc)
             if len(unique) < 2:
                 continue
-            path = list(parent_path)
+            path = list(summary_path)
             nearest_heading = path[-1] if path else None
             if any("studienprofile" in self._normalize(item) for item in path):
                 label = "Studienprofile"

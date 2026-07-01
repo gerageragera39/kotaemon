@@ -1072,15 +1072,17 @@ class VectorRetrieval(BaseRetrieval):
     def _display_retrieval_score(self, metadata: dict[str, Any]) -> float:
         """Return a meaningful score for UI/eval prompts, not the RRF rank value."""
 
+        vector_value = metadata.get("_vector_score")
         try:
-            vector_score = float(metadata.get("_vector_score"))
+            vector_score = float(vector_value) if vector_value is not None else None
         except (TypeError, ValueError):
             vector_score = None
         if vector_score is not None and vector_score != -1.0:
             return vector_score
 
+        text_value = metadata.get("_text_score")
         try:
-            text_score = float(metadata.get("_text_score"))
+            text_score = float(text_value) if text_value is not None else None
         except (TypeError, ValueError):
             text_score = None
         if text_score is not None and text_score != -1.0:
@@ -1156,7 +1158,8 @@ class VectorRetrieval(BaseRetrieval):
         candidate_multiplier = max(1, int(self.first_round_top_k_mult))
         top_k_first_round = max(top_k, top_k * candidate_multiplier)
 
-        if self.doc_store is None:
+        doc_store = self.doc_store
+        if doc_store is None:
             raise ValueError(
                 "doc_store is not provided. Please provide a doc_store to "
                 "retrieve the documents"
@@ -1192,12 +1195,15 @@ class VectorRetrieval(BaseRetrieval):
         }
 
         def vector_search(query_text: str) -> tuple[list[Document], list[float]]:
+            vector_store = self.vector_store
+            if vector_store is None:
+                raise ValueError("vector_store is required for vector retrieval")
             start_time = time.time()
             emb_local = self.embedding.run(query_text)[0].embedding
             _vector_log(f"Query embedding ready in {time.time() - start_time:.2f}s")
             vector_kwargs = dict(kwargs)
             vector_kwargs.update(self._vector_scope_kwargs(scope))
-            _, scores, ids = self.vector_store.query(
+            _, scores, ids = vector_store.query(
                 embedding=emb_local, top_k=top_k_first_round, **vector_kwargs
             )
             if not ids and scope and "filters" in vector_kwargs:
@@ -1210,10 +1216,10 @@ class VectorRetrieval(BaseRetrieval):
                 retry_kwargs = dict(vector_kwargs)
                 retry_kwargs.pop("filters", None)
                 _vector_log("Vector query returned no ids; retrying without filters")
-                _, scores, ids = self.vector_store.query(
+                _, scores, ids = vector_store.query(
                     embedding=emb_local, top_k=top_k_first_round, **retry_kwargs
                 )
-            docs_local = self.doc_store.get(ids) if ids else []
+            docs_local = doc_store.get(ids) if ids else []
             if ids and not docs_local:
                 debug["vector_ids_without_docstore_match"] += len(ids)
             if ids:
@@ -1222,9 +1228,7 @@ class VectorRetrieval(BaseRetrieval):
             return docs_local, list(scores)
 
         def text_search(query_text: str) -> list[Document]:
-            return self.doc_store.query(
-                query_text, top_k=top_k_first_round, doc_ids=scope
-            )
+            return doc_store.query(query_text, top_k=top_k_first_round, doc_ids=scope)
 
         def merge_vector_batches(
             batches: list[tuple[list[Document], list[float]]]
@@ -1409,7 +1413,7 @@ class VectorRetrieval(BaseRetrieval):
             else:
                 non_thumbnail_docs.append(doc)
 
-        linked_thumbnail_docs = self.doc_store.get(list(thumbnail_doc_ids))
+        linked_thumbnail_docs = doc_store.get(list(thumbnail_doc_ids))
         _vector_log(
             f"thumbnail docs {len(linked_thumbnail_docs)}; "
             f"non-thumbnail docs {len(non_thumbnail_docs)}; "

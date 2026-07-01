@@ -48,7 +48,6 @@ repos:
             "--remove-unused-variables",
             "--remove-all-unused-imports",
             "--ignore-init-module-imports",
-            "--exclude=tests/*",
           ]
   - repo: https://github.com/pre-commit/mirrors-prettier
     rev: v2.7.1
@@ -75,13 +74,16 @@ repos:
             "--explicit-package-bases",
             "--follow-imports=skip",
           ]
-        exclude: >-
-          ^(templates/|tests/test_(feedback_repair|vectorindex_hybrid_regression)\.py$|src/ktem/(evaluation/ragas_eval|index/file/(index|ingestion_v2)|pages/chat/__init__|utils/chat_export)\.py$|src/kotaemon/(embeddings/tei_endpoint_embed|indices/(splitters/university_pdf|vectorindex)|llms/linear)\.py$|flowsettings\.py$)
+        # Cookiecutter templates contain placeholder package names and are
+        # generated artifacts rather than importable Python packages.
+        exclude: ^templates/
   - repo: https://github.com/codespell-project/codespell
     rev: v2.2.4
     hooks:
       - id: codespell
+        args:
+          - "--ignore-words-list=adresse,alle,als,frist,ist,methoden,modul,oder,rekursion,sie,ue"
         exclude: >-
-          ^(dataset/|rag_eval_dataset.*\.json$|tests/test_(university_pdf_pipeline|vectorindex_hybrid_regression)\.py$|src/kotaemon/(indices/(vectorindex|splitters/university_pdf)|loaders/docling_loader)\.py$|src/ktem/index/file/ingestion_v2\.py$|scripts/(eval_university_retrieval|university_rag_smoke)\.py$)
+          ^(dataset/|rag_eval_dataset.*\.json$)
         additional_dependencies:
           - tomli

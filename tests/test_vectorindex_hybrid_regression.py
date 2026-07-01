@@ -47,7 +47,7 @@ class RecordingVectorStore(BaseVectorStore):
         self.scores = scores or []
         self.query_calls: list[dict] = []
         self.added_ids: list[str] = []
-        self.added_embeddings = []
+        self.added_embeddings: list[DocumentWithEmbedding] = []
 
     def add(self, embeddings, ids):
         self.added_ids.extend(ids)

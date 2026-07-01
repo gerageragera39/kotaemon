@@ -12,3 +12,14 @@ def force_search_all_for_guest(components, user_id, guest_user: bool):
 
     resolved[2] = user_id
     return resolved
+
+
+def prepare_guest_chat_submission(
+    chat_input_text: str,
+    chat_history: list,
+    default_question: str,
+) -> tuple[str, list, None]:
+    """Apply the guest-only submit policy without importing the Gradio UI."""
+    if not chat_input_text and not chat_history:
+        chat_input_text = default_question
+    return chat_input_text, [], None

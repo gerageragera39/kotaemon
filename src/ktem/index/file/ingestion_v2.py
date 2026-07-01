@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from difflib import SequenceMatcher
 from hashlib import sha256
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, cast
 
 from kotaemon.base import Document
 
@@ -147,6 +147,7 @@ def _parse_page_elements(doc: Document, page: int) -> list[SourceElement]:
             text = _clean_text(item.get("text"))
             if not text:
                 continue
+            bbox = item.get("bbox")
             elements.append(
                 SourceElement(
                     element_id=str(item.get("id") or f"p{page}-e{order}"),
@@ -154,7 +155,7 @@ def _parse_page_elements(doc: Document, page: int) -> list[SourceElement]:
                     order=order,
                     label=str(item.get("label") or "text"),
                     text=text,
-                    bbox=item.get("bbox") if isinstance(item.get("bbox"), dict) else {},
+                    bbox=cast(dict[str, Any], bbox) if isinstance(bbox, dict) else {},
                 )
             )
         return elements
@@ -461,11 +462,11 @@ def _table_grid(metadata: dict[str, Any], text: str) -> list[list[str]]:
     if structure:
         try:
             payload = json.loads(structure) if isinstance(structure, str) else structure
-            rows = [
+            structured_rows = [
                 [_clean_cell(cell.get("text", "")) for cell in row]
                 for row in payload.get("rows", [])
             ]
-            return [row for row in rows if any(row)]
+            return [row for row in structured_rows if any(row)]
         except (AttributeError, TypeError, ValueError, json.JSONDecodeError):
             pass
     rows: list[list[str]] = []

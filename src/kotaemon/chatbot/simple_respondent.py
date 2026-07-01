@@ -1,4 +1,4 @@
-from ..llms import ChatLLM
+from ..llms.chats.base import ChatLLM
 from .base import BaseChatBot
 
 

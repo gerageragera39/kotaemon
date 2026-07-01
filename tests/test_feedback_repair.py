@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Any
 
 from ktem.utils.feedback_repair import (
     append_feedback_event,
@@ -54,7 +55,7 @@ def test_bad_format_feedback_does_not_change_retrieval_settings():
 
 
 def test_append_feedback_event_is_backward_compatible_with_likes():
-    data_source = {"likes": [[0, "old answer", True]]}
+    data_source: dict[str, Any] = {"likes": [[0, "old answer", True]]}
 
     event_id = append_feedback_event(
         data_source,

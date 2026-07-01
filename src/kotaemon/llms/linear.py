@@ -7,6 +7,13 @@ from .completions import LLM
 from .prompts import BasePromptComponent
 
 
+def _first_output(value: Any) -> Any:
+    """Return the first component output while accepting scalar callables."""
+    if isinstance(value, (list, tuple)):
+        return value[0] if value else None
+    return value
+
+
 class SimpleLinearPipeline(BaseComponent):
     """
     A simple pipeline for running a function with a prompt, a language model, and an
@@ -52,8 +59,8 @@ class SimpleLinearPipeline(BaseComponent):
     def run(
         self,
         *,
-        llm_kwargs: Optional[dict] = {},
-        post_processor_kwargs: Optional[dict] = {},
+        llm_kwargs: Optional[dict] = None,
+        post_processor_kwargs: Optional[dict] = None,
         **prompt_kwargs,
     ):
         """
@@ -68,15 +75,17 @@ class SimpleLinearPipeline(BaseComponent):
         Returns:
             Document: The final output of the function as a Document object.
         """
+        llm_options = llm_kwargs or {}
+        post_processor_options = post_processor_kwargs or {}
         prompt = self.prompt(**prompt_kwargs)
-        llm_output = self.llm.run(prompt.text, **llm_kwargs)
+        llm_output = self.llm.run(prompt.text, **llm_options)
         if self.post_processor is not None:
             if isinstance(self.post_processor, BaseComponent):
-                final_output = self.post_processor.run(
-                    llm_output, **post_processor_kwargs
-                )[0]
+                final_output = _first_output(
+                    self.post_processor.run(llm_output, **post_processor_options)
+                )
             else:
-                final_output = self.post_processor(llm_output, **post_processor_kwargs)
+                final_output = self.post_processor(llm_output, **post_processor_options)
         else:
             final_output = llm_output
 
@@ -126,8 +135,8 @@ class GatedLinearPipeline(SimpleLinearPipeline):
         self,
         *,
         condition_text: Optional[str] = None,
-        llm_kwargs: Optional[dict] = {},
-        post_processor_kwargs: Optional[dict] = {},
+        llm_kwargs: Optional[dict] = None,
+        post_processor_kwargs: Optional[dict] = None,
         **prompt_kwargs,
     ) -> Document:
         """
@@ -155,7 +164,7 @@ class GatedLinearPipeline(SimpleLinearPipeline):
         else:
             condition_result = self.condition(condition_text)
 
-        if condition_result[0]:
+        if _first_output(condition_result):
             return super().run(
                 llm_kwargs=llm_kwargs,
                 post_processor_kwargs=post_processor_kwargs,
