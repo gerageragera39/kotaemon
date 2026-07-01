@@ -3,9 +3,9 @@ import logging
 
 import gradio as gr
 import pandas as pd
-from ktem.app import BasePage
 
 from kotaemon.agents.tools.mcp import discover_tools_info, format_tool_list
+from ktem.app import BasePage
 
 from .manager import mcp_manager
 

@@ -1,4 +1,3 @@
-
 # ====================================================================
 # OPEN QUESTIONS FROM MY SIDE (Luca):
 # - Where should I safe the downloaded files?
@@ -8,13 +7,12 @@
 
 
 import os
-import requests
 import time
-
-from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
 from collections import deque
+from urllib.parse import urljoin, urlparse
 
+import requests
+from bs4 import BeautifulSoup
 
 # -----------------------------------
 # CONFIGURATION
@@ -34,8 +32,7 @@ KEYWORDS = [
     "wirtschaftsinformatik",
     "/en/",
     "setzer",
-    "apo"
-
+    "apo",
 ]
 
 EXCLUDED_KEYWORDS = [
@@ -57,7 +54,7 @@ EXCLUDED_KEYWORDS = [
     "campus",
     "lehramt",
     "musik",
-    "unileben"
+    "unileben",
 ]
 
 # -----------------------------------
@@ -74,17 +71,20 @@ os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 # FUNCTIONS
 # -----------------------------------
 
+
 def is_relevant(url):
 
     url_lower = url.lower()
 
     return any(keyword in url_lower for keyword in KEYWORDS)
 
+
 def is_excluded(url):
 
     url_lower = url.lower()
 
     return any(keyword in url_lower for keyword in EXCLUDED_KEYWORDS)
+
 
 def is_valid_url(url):
 
@@ -98,13 +98,13 @@ def download_file(url):
     filename = url.split("/")[-1]
     filepath = os.path.join(DOWNLOAD_DIR, filename)
 
-    # Check if document already exists 
+    # Check if document already exists
     if os.path.exists(filepath):
         return
 
     try:
 
-        response = requests.get(url, timeout=(10,30))
+        response = requests.get(url, timeout=(10, 30))
 
         with open(filepath, "wb") as f:
             f.write(response.content)
@@ -124,7 +124,7 @@ while queue:
 
     current_url = queue.popleft()
 
-    # Scope-filter 
+    # Scope-filter
     if "/studienangebot" not in current_url and "/wfi" not in current_url:
         continue
 
@@ -141,7 +141,7 @@ while queue:
 
     try:
 
-        response = requests.get(current_url, timeout=(10,30))
+        response = requests.get(current_url, timeout=(10, 30))
 
         soup = BeautifulSoup(response.text, "html.parser")
 
@@ -180,7 +180,7 @@ while queue:
     except Exception as e:
 
         print(f"[ERROR] {current_url} -> {e}")
-    
+
 end_time = time.time()
 print(f"Runtime: {end_time - start_time:.2f} seconds")
 print(f"Visited pages: {len(visited)}")

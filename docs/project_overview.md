@@ -4,13 +4,13 @@ KURAGa adapts the Kotaemon document-chat architecture into a university-document
 
 ## Main layers
 
-| Layer | Path | Notes |
-| --- | --- | --- |
-| UI/application | `src/ktem/` | Gradio tabs, login/guest access, chat, document management, evaluation, resources, settings. |
-| RAG components | `src/kotaemon/` | Loaders, splitters, stores, retrievers, LLM wrappers, embeddings, rerankers, citation QA. |
-| Configuration | `flowsettings.py` | App name, model defaults, index definitions, stores, feature flags. |
-| Scripts | `scripts/` | University indexing, retrieval diagnostics, evaluation, local model helpers. |
-| Runtime data | `ktem_app_data/` | User DB, uploads, vector/doc stores, caches. Do not commit. |
+| Layer          | Path              | Notes                                                                                        |
+| -------------- | ----------------- | -------------------------------------------------------------------------------------------- |
+| UI/application | `src/ktem/`       | Gradio tabs, login/guest access, chat, document management, evaluation, resources, settings. |
+| RAG components | `src/kotaemon/`   | Loaders, splitters, stores, retrievers, LLM wrappers, embeddings, rerankers, citation QA.    |
+| Configuration  | `flowsettings.py` | App name, model defaults, index definitions, stores, feature flags.                          |
+| Scripts        | `scripts/`        | University indexing, retrieval diagnostics, evaluation, local model helpers.                 |
+| Runtime data   | `ktem_app_data/`  | User DB, uploads, vector/doc stores, caches. Do not commit.                                  |
 
 ## Chat flow
 

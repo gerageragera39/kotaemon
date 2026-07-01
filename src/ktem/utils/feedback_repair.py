@@ -5,7 +5,6 @@ from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-
 FEEDBACK_REPAIR_REASONS: list[tuple[str, str]] = [
     ("Answer is incomplete", "incomplete"),
     ("Answer does not address the question", "not_answering"),

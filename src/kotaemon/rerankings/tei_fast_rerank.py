@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import logging
 from typing import Optional
 
-import logging
 import requests
 
 from kotaemon.base import Document, Param

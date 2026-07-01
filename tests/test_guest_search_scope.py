@@ -1,7 +1,4 @@
-from ktem.utils.guest_scope import (
-    default_file_selection,
-    force_search_all_for_guest,
-)
+from ktem.utils.guest_scope import default_file_selection, force_search_all_for_guest
 
 
 def test_guest_selector_is_forced_to_search_all():

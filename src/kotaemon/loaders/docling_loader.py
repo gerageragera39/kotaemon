@@ -12,10 +12,7 @@ from .azureai_document_intelligence_loader import crop_image
 from .base import BaseReader
 from .utils.adobe import generate_single_figure_caption, make_markdown_table
 
-
-_BROKEN_WORD = re.compile(
-    r"([A-Za-zÄÖÜäöüß]+)-\s+([A-Za-zÄÖÜäöüß]+)"
-)
+_BROKEN_WORD = re.compile(r"([A-Za-zÄÖÜäöüß]+)-\s+([A-Za-zÄÖÜäöüß]+)")
 
 
 def _repair_broken_word(match: re.Match[str]) -> str:

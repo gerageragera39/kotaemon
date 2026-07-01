@@ -18,12 +18,6 @@ from typing import Any, Callable
 
 import pandas as pd
 from decouple import config as env_config
-from ktem.components import reasonings
-from ktem.db.engine import engine
-from kotaemon.base import Document
-from kotaemon.indices.qa.utils import strip_think_tag
-from sqlalchemy import select
-from sqlalchemy.orm import Session
 
 ProgressFn = Callable[[int, int, str], None]
 
@@ -479,9 +473,7 @@ def _candidate_relevance(
         phrase_match = bool(matched_phrases)
         # Required phrases are stronger annotations than a page number. A page
         # can contain several unrelated chunks, especially in amendment statutes.
-        relevant = source_match and (
-            phrase_match if required_phrases else page_match
-        )
+        relevant = source_match and (phrase_match if required_phrases else page_match)
         phrase_recall = (
             len(matched_phrases) / len(required_phrases)
             if required_phrases
@@ -566,9 +558,12 @@ def _candidate_rows(
                 doc_id = str(candidate.get("doc_id", ""))
                 source = str(candidate.get("source", ""))
                 text = str(candidate.get("text", ""))
-                relevant, method, relevance_score, matched_phrases = (
-                    _candidate_relevance(sample, source, candidate.get("page"), text)
-                )
+                (
+                    relevant,
+                    method,
+                    relevance_score,
+                    matched_phrases,
+                ) = _candidate_relevance(sample, source, candidate.get("page"), text)
                 context_item = context_by_id.get(doc_id, {})
                 candidate_row = {
                     "id": sample["id"],
@@ -638,8 +633,7 @@ def _retrieval_metric_row(
         phrase
         for phrase in required_phrases
         if any(
-            _normalize_match_text(phrase)
-            in _normalize_match_text(doc.text or "")
+            _normalize_match_text(phrase) in _normalize_match_text(doc.text or "")
             for _, doc, _, _, _ in candidates
         )
     }
@@ -652,8 +646,7 @@ def _retrieval_metric_row(
         phrase
         for phrase in required_phrases
         if any(
-            _normalize_match_text(phrase)
-            in _normalize_match_text(doc.text or "")
+            _normalize_match_text(phrase) in _normalize_match_text(doc.text or "")
             for doc in included_documents
         )
     }
@@ -739,6 +732,8 @@ def _retrieval_metric_row(
 def _ensure_simple_reasoning_settings(settings: dict[str, Any]) -> dict[str, Any]:
     """Use Simple QA for deterministic single-turn RAG evaluation."""
 
+    from ktem.components import reasonings
+
     eval_settings = deepcopy(settings)
     if "simple" in reasonings:
         eval_settings["reasoning.use"] = "simple"
@@ -789,9 +784,7 @@ def _resolve_evaluation_models(settings: dict[str, Any]) -> tuple[Any, Any]:
     return llm, embedding
 
 
-def _unload_ollama_resource(
-    resource: Any, warnings: list[str], purpose: str
-) -> bool:
+def _unload_ollama_resource(resource: Any, warnings: list[str], purpose: str) -> bool:
     """Best-effort unload that is a no-op for non-Ollama providers."""
 
     if resource is None:
@@ -799,9 +792,7 @@ def _unload_ollama_resource(
     model_name = str(getattr(resource, "model", "") or "")
     base_url = str(getattr(resource, "base_url", "") or "")
     resource_type = type(resource).__name__.lower()
-    if not model_name or (
-        "ollama" not in resource_type and "11434" not in base_url
-    ):
+    if not model_name or ("ollama" not in resource_type and "11434" not in base_url):
         return False
     try:
         endpoint = base_url.rstrip("/")
@@ -829,6 +820,11 @@ def _find_source_ids(
     app: Any, source_file: str, user_id: Any
 ) -> list[tuple[Any, str, str]]:
     """Return (index, source_id, source_name) tuples matching the dataset file name."""
+
+    from sqlalchemy import select
+    from sqlalchemy.orm import Session
+
+    from ktem.db.engine import engine
 
     if not source_file:
         return []
@@ -915,6 +911,8 @@ def _retrieve_with_pipeline(
     sample: dict[str, Any],
     retrieval_scope: str = "all",
 ) -> PreparedEvalSample:
+    from ktem.components import reasonings
+
     question = sample["question"]
     source_file = sample.get("source_file", "")
     started = time.time()
@@ -997,6 +995,10 @@ def _answer_prepared_sample(
 ) -> dict[str, Any]:
     """Generate an answer without invoking the embedding/retrieval model again."""
 
+    from kotaemon.base import Document
+    from kotaemon.indices.qa.utils import strip_think_tag
+    from ktem.components import reasonings
+
     answer_started = time.time()
     reasoning_id = settings.get("reasoning.use")
     if reasoning_id not in reasonings:
@@ -1031,9 +1033,7 @@ def _answer_prepared_sample(
         # thinking tokens. Keep thinking enabled and retry once with bounded
         # headroom; this is evaluation-only and does not alter the user's model.
         answer_llm = getattr(pipeline.answering_pipeline, "llm", None)
-        retry_tokens = _env_nonnegative_int(
-            "RAG_EVAL_EMPTY_ANSWER_RETRY_TOKENS", 2048
-        )
+        retry_tokens = _env_nonnegative_int("RAG_EVAL_EMPTY_ANSWER_RETRY_TOKENS", 2048)
         current_tokens = int(getattr(answer_llm, "max_tokens", 0) or 0)
         if answer_llm is not None and retry_tokens > current_tokens:
             prepared.row["answer_retry_count"] = 1
@@ -1623,17 +1623,13 @@ def _run_ragas(
     metrics_per_batch = _env_optional_int("RAGAS_EVAL_METRICS_PER_BATCH") or len(
         metrics
     )
-    recycle_batches = _env_bool(
-        "RAGAS_EVAL_OLLAMA_RECYCLE_METRIC_BATCHES", False
-    )
+    recycle_batches = _env_bool("RAGAS_EVAL_OLLAMA_RECYCLE_METRIC_BATCHES", False)
     llm_resource, embedding_resource = _resolve_evaluation_models(settings)
     ragas_df = pd.DataFrame(index=range(len(valid_rows)))
     try:
         for start in range(0, len(metrics), metrics_per_batch):
             metric_batch = metrics[start : start + metrics_per_batch]
-            _check_memory_guard(
-                f"RAGAS metric batch {start // metrics_per_batch + 1}"
-            )
+            _check_memory_guard(f"RAGAS metric batch {start // metrics_per_batch + 1}")
             result = _evaluate_with_local_models(
                 evaluation_dataset, metric_batch, evaluator
             )
@@ -1647,9 +1643,7 @@ def _run_ragas(
                     ragas_df[column] = batch_df[column]
             if recycle_batches:
                 _unload_ollama_resource(llm_resource, notes, "RAGAS answer")
-                _unload_ollama_resource(
-                    embedding_resource, notes, "RAGAS embedding"
-                )
+                _unload_ollama_resource(embedding_resource, notes, "RAGAS embedding")
                 gc.collect()
 
         for column in ("id", "source_file"):
@@ -1665,9 +1659,7 @@ def _run_ragas(
     finally:
         if _env_bool("RAG_EVAL_OLLAMA_UNLOAD_AT_END", True):
             _unload_ollama_resource(llm_resource, notes, "RAGAS answer")
-            _unload_ollama_resource(
-                embedding_resource, notes, "RAGAS embedding"
-            )
+            _unload_ollama_resource(embedding_resource, notes, "RAGAS embedding")
 
 
 def _effective_runtime_config(
@@ -1687,9 +1679,7 @@ def _effective_runtime_config(
         "context_limit": settings.get("reasoning.max_context_length"),
         "reader_mode": settings.get("index.options.1.reader_mode"),
         "phased_execution": _env_bool("RAG_EVAL_PHASED_EXECUTION", True),
-        "max_output_tokens": _env_nonnegative_int(
-            "RAG_EVAL_MAX_OUTPUT_TOKENS", 0
-        ),
+        "max_output_tokens": _env_nonnegative_int("RAG_EVAL_MAX_OUTPUT_TOKENS", 0),
         "list_max_output_tokens": _env_nonnegative_int(
             "RAG_EVAL_LIST_MAX_OUTPUT_TOKENS", 0
         ),
@@ -1699,9 +1689,7 @@ def _effective_runtime_config(
         "ollama_embed_keep_alive": str(
             env_config("RAG_EVAL_OLLAMA_EMBED_KEEP_ALIVE", default="-1")
         ),
-        "ragas_metrics_per_batch": _env_optional_int(
-            "RAGAS_EVAL_METRICS_PER_BATCH"
-        )
+        "ragas_metrics_per_batch": _env_optional_int("RAGAS_EVAL_METRICS_PER_BATCH")
         or "all",
         "min_available_gb": _env_float("RAG_EVAL_MIN_AVAILABLE_GB", 0.0),
     }
@@ -1924,9 +1912,7 @@ def run_evaluation(
 
     llm, embedding = _resolve_evaluation_models(eval_settings)
     phased = _env_bool("RAG_EVAL_PHASED_EXECUTION", True)
-    recycle_every = _env_nonnegative_int(
-        "RAG_EVAL_OLLAMA_RECYCLE_QUESTIONS", 0
-    )
+    recycle_every = _env_nonnegative_int("RAG_EVAL_OLLAMA_RECYCLE_QUESTIONS", 0)
     unload_at_end = _env_bool("RAG_EVAL_OLLAMA_UNLOAD_AT_END", True)
     embedding_keep_alive = str(
         env_config("RAG_EVAL_OLLAMA_EMBED_KEEP_ALIVE", default="-1")
@@ -1969,9 +1955,7 @@ def run_evaluation(
 
         _unload_ollama_resource(embedding, warnings, "embedding")
 
-        for answer_idx, (row_index, prepared) in enumerate(
-            prepared_samples, start=1
-        ):
+        for answer_idx, (row_index, prepared) in enumerate(prepared_samples, start=1):
             if progress:
                 progress(
                     limit + answer_idx - 1,
@@ -1996,9 +1980,7 @@ def run_evaluation(
                     {
                         "status": "error",
                         "error": f"{exc}\n{traceback.format_exc(limit=2)}",
-                        "latency_sec": prepared.row.get(
-                            "retrieval_latency_sec", 0
-                        ),
+                        "latency_sec": prepared.row.get("retrieval_latency_sec", 0),
                     }
                 )
                 rows_by_index[row_index] = prepared.row
@@ -2015,18 +1997,14 @@ def run_evaluation(
         ):
             for idx, sample in enumerate(samples, start=1):
                 if progress:
-                    progress(
-                        idx - 1, limit, f"Question {idx}/{limit}: {sample['id']}"
-                    )
+                    progress(idx - 1, limit, f"Question {idx}/{limit}: {sample['id']}")
                 try:
                     _check_memory_guard(f"question {idx}")
                     output_limit = _answer_output_limit(
                         sample,
                         max_output_tokens or getattr(llm, "max_tokens", 256),
                     )
-                    with _temporary_model_attribute(
-                        llm, "max_tokens", output_limit
-                    ):
+                    with _temporary_model_attribute(llm, "max_tokens", output_limit):
                         row, candidates, retrieval_metrics = _answer_with_pipeline(
                             app,
                             eval_settings,

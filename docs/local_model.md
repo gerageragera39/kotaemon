@@ -3,7 +3,7 @@
 KURAGa is configured for local-first model usage through Ollama/OpenAI-compatible APIs.
 
 !!! note "Docker vs host"
-    If KURAGa runs inside Docker and Ollama runs on the host, use `http://host.docker.internal:11434/v1/` instead of `http://localhost:11434/v1/`.
+If KURAGa runs inside Docker and Ollama runs on the host, use `http://host.docker.internal:11434/v1/` instead of `http://localhost:11434/v1/`.
 
 ## Ollama recommended setup
 

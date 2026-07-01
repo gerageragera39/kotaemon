@@ -10,6 +10,8 @@ from typing import Any
 
 import gradio as gr
 import pandas as pd
+from theflow.settings import settings as flowsettings
+
 from ktem.app import BasePage
 from ktem.evaluation import (
     build_evaluation_export_frame,
@@ -17,8 +19,6 @@ from ktem.evaluation import (
     load_eval_dataset,
     run_evaluation,
 )
-from theflow.settings import settings as flowsettings
-
 
 CARD_STYLE = """
 <style>
@@ -197,9 +197,10 @@ _RAGAS_METRIC_ORDER = [
     "context_keyword_recall",
 ]
 
-EVALUATION_OUTPUT_DIR = Path(
-    getattr(flowsettings, "KH_APP_DATA_DIR", Path.cwd() / "ktem_app_data")
-) / "evaluations"
+EVALUATION_OUTPUT_DIR = (
+    Path(getattr(flowsettings, "KH_APP_DATA_DIR", Path.cwd() / "ktem_app_data"))
+    / "evaluations"
+)
 
 
 class EvaluationPage(BasePage):
@@ -207,7 +208,9 @@ class EvaluationPage(BasePage):
 
     def __init__(self, app):
         super().__init__(app)
-        self.default_dataset_path = str(find_default_dataset_path() or "rag_eval_dataset.json")
+        self.default_dataset_path = str(
+            find_default_dataset_path() or "rag_eval_dataset.json"
+        )
         self.on_building_ui()
 
     def on_building_ui(self):
@@ -329,7 +332,7 @@ class EvaluationPage(BasePage):
             '<div class="eval-ragas-panel">'
             '<div class="eval-ragas-empty">'
             "Quality metrics were disabled for this run. Answers and contexts "
-            'are available in the &quot;Answers &amp; contexts&quot; tab and in the CSV.'
+            "are available in the &quot;Answers &amp; contexts&quot; tab and in the CSV."
             "</div></div>"
         )
         return message, gr.update(choices=[], value=None), "", []
@@ -475,7 +478,9 @@ class EvaluationPage(BasePage):
             if column in _RAGAS_META_COLUMNS or cls._is_text_column(df, column):
                 continue
             series = df[column].dropna()
-            has_score = any(cls._coerce_score(value) is not None for value in series.head(50))
+            has_score = any(
+                cls._coerce_score(value) is not None for value in series.head(50)
+            )
             if has_score or cls._looks_like_metric_column(column):
                 metrics.append(column)
         ordered = [name for name in _RAGAS_METRIC_ORDER if name in metrics]
@@ -562,7 +567,9 @@ class EvaluationPage(BasePage):
         body_rows: list[str] = []
         for _, row in df.iterrows():
             sample_label = cls._escape(cls._row_label(row.to_dict()))
-            cells = [f'<td class="row-header" title="{sample_label}">{sample_label}</td>']
+            cells = [
+                f'<td class="row-header" title="{sample_label}">{sample_label}</td>'
+            ]
             for metric in metrics:
                 raw_value = row.get(metric)
                 score_text = cls._escape(cls._format_score(raw_value))
@@ -649,7 +656,9 @@ class EvaluationPage(BasePage):
         )
 
     @classmethod
-    def show_ragas_row_detail(cls, selection: str | None, records: list[dict[str, Any]]):
+    def show_ragas_row_detail(
+        cls, selection: str | None, records: list[dict[str, Any]]
+    ):
         if not records:
             return cls._ragas_row_detail_html(None)
         row_id = cls._parse_row_label(selection)

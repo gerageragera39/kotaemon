@@ -12,17 +12,15 @@ import gradio as gr
 import pandas as pd
 from gradio.data_classes import FileData
 from gradio.utils import NamedString
-from ktem.app import BasePage
-from ktem.db.engine import engine
-from ktem.db.models import User
-from ktem.utils.guest_scope import (
-    default_file_selection,
-    force_search_all_for_guest,
-)
-from ktem.utils.render import Render
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 from theflow.settings import settings as flowsettings
+
+from ktem.app import BasePage
+from ktem.db.engine import engine
+from ktem.db.models import User
+from ktem.utils.guest_scope import default_file_selection, force_search_all_for_guest
+from ktem.utils.render import Render
 
 from ...utils.commands import WEB_SEARCH_COMMAND
 from ...utils.rate_limit import check_rate_limit
@@ -51,6 +49,7 @@ def is_guest_user(user_id) -> bool:
             ).first()
             is not None
         )
+
 
 chat_input_focus_js = """
 function() {
@@ -1743,7 +1742,9 @@ class FileSelector(BasePage):
             for (id,) in results:
                 file_ids.append(id)
 
-        print(f"[file-selector] Search All resolved {len(file_ids)} file ids", flush=True)
+        print(
+            f"[file-selector] Search All resolved {len(file_ids)} file ids", flush=True
+        )
         return file_ids
 
     def load_files(self, selected_files, user_id):

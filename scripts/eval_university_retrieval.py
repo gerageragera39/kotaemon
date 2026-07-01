@@ -14,7 +14,7 @@ import math
 import re
 import sys
 import unicodedata
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -28,7 +28,6 @@ from kotaemon.embeddings.base import BaseEmbeddings  # noqa: E402
 from kotaemon.indices.ingests import DocumentIngestor  # noqa: E402
 from kotaemon.indices.vectorindex import VectorIndexing, VectorRetrieval  # noqa: E402
 from kotaemon.storages.docstores.in_memory import InMemoryDocumentStore  # noqa: E402
-
 
 HARD_CASE_TERMS: dict[str, list[str]] = {
     "d3b_04": [
@@ -157,7 +156,11 @@ def default_terms(item: dict[str, Any]) -> list[str]:
     }
     for phrase in re.findall(r"\b(?:[A-ZÄÖÜ][\wÄÖÜäöüß&-]+(?:\s+|$)){1,5}", text):
         phrase = " ".join(phrase.split())
-        if len(phrase) > 3 and phrase not in stop_phrases and phrase.lower() not in {"the", "a", "an"}:
+        if (
+            len(phrase) > 3
+            and phrase not in stop_phrases
+            and phrase.lower() not in {"the", "a", "an"}
+        ):
             terms.append(phrase)
     for token in re.findall(r"\b\d+(?:[,.]\d+)?\s*(?:ECTS|percent|%)?\b", text):
         terms.append(token.strip())
@@ -203,7 +206,9 @@ class MemoryVectorStore:
             if doc_id not in allowed:
                 continue
             dnorm = math.sqrt(sum(float(v) * float(v) for v in vector)) or 1.0
-            score = sum(float(a) * float(b) for a, b in zip(embedding, vector)) / (qnorm * dnorm)
+            score = sum(float(a) * float(b) for a, b in zip(embedding, vector)) / (
+                qnorm * dnorm
+            )
             scored.append((score, doc_id))
         scored.sort(reverse=True)
         scored = scored[:top_k]
@@ -223,9 +228,16 @@ class LexicalDocStore(InMemoryDocumentStore):
         qtokens = set(re.findall(r"[\wÄÖÜäöüß]+", normalize(query)))
         scored = []
         for doc_id, doc in self._store.items():
-            if doc_id not in allowed or (doc.metadata or {}).get("index_role") == "parent":
+            if (
+                doc_id not in allowed
+                or (doc.metadata or {}).get("index_role") == "parent"
+            ):
                 continue
-            text = normalize((doc.text or "") + " " + json.dumps(doc.metadata or {}, ensure_ascii=False))
+            text = normalize(
+                (doc.text or "")
+                + " "
+                + json.dumps(doc.metadata or {}, ensure_ascii=False)
+            )
             dtokens = set(re.findall(r"[\wÄÖÜäöüß]+", text))
             overlap = len(qtokens & dtokens)
             phrase_bonus = 1 if normalize(query)[:80] in text else 0
@@ -237,8 +249,13 @@ class LexicalDocStore(InMemoryDocumentStore):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate university retrieval only.")
     parser.add_argument("--dataset", default=str(ROOT / "rag_eval_dataset.json"))
-    parser.add_argument("--documents-dir", default=str(ROOT / "dataset" / "testing_files"))
-    parser.add_argument("--output-dir", default=str(ROOT / "dataset" / ".cache" / "university_retrieval_eval"))
+    parser.add_argument(
+        "--documents-dir", default=str(ROOT / "dataset" / "testing_files")
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=str(ROOT / "dataset" / ".cache" / "university_retrieval_eval"),
+    )
     parser.add_argument("--top-k", type=int, default=10)
     parser.add_argument("--candidate-multiplier", type=int, default=20)
     parser.add_argument(
@@ -275,26 +292,45 @@ def main() -> int:
         {
             term
             for item in all_dataset
-            for term in [item["source_file"], item["question"], item["ground_truth"], *HARD_CASE_TERMS.get(item["id"], [])]
-            for term in re.findall(r"[\wÄÖÜäöüß&.-]+(?:\s+[\wÄÖÜäöüß&.-]+){0,5}", str(term))
+            for term in [
+                item["source_file"],
+                item["question"],
+                item["ground_truth"],
+                *HARD_CASE_TERMS.get(item["id"], []),
+            ]
+            for term in re.findall(
+                r"[\wÄÖÜäöüß&.-]+(?:\s+[\wÄÖÜäöüß&.-]+){0,5}", str(term)
+            )
             if len(term.strip()) > 2
         }
     )
 
-    print(f"Re-indexing {len(pdfs)} PDFs from scratch with pdf_mode=university", flush=True)
+    print(
+        f"Re-indexing {len(pdfs)} PDFs from scratch with pdf_mode=university",
+        flush=True,
+    )
     chunks = DocumentIngestor(pdf_mode="university").run(pdfs)
-    child_chunks = [doc for doc in chunks if (doc.metadata or {}).get("index_role") == "child"]
+    child_chunks = [
+        doc for doc in chunks if (doc.metadata or {}).get("index_role") == "child"
+    ]
 
-    chunk_counts = Counter((doc.metadata or {}).get("source_file") or (doc.metadata or {}).get("file_name") for doc in child_chunks)
+    chunk_counts = Counter(
+        (doc.metadata or {}).get("source_file") or (doc.metadata or {}).get("file_name")
+        for doc in child_chunks
+    )
     doc_types = {}
     for doc in child_chunks:
-        source = (doc.metadata or {}).get("source_file") or (doc.metadata or {}).get("file_name")
+        source = (doc.metadata or {}).get("source_file") or (doc.metadata or {}).get(
+            "file_name"
+        )
         doc_types[source] = (doc.metadata or {}).get("doc_type")
 
     docstore = LexicalDocStore()
     vectorstore = MemoryVectorStore()
     embedding = KeywordEmbedding(terms=terms)
-    VectorIndexing(vector_store=vectorstore, doc_store=docstore, embedding=embedding).run(chunks)
+    VectorIndexing(
+        vector_store=vectorstore, doc_store=docstore, embedding=embedding
+    ).run(chunks)
     retrieval = VectorRetrieval(
         vector_store=vectorstore,
         doc_store=docstore,
@@ -311,7 +347,8 @@ def main() -> int:
             {
                 "rank": idx,
                 "id": doc.doc_id,
-                "source_file": doc.metadata.get("source_file") or doc.metadata.get("file_name"),
+                "source_file": doc.metadata.get("source_file")
+                or doc.metadata.get("file_name"),
                 "doc_type": doc.metadata.get("doc_type"),
                 "chunk_type": doc.metadata.get("chunk_type"),
                 "module_title": doc.metadata.get("module_title"),
@@ -326,12 +363,19 @@ def main() -> int:
             }
             for idx, doc in enumerate(docs, start=1)
         ]
-        aggregate = "\n".join((doc.text or "") + "\n" + json.dumps(doc.metadata, ensure_ascii=False) for doc in docs)
-        expected_source_hit = any(ctx["source_file"] == item["source_file"] for ctx in contexts)
+        aggregate = "\n".join(
+            (doc.text or "") + "\n" + json.dumps(doc.metadata, ensure_ascii=False)
+            for doc in docs
+        )
+        expected_source_hit = any(
+            ctx["source_file"] == item["source_file"] for ctx in contexts
+        )
         required_terms = item.get("required_phrases") or HARD_CASE_TERMS.get(
             item["id"], default_terms(item)
         )
-        matched_terms = [term for term in required_terms if contains_term(aggregate, term)]
+        matched_terms = [
+            term for term in required_terms if contains_term(aggregate, term)
+        ]
         phrase_ranks = {
             term: [
                 context["rank"]
@@ -382,8 +426,12 @@ def main() -> int:
         "passed": len(results) - len(failures),
         "failed": len(failures),
     }
-    (out_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
-    (out_dir / "retrieval_results.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+    (out_dir / "summary.json").write_text(
+        json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (out_dir / "retrieval_results.json").write_text(
+        json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     return 1 if failures else 0
 

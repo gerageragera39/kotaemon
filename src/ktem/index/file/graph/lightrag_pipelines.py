@@ -8,9 +8,6 @@ from typing import Generator
 
 import numpy as np
 import pandas as pd
-from ktem.db.models import engine
-from ktem.embeddings.manager import embedding_models_manager as embeddings
-from ktem.llms.manager import llms
 from sqlalchemy.orm import Session
 from tenacity import (
     retry,
@@ -22,6 +19,9 @@ from theflow.settings import settings
 
 from kotaemon.base import Document, Param, RetrievedDocument
 from kotaemon.base.schema import AIMessage, HumanMessage, SystemMessage
+from ktem.db.models import engine
+from ktem.embeddings.manager import embedding_models_manager as embeddings
+from ktem.llms.manager import llms
 
 from ..pipelines import BaseFileIndexRetriever
 from .pipelines import GraphRAGIndexingPipeline

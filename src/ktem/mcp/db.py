@@ -1,7 +1,8 @@
-from ktem.db.engine import engine
 from sqlalchemy import JSON, Column, String
 from sqlalchemy import inspect as sa_inspect
 from sqlalchemy.orm import DeclarativeBase
+
+from ktem.db.engine import engine
 
 
 class Base(DeclarativeBase):

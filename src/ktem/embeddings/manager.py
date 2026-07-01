@@ -79,7 +79,11 @@ class EmbeddingManager:
         # Local-only UI: OpenAI-compatible local embeddings, HuggingFace local
         # models, and TEI endpoint embeddings. Cloud-specific embedding vendors
         # and FastEmbed are intentionally not exposed.
-        self._vendors = [OpenAIEmbeddings, LCHuggingFaceEmbeddings, TeiEndpointEmbeddings]
+        self._vendors = [
+            OpenAIEmbeddings,
+            LCHuggingFaceEmbeddings,
+            TeiEndpointEmbeddings,
+        ]
 
     def __getitem__(self, key: str) -> BaseEmbeddings:
         """Get model by name"""

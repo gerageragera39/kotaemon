@@ -3,10 +3,9 @@ import csv
 import json
 import re
 import time
-import urllib.request
 import urllib.error
+import urllib.request
 from pathlib import Path
-
 
 ANSWER_FIELDS = [
     "generated_answer",
@@ -170,7 +169,7 @@ def evaluate_item(item, ollama_url, model):
 
 def load_json_or_jsonl(path):
     text = Path(path).read_text(encoding="utf-8-sig").strip()
-    
+
     if text.startswith("["):
         return json.loads(text)
 
@@ -271,9 +270,7 @@ def main():
     write_csv(args.output_csv, results)
 
     valid_scores = [
-        row["score"]
-        for row in results
-        if isinstance(row.get("score"), (int, float))
+        row["score"] for row in results if isinstance(row.get("score"), (int, float))
     ]
 
     print("\nDone.")

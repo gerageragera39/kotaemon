@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import threading
 from collections import defaultdict
-from typing import Generator
+from typing import Any, Generator
 
 import numpy as np
 from decouple import config
@@ -14,7 +16,8 @@ from kotaemon.base import (
     Node,
     SystemMessage,
 )
-from kotaemon.llms import ChatLLM, PromptTemplate
+from kotaemon.llms.chats.base import ChatLLM
+from kotaemon.llms.prompts.template import PromptTemplate
 from kotaemon.utils.rag_debug import rag_log
 
 from .citation import CitationPipeline
@@ -25,12 +28,22 @@ from .format_context import (
 )
 from .utils import find_text
 
-try:
+
+def _default_llm(_):
     from ktem.llms.manager import llms
+
+    return llms.get_default()
+
+
+def _default_citation_pipeline(_):
+    return CitationPipeline(llm=_default_llm(None))
+
+
+def _default_mindmap_pipeline(_):
     from ktem.reasoning.prompt_optimization.mindmap import CreateMindmapPipeline
-    from ktem.utils.render import Render
-except ImportError:
-    raise ImportError("Please install `ktem` to use this component")
+
+    return CreateMindmapPipeline(llm=_default_llm(None))
+
 
 MAX_IMAGES = 10
 CITATION_TIMEOUT = 5.0
@@ -96,15 +109,13 @@ class AnswerWithContextPipeline(BaseComponent):
         lang: the language of the answer. Currently support English and Japanese
     """
 
-    llm: ChatLLM = Node(default_callback=lambda _: llms.get_default())
+    llm: ChatLLM = Node(default_callback=_default_llm)
     vlm_endpoint: str = getattr(flowsettings, "KH_VLM_ENDPOINT", "")
     use_multimodal: bool = getattr(flowsettings, "KH_REASONINGS_USE_MULTIMODAL", True)
     citation_pipeline: CitationPipeline = Node(
-        default_callback=lambda _: CitationPipeline(llm=llms.get_default())
+        default_callback=_default_citation_pipeline
     )
-    create_mindmap_pipeline: CreateMindmapPipeline = Node(
-        default_callback=lambda _: CreateMindmapPipeline(llm=llms.get_default())
-    )
+    create_mindmap_pipeline: Any = Node(default_callback=_default_mindmap_pipeline)
 
     qa_template: str = DEFAULT_QA_TEXT_PROMPT
     qa_table_template: str = DEFAULT_QA_TABLE_PROMPT
@@ -271,7 +282,11 @@ class AnswerWithContextPipeline(BaseComponent):
             )
 
         prompt = _with_no_think(prompt)
-        if self.system_prompt and _should_force_no_think() and "/no_think" not in self.system_prompt:
+        if (
+            self.system_prompt
+            and _should_force_no_think()
+            and "/no_think" not in self.system_prompt
+        ):
             messages[0] = SystemMessage(
                 content=(
                     f"{messages[0].content}\n"
@@ -339,11 +354,15 @@ class AnswerWithContextPipeline(BaseComponent):
                 fallback_message_count=len(fallback_messages),
             )
             fallback = self.llm.run(fallback_messages)
-            reasoning = (
-                getattr(fallback, "additional_kwargs", {}) or {}
-            ).get("reasoning_content")
-            if reasoning and not (getattr(fallback, "text", None) or getattr(fallback, "content", None)):
-                print("Non-streaming fallback returned reasoning_content without final content")
+            reasoning = (getattr(fallback, "additional_kwargs", {}) or {}).get(
+                "reasoning_content"
+            )
+            if reasoning and not (
+                getattr(fallback, "text", None) or getattr(fallback, "content", None)
+            ):
+                print(
+                    "Non-streaming fallback returned reasoning_content without final content"
+                )
             fallback_text = (
                 getattr(fallback, "text", None)
                 or getattr(fallback, "content", None)
@@ -404,7 +423,9 @@ class AnswerWithContextPipeline(BaseComponent):
             rag_log("qa.answer.stream.unsupported")
             output = _non_streaming_fallback("unsupported")
             if _looks_incomplete_generation(output):
-                output = _non_streaming_fallback("unsupported and empty", retry_no_think=True)
+                output = _non_streaming_fallback(
+                    "unsupported and empty", retry_no_think=True
+                )
             if output:
                 yield Document(channel="chat", content=output)
         except Exception as exc:
@@ -435,10 +456,7 @@ class AnswerWithContextPipeline(BaseComponent):
             else:
                 raise
 
-        if (
-            not fallback_attempted
-            and _looks_incomplete_generation(output)
-        ):
+        if not fallback_attempted and _looks_incomplete_generation(output):
             rag_log(
                 "qa.answer.incomplete_after_stream",
                 output_chars=len(output),
@@ -514,6 +532,8 @@ class AnswerWithContextPipeline(BaseComponent):
         return spans
 
     def prepare_citations(self, answer, docs) -> tuple[list[Document], list[Document]]:
+        from ktem.utils.render import Render
+
         """Prepare the citations to show on the UI"""
         with_citation, without_citation = [], []
         has_llm_score = any("llm_trulens_score" in doc.metadata for doc in docs)

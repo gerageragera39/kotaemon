@@ -1,8 +1,9 @@
 from typing import Any, Optional
 from uuid import uuid4
 
-from ktem.db.engine import engine
 from sqlalchemy.orm import Session
+
+from ktem.db.engine import engine
 
 from ..base import BaseFileIndexIndexing, BaseFileIndexRetriever
 from .graph_index import GraphRAGIndex

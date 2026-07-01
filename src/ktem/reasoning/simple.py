@@ -1,22 +1,11 @@
 import logging
 import os
 import re
-import threading
 import time
 from textwrap import dedent
-from typing import Generator
+from typing import Any, Generator
 
 import tiktoken
-from decouple import config
-from ktem.embeddings.manager import embedding_models_manager as embeddings
-from ktem.llms.manager import llms
-from ktem.reasoning.prompt_optimization import (
-    DecomposeQuestionPipeline,
-    RewriteQuestionPipeline,
-)
-from ktem.utils.render import Render
-from ktem.utils.visualize_cited import CreateCitationVizPipeline
-from plotly.io import to_json
 
 from kotaemon.base import (
     AIMessage,
@@ -32,15 +21,32 @@ from kotaemon.indices.qa.citation_qa import (
     AnswerWithContextPipeline,
 )
 from kotaemon.indices.qa.citation_qa_inline import AnswerWithInlineCitation
-from kotaemon.indices.qa.format_context import EVIDENCE_MODE_TEXT, PrepareEvidencePipeline
+from kotaemon.indices.qa.format_context import (
+    EVIDENCE_MODE_TEXT,
+    PrepareEvidencePipeline,
+)
 from kotaemon.indices.qa.utils import replace_think_tag_with_details
 from kotaemon.llms import ChatLLM
 from kotaemon.utils.rag_debug import rag_log
+from ktem.utils.render import Render
 
 from ..utils import SUPPORTED_LANGUAGE_MAP
 from .base import BaseReasoning
 
 logger = logging.getLogger(__name__)
+
+
+def _default_llm(_):
+    from ktem.llms.manager import llms
+
+    return llms.get_default()
+
+
+def _default_citation_viz_pipeline(_):
+    from ktem.embeddings.manager import embedding_models_manager
+    from ktem.utils.visualize_cited import CreateCitationVizPipeline
+
+    return CreateCitationVizPipeline(embedding=embedding_models_manager.get_default())
 
 
 UNIVERSITY_RAG_SYSTEM_PROMPT = dedent(
@@ -115,7 +121,7 @@ def _reasoning_log(message: str, level: int = logging.INFO) -> None:
 class AddQueryContextPipeline(BaseComponent):
 
     n_last_interactions: int = 5
-    llm: ChatLLM = Node(default_callback=lambda _: llms.get_default())
+    llm: ChatLLM = Node(default_callback=_default_llm)
 
     def run(self, question: str, history: list) -> Document:
         messages = [
@@ -170,11 +176,9 @@ class FullQAPipeline(BaseReasoning):
 
     evidence_pipeline: PrepareEvidencePipeline = PrepareEvidencePipeline.withx()
     answering_pipeline: AnswerWithContextPipeline
-    rewrite_pipeline: RewriteQuestionPipeline | None = None
-    create_citation_viz_pipeline: CreateCitationVizPipeline = Node(
-        default_callback=lambda _: CreateCitationVizPipeline(
-            embedding=embeddings.get_default()
-        )
+    rewrite_pipeline: Any = None
+    create_citation_viz_pipeline: Any = Node(
+        default_callback=_default_citation_viz_pipeline
     )
     add_query_context: AddQueryContextPipeline = AddQueryContextPipeline.withx()
     requested_context_window: int = 32000
@@ -202,7 +206,9 @@ class FullQAPipeline(BaseReasoning):
             total = 0
             for item in content:
                 if isinstance(item, dict):
-                    total += self._token_count(str(item.get("text") or item.get("url") or ""))
+                    total += self._token_count(
+                        str(item.get("text") or item.get("url") or "")
+                    )
                 else:
                     total += self._token_count(str(item))
             return total
@@ -277,7 +283,9 @@ class FullQAPipeline(BaseReasoning):
         effective_window = self._effective_llm_context_window(requested_window)
         max_tokens = self._llm_max_tokens()
         reserved_answer_tokens = max(128, max_tokens)
-        safety_margin = max(128, self._safe_int(os.environ.get("KH_RAG_SAFETY_MARGIN"), 256))
+        safety_margin = max(
+            128, self._safe_int(os.environ.get("KH_RAG_SAFETY_MARGIN"), 256)
+        )
 
         prompt_without_context, _ = self.answering_pipeline.get_prompt(
             question,
@@ -292,10 +300,7 @@ class FullQAPipeline(BaseReasoning):
             overhead_tokens += self._message_token_count(ai)
 
         available_for_context = (
-            effective_window
-            - reserved_answer_tokens
-            - safety_margin
-            - overhead_tokens
+            effective_window - reserved_answer_tokens - safety_margin - overhead_tokens
         )
         available_for_context = max(256, available_for_context)
         self.effective_context_window = effective_window
@@ -327,10 +332,14 @@ class FullQAPipeline(BaseReasoning):
         evidence: str,
         evidence_mode: int,
     ) -> dict:
-        prompt, _ = self.answering_pipeline.get_prompt(question, evidence, evidence_mode)
+        prompt, _ = self.answering_pipeline.get_prompt(
+            question, evidence, evidence_mode
+        )
         prompt_tokens_after = self._token_count(prompt)
         if self.answering_pipeline.system_prompt:
-            prompt_tokens_after += self._token_count(self.answering_pipeline.system_prompt)
+            prompt_tokens_after += self._token_count(
+                self.answering_pipeline.system_prompt
+            )
         for human, ai in history[-self.answering_pipeline.n_last_interactions :]:
             prompt_tokens_after += self._message_token_count(human)
             prompt_tokens_after += self._message_token_count(ai)
@@ -355,7 +364,9 @@ class FullQAPipeline(BaseReasoning):
             "prompt_tokens_before_truncation": prompt_tokens_before,
             "prompt_tokens_after_truncation": prompt_tokens_after,
             "completion_budget": completion_budget,
-            "truncated_docs_count": int(evidence_debug.get("truncated_docs_count") or 0),
+            "truncated_docs_count": int(
+                evidence_debug.get("truncated_docs_count") or 0
+            ),
             "context_tokens": context_tokens,
             "candidate_context_tokens": candidate_context_tokens,
             "fail_fast_warning": completion_budget < 128,
@@ -515,6 +526,8 @@ class FullQAPipeline(BaseReasoning):
                 print("Failed to create citation plot:", e)
 
             if citation_plot:
+                from plotly.io import to_json
+
                 plot = to_json(citation_plot)
                 plot_content = Document(channel="plot", content=plot)
 
@@ -619,7 +632,9 @@ class FullQAPipeline(BaseReasoning):
                 completion_budget=budget_debug.get("completion_budget"),
             )
             self.evidence_pipeline.max_context_length = retry_budget
-            self.evidence_pipeline.context_budget_debug = dict(self.context_budget_debug)
+            self.evidence_pipeline.context_budget_debug = dict(
+                self.context_budget_debug
+            )
             evidence_mode, evidence, images = self.evidence_pipeline.run(docs).content
             budget_debug = self.finalize_evidence_budget(
                 message,
@@ -631,7 +646,9 @@ class FullQAPipeline(BaseReasoning):
                 rag_log(
                     "reasoning.context_budget.fail_fast_warning",
                     completion_budget=budget_debug.get("completion_budget"),
-                    effective_context_window=budget_debug.get("effective_context_window"),
+                    effective_context_window=budget_debug.get(
+                        "effective_context_window"
+                    ),
                     prompt_tokens_after_truncation=budget_debug.get(
                         "prompt_tokens_after_truncation"
                     ),
@@ -658,8 +675,6 @@ class FullQAPipeline(BaseReasoning):
         #     scoring_thread.start()
         # else:
         #     scoring_thread = None
-
-        scoring_thread = None
 
         _reasoning_log("Starting answer generation")
         answer = yield from self.answering_pipeline.stream(
@@ -704,6 +719,8 @@ class FullQAPipeline(BaseReasoning):
             settings: the settings for the pipeline
             retrievers: the retrievers to use
         """
+        from ktem.llms.manager import llms
+
         prefix = f"reasoning.options.{cls.get_info()['id']}"
         global_context_setting = settings.get("reasoning.max_context_length", 32000)
         option_context_setting = settings.get(f"{prefix}.max_context_length", None)
@@ -718,19 +735,18 @@ class FullQAPipeline(BaseReasoning):
         option_context_tokens = _safe_context_tokens(
             option_context_setting, global_context_tokens
         )
-        if (
-            option_context_setting in (None, "", 0)
-            or (
-                # 8000 was an older Simple QA default that silently overrode the
-                # global "Max context length (LLM)" setting.  Treat that legacy
-                # value as "follow the LLM window" when the LLM window is larger.
-                option_context_tokens == 8000
-                and global_context_tokens > option_context_tokens
-            )
+        if option_context_setting in (None, "", 0) or (
+            # 8000 was an older Simple QA default that silently overrode the
+            # global "Max context length (LLM)" setting.  Treat that legacy
+            # value as "follow the LLM window" when the LLM window is larger.
+            option_context_tokens == 8000
+            and global_context_tokens > option_context_tokens
         ):
             max_context_length_setting = global_context_tokens
         else:
-            max_context_length_setting = min(option_context_tokens, global_context_tokens)
+            max_context_length_setting = min(
+                option_context_tokens, global_context_tokens
+            )
 
         pipeline = cls.prepare_pipeline_instance(settings, retrievers)
 
@@ -956,6 +972,10 @@ class FullDecomposeQAPipeline(FullQAPipeline):
 
     @classmethod
     def get_user_settings(cls) -> dict:
+        from ktem.reasoning.prompt_optimization.decompose_question import (
+            DecomposeQuestionPipeline,
+        )
+
         user_settings = super().get_user_settings()
         user_settings["decompose_prompt"] = {
             "name": "Decompose Prompt",
@@ -965,6 +985,10 @@ class FullDecomposeQAPipeline(FullQAPipeline):
 
     @classmethod
     def prepare_pipeline_instance(cls, settings, retrievers):
+        from ktem.reasoning.prompt_optimization.decompose_question import (
+            DecomposeQuestionPipeline,
+        )
+
         prefix = f"reasoning.options.{cls.get_info()['id']}"
         pipeline = cls(
             retrievers=retrievers,

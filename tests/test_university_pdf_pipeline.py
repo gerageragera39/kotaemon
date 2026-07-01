@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from kotaemon.base import Document, DocumentWithEmbedding
-from kotaemon.indices.splitters import UniversityPDFChunker
 from kotaemon.embeddings.base import BaseEmbeddings
+from kotaemon.indices.splitters import UniversityPDFChunker
 from kotaemon.indices.vectorindex import VectorIndexing
 from kotaemon.storages.docstores.in_memory import InMemoryDocumentStore
 
@@ -11,7 +11,10 @@ class DummyEmbedding(BaseEmbeddings):
     def invoke(self, docs, *args, **kwargs):
         if not isinstance(docs, list):
             docs = [docs]
-        return [DocumentWithEmbedding(embedding=[1.0, 0.0], metadata=doc.metadata) for doc in docs]
+        return [
+            DocumentWithEmbedding(embedding=[1.0, 0.0], metadata=doc.metadata)
+            for doc in docs
+        ]
 
 
 class DummyVectorStore:
@@ -22,7 +25,9 @@ class DummyVectorStore:
         self.ids.extend(ids)
 
 
-def structured_doc(text, order, element_type="paragraph", page=1, file_name="PO_BSc_Test.pdf"):
+def structured_doc(
+    text, order, element_type="paragraph", page=1, file_name="PO_BSc_Test.pdf"
+):
     return Document(
         text=text,
         metadata={
@@ -38,7 +43,10 @@ def structured_doc(text, order, element_type="paragraph", page=1, file_name="PO_
 def test_regulation_chunks_preserve_section_title_and_required_metadata():
     docs = [
         structured_doc("Prüfungsordnung", 0, "heading"),
-        structured_doc("§ 1 Zweck\n(1) Diese Ordnung regelt das Studium.\n(2) Sie gilt für alle Studierenden.", 1),
+        structured_doc(
+            "§ 1 Zweck\n(1) Diese Ordnung regelt das Studium.\n(2) Sie gilt für alle Studierenden.",
+            1,
+        ),
     ]
     chunks = UniversityPDFChunker().run(docs)
     children = [d for d in chunks if d.metadata["index_role"] == "child"]
@@ -70,7 +78,9 @@ def test_regulation_two_line_title_and_major_heading_are_preserved():
         structured_doc("§ 8", 2),
         structured_doc("Prüfende, Beisitzende, Aufsichtsführende", 3),
         structured_doc("(1) Der Prüfungsausschuss bestellt Prüfende.", 4),
-        structured_doc("§ 9 Prüfungsausschuss\n(1) Der Prüfungsausschuss entscheidet.", 5),
+        structured_doc(
+            "§ 9 Prüfungsausschuss\n(1) Der Prüfungsausschuss entscheidet.", 5
+        ),
     ]
 
     chunks = UniversityPDFChunker(max_child_size=80).run(docs)
@@ -78,8 +88,7 @@ def test_regulation_two_line_title_and_major_heading_are_preserved():
     section_8 = [d for d in children if d.metadata.get("section_id") == "§ 8"]
     assert section_8
     assert all(
-        d.metadata["section_title"]
-        == "§ 8 Prüfende, Beisitzende, Aufsichtsführende"
+        d.metadata["section_title"] == "§ 8 Prüfende, Beisitzende, Aufsichtsführende"
         for d in section_8
     )
     assert all(d.metadata["major_heading"] == "III. PRÜFUNGSORGANE" for d in section_8)
@@ -107,7 +116,12 @@ def test_regulation_child_never_contains_two_real_section_starts():
 
 def test_table_chunks_keep_markdown_syntax():
     docs = [
-        structured_doc("Studienverlaufsplan", 0, "heading", file_name="Studienverlaufsplan_BA_D3B.pdf"),
+        structured_doc(
+            "Studienverlaufsplan",
+            0,
+            "heading",
+            file_name="Studienverlaufsplan_BA_D3B.pdf",
+        ),
         structured_doc(
             "Zusammenfassung\n| Semester | ECTS |\n| --- | --- |\n| 1 | 30 |",
             1,
@@ -116,7 +130,12 @@ def test_table_chunks_keep_markdown_syntax():
         ),
     ]
     chunks = UniversityPDFChunker().run(docs)
-    table_children = [d for d in chunks if d.metadata.get("chunk_type") == "table" and d.metadata.get("index_role") == "child"]
+    table_children = [
+        d
+        for d in chunks
+        if d.metadata.get("chunk_type") == "table"
+        and d.metadata.get("index_role") == "child"
+    ]
     assert table_children
     assert "|" in table_children[0].text
     assert "---" in table_children[0].text
@@ -176,7 +195,10 @@ def test_study_description_uses_section_path_table_chunks():
     assert table.metadata["doc_type"] == "study_description"
     assert table.metadata["nearest_heading"] == "Supply Chain Management & Logistics"
     assert "2.6. Studienprofile > Supply Chain Management & Logistics" in table.text
-    assert table.metadata["semantic_title"] == "Supply Chain Management & Logistics profile table"
+    assert (
+        table.metadata["semantic_title"]
+        == "Supply Chain Management & Logistics profile table"
+    )
     assert any("Wirtschaftswissenschaftliche Fakultät" in d.text for d in children)
 
 
@@ -191,7 +213,9 @@ def test_study_description_prose_keeps_its_own_section_path():
             page=3,
             file_name=file_name,
         ),
-        structured_doc("2.6. Studienprofile", 3, "heading", page=8, file_name=file_name),
+        structured_doc(
+            "2.6. Studienprofile", 3, "heading", page=8, file_name=file_name
+        ),
         structured_doc(
             "| Profil | ECTS |\n| --- | --- |\n| Finance & Economics | 30 |",
             4,
@@ -271,8 +295,14 @@ def test_study_profile_heading_list_gets_summary_chunk():
 
 def test_module_chunks_include_module_title():
     docs = [
-        structured_doc("Modul: Data Analytics", 0, "heading", file_name="Module_DataCompetence.pdf"),
-        structured_doc("Inhalte\nDatenanalyse und Visualisierung", 1, file_name="Module_DataCompetence.pdf"),
+        structured_doc(
+            "Modul: Data Analytics", 0, "heading", file_name="Module_DataCompetence.pdf"
+        ),
+        structured_doc(
+            "Inhalte\nDatenanalyse und Visualisierung",
+            1,
+            file_name="Module_DataCompetence.pdf",
+        ),
     ]
     chunks = UniversityPDFChunker().run(docs)
     children = [d for d in chunks if d.metadata.get("index_role") == "child"]
@@ -283,7 +313,13 @@ def test_module_chunks_include_module_title():
 
 def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
     docs = [
-        structured_doc("Bachelorarbeit", 0, "heading", page=49, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc(
+            "Bachelorarbeit",
+            0,
+            "heading",
+            page=49,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
         structured_doc(
             "| Modultitel | Bachelorarbeit |\n| --- | --- |\n"
             "| Modultitel Englisch | Bachelor Thesis |\n"
@@ -294,9 +330,27 @@ def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
             page=49,
             file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
         ),
-        structured_doc("Modulnote :", 2, "heading", page=50, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
-        structured_doc("Schriftliche Arbeit (100%)", 3, "list_item", page=50, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
-        structured_doc("Digitales Projekt", 4, "heading", page=51, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc(
+            "Modulnote :",
+            2,
+            "heading",
+            page=50,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc(
+            "Schriftliche Arbeit (100%)",
+            3,
+            "list_item",
+            page=50,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc(
+            "Digitales Projekt",
+            4,
+            "heading",
+            page=51,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
         structured_doc(
             "| Modultitel | Digitales Projekt |\n| --- | --- |\n"
             "| Modultitel Englisch | Digital Project |\n"
@@ -307,9 +361,27 @@ def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
             page=51,
             file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
         ),
-        structured_doc("Modulnote :", 6, "heading", page=52, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
-        structured_doc("Schriftliche Ausarbeitung (50 %)", 7, "list_item", page=52, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
-        structured_doc("Endpräsentation (25 %)", 8, "list_item", page=52, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc(
+            "Modulnote :",
+            6,
+            "heading",
+            page=52,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc(
+            "Schriftliche Ausarbeitung (50 %)",
+            7,
+            "list_item",
+            page=52,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc(
+            "Endpräsentation (25 %)",
+            8,
+            "list_item",
+            page=52,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
         structured_doc(
             "Digital Seminar in Data Science & Quantitative Applications",
             9,
@@ -326,8 +398,20 @@ def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
             page=53,
             file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
         ),
-        structured_doc("Modulnote :", 11, "heading", page=55, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
-        structured_doc("Softwareimplementierung (50 %)", 12, "list_item", page=55, file_name="Modulkatalog_Bachelor_D3B_DE.pdf"),
+        structured_doc(
+            "Modulnote :",
+            11,
+            "heading",
+            page=55,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
+        structured_doc(
+            "Softwareimplementierung (50 %)",
+            12,
+            "list_item",
+            page=55,
+            file_name="Modulkatalog_Bachelor_D3B_DE.pdf",
+        ),
     ]
 
     chunks = UniversityPDFChunker(max_child_size=120, target_child_size=90).run(docs)
@@ -335,9 +419,11 @@ def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
     parents = [d for d in chunks if d.metadata.get("index_role") == "parent"]
 
     assert all(d.metadata.get("module_title") for d in children)
-    assert {"Bachelor Thesis", "Digital Project", "Digital Seminar in Data Science & Quantitative Applications"} <= {
-        d.metadata.get("module_title") for d in children
-    }
+    assert {
+        "Bachelor Thesis",
+        "Digital Project",
+        "Digital Seminar in Data Science & Quantitative Applications",
+    } <= {d.metadata.get("module_title") for d in children}
 
     digital_project = [
         d for d in children if d.metadata.get("module_title") == "Digital Project"
@@ -357,9 +443,7 @@ def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
     assert "Module: Digital Project" in assessment.text
 
     project_parent = next(
-        d
-        for d in parents
-        if d.metadata.get("module_title") == "Digital Project"
+        d for d in parents if d.metadata.get("module_title") == "Digital Project"
     )
     assert "Schriftliche Arbeit (100%)" not in project_parent.text
     assert "Softwareimplementierung (50 %)" not in project_parent.text
@@ -368,7 +452,9 @@ def test_module_catalog_bare_headings_define_module_boundaries_and_metadata():
 def test_short_terminal_tail_is_finalized_before_next_module():
     file_name = "Modulkatalog_Bachelor_D3B_DE.pdf"
     docs = [
-        structured_doc("Modul: Previous Module", 0, "heading", page=10, file_name=file_name),
+        structured_doc(
+            "Modul: Previous Module", 0, "heading", page=10, file_name=file_name
+        ),
         structured_doc("Modulnote", 1, "heading", page=11, file_name=file_name),
         structured_doc("Klausur 100 %", 2, page=11, file_name=file_name),
         structured_doc("Bemerkungen", 3, "heading", page=11, file_name=file_name),
@@ -383,7 +469,9 @@ def test_short_terminal_tail_is_finalized_before_next_module():
             file_name=file_name,
         ),
         structured_doc("Modulnote", 7, "heading", page=13, file_name=file_name),
-        structured_doc("Projekt 50 %\nPräsentation 50 %", 8, page=13, file_name=file_name),
+        structured_doc(
+            "Projekt 50 %\nPräsentation 50 %", 8, page=13, file_name=file_name
+        ),
     ]
 
     chunks = UniversityPDFChunker(max_child_size=500).run(docs)
@@ -400,10 +488,14 @@ def test_short_terminal_tail_is_finalized_before_next_module():
     assert all(doc.metadata.get("module_code") == "NEXT-101" for doc in next_children)
     assert all(doc.metadata.get("section_title") for doc in next_children)
     assert all(doc.metadata.get("module_section") for doc in next_children)
-    assert all(doc.metadata.get("page_label_start") is not None for doc in next_children)
+    assert all(
+        doc.metadata.get("page_label_start") is not None for doc in next_children
+    )
     assert all(doc.metadata.get("page_label_end") is not None for doc in next_children)
 
-    overview = next(doc for doc in next_children if doc.metadata["module_section"] == "overview")
+    overview = next(
+        doc for doc in next_children if doc.metadata["module_section"] == "overview"
+    )
     assessment = next(
         doc for doc in next_children if doc.metadata["module_section"] == "assessment"
     )
@@ -419,11 +511,23 @@ def test_short_terminal_tail_is_finalized_before_next_module():
 
 def test_long_module_splits_into_deterministic_sections_with_metadata():
     docs = [
-        structured_doc("Modul: Data Analytics", 0, "heading", file_name="Module_DataCompetence.pdf"),
-        structured_doc("Modulnummer: D3B-101", 1, file_name="Module_DataCompetence.pdf"),
+        structured_doc(
+            "Modul: Data Analytics", 0, "heading", file_name="Module_DataCompetence.pdf"
+        ),
+        structured_doc(
+            "Modulnummer: D3B-101", 1, file_name="Module_DataCompetence.pdf"
+        ),
         structured_doc("ECTS 6\nSemester: 2", 2, file_name="Module_DataCompetence.pdf"),
-        structured_doc("Inhalte\n" + "Datenanalyse. " * 120, 3, file_name="Module_DataCompetence.pdf"),
-        structured_doc("Kompetenzen\n" + "Kompetenzaufbau. " * 120, 4, file_name="Module_DataCompetence.pdf"),
+        structured_doc(
+            "Inhalte\n" + "Datenanalyse. " * 120,
+            3,
+            file_name="Module_DataCompetence.pdf",
+        ),
+        structured_doc(
+            "Kompetenzen\n" + "Kompetenzaufbau. " * 120,
+            4,
+            file_name="Module_DataCompetence.pdf",
+        ),
         structured_doc("Prüfung\nKlausur", 5, file_name="Module_DataCompetence.pdf"),
     ]
     chunks = UniversityPDFChunker(max_child_size=120, target_child_size=80).run(docs)
@@ -439,9 +543,17 @@ def test_long_module_splits_into_deterministic_sections_with_metadata():
 
 def test_vector_indexing_does_not_embed_parent_docs():
     parent = Document(text="parent", id_="parent-1", metadata={"index_role": "parent"})
-    child = Document(text="child", id_="child-1", metadata={"index_role": "child", "parent_id": "parent-1"})
+    child = Document(
+        text="child",
+        id_="child-1",
+        metadata={"index_role": "child", "parent_id": "parent-1"},
+    )
     vector_store = DummyVectorStore()
-    indexing = VectorIndexing(vector_store=vector_store, doc_store=InMemoryDocumentStore(), embedding=DummyEmbedding())
+    indexing = VectorIndexing(
+        vector_store=vector_store,
+        doc_store=InMemoryDocumentStore(),
+        embedding=DummyEmbedding(),
+    )
 
     indexing.run([parent, child])
 
@@ -466,7 +578,9 @@ def test_vector_retrieval_expands_child_to_parent_context():
     )
     doc_store = InMemoryDocumentStore()
     doc_store.add(parent)
-    retrieval = VectorRetrieval(vector_store=DummyVectorStore(), doc_store=doc_store, embedding=DummyEmbedding())
+    retrieval = VectorRetrieval(
+        vector_store=DummyVectorStore(), doc_store=doc_store, embedding=DummyEmbedding()
+    )
 
     expanded = retrieval._expand_parent_context([child])
 
@@ -477,11 +591,13 @@ def test_vector_retrieval_expands_child_to_parent_context():
     assert expanded[0].metadata["expanded_from_child_ids"] == ["child-1"]
 
 
-def test_index_pipeline_university_reader_mode_routes_pdf_to_structural_chunker(tmp_path, monkeypatch):
+def test_index_pipeline_university_reader_mode_routes_pdf_to_structural_chunker(
+    tmp_path, monkeypatch
+):
+    from kotaemon.indices.splitters import TokenSplitter
+    from kotaemon.loaders import DoclingStructuredPDFReader
     from ktem.index.file import pipelines as file_pipelines
     from ktem.index.file.pipelines import IndexDocumentPipeline
-    from kotaemon.loaders import DoclingStructuredPDFReader
-    from kotaemon.indices.splitters import TokenSplitter
 
     monkeypatch.setattr(file_pipelines, "dev_settings", lambda: ({}, None, None))
     monkeypatch.delenv("UNIVERSITY_RAG_PDF_MODE", raising=False)
@@ -520,10 +636,12 @@ def test_index_pipeline_university_reader_mode_routes_pdf_to_structural_chunker(
     assert not isinstance(non_pdf.splitter, UniversityPDFChunker)
 
 
-def test_index_pipeline_docling_reader_mode_keeps_token_splitter_without_university_gate(tmp_path, monkeypatch):
+def test_index_pipeline_docling_reader_mode_keeps_token_splitter_without_university_gate(
+    tmp_path, monkeypatch
+):
+    from kotaemon.indices.splitters import TokenSplitter
     from ktem.index.file import pipelines as file_pipelines
     from ktem.index.file.pipelines import IndexDocumentPipeline
-    from kotaemon.indices.splitters import TokenSplitter
 
     monkeypatch.setattr(file_pipelines, "dev_settings", lambda: ({}, None, None))
     monkeypatch.delenv("UNIVERSITY_RAG_PDF_MODE", raising=False)
@@ -567,8 +685,14 @@ def test_vector_retrieval_parent_expansion_returns_score_sorted_results():
     from kotaemon.base import RetrievedDocument
     from kotaemon.indices.vectorindex import VectorRetrieval
 
-    parent = Document(text="expanded high score parent", id_="parent-high", metadata={"index_role": "parent"})
-    passthrough = RetrievedDocument(text="low score regular", id_="regular-low", score=0.1, metadata={})
+    parent = Document(
+        text="expanded high score parent",
+        id_="parent-high",
+        metadata={"index_role": "parent"},
+    )
+    passthrough = RetrievedDocument(
+        text="low score regular", id_="regular-low", score=0.1, metadata={}
+    )
     child = RetrievedDocument(
         text="high score child",
         id_="child-high",
@@ -577,7 +701,9 @@ def test_vector_retrieval_parent_expansion_returns_score_sorted_results():
     )
     doc_store = InMemoryDocumentStore()
     doc_store.add(parent)
-    retrieval = VectorRetrieval(vector_store=DummyVectorStore(), doc_store=doc_store, embedding=DummyEmbedding())
+    retrieval = VectorRetrieval(
+        vector_store=DummyVectorStore(), doc_store=doc_store, embedding=DummyEmbedding()
+    )
 
     expanded = retrieval._expand_parent_context([passthrough, child])
 
@@ -640,7 +766,9 @@ def test_docling_structured_reader_uses_plain_lazy_converter(monkeypatch, tmp_pa
 def test_university_chunker_adds_child_index_and_paragraph_metadata():
     docs = [
         structured_doc("§ 13 Bewertung der Prüfungsleistungen", 0, "heading"),
-        structured_doc("(1) Erste Regelung.\n(2) Zweite Regelung zu mündlichen Prüfungen.", 1),
+        structured_doc(
+            "(1) Erste Regelung.\n(2) Zweite Regelung zu mündlichen Prüfungen.", 1
+        ),
     ]
 
     chunks = UniversityPDFChunker(target_child_size=40, max_child_size=80).run(docs)

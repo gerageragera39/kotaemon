@@ -6,7 +6,6 @@ from ktem.utils.feedback_repair import (
     build_feedback_repair_prompt,
 )
 
-
 BASE_SETTINGS = {
     "index.options.files.num_retrieval": 15,
     "index.options.files.candidate_multiplier": 20,
@@ -29,9 +28,10 @@ def test_incomplete_feedback_applies_broader_retrieval_preset():
     assert repaired["index.options.files.context_expansion_mode"] == "siblings"
     assert repaired["index.options.files.sibling_window"] == 2
     assert repaired["index.options.files.enable_query_expansion"] is True
-    assert "previous answer was incomplete" in repaired[
-        "reasoning.options.simple.system_prompt"
-    ]
+    assert (
+        "previous answer was incomplete"
+        in repaired["reasoning.options.simple.system_prompt"]
+    )
 
 
 def test_hallucination_feedback_is_strict_without_aggressive_top_k_increase():

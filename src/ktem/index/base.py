@@ -3,9 +3,8 @@ import logging
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
-    from ktem.app import BasePage
-
     from kotaemon.base import BaseComponent
+    from ktem.app import BasePage
 
 
 logger = logging.getLogger(__name__)

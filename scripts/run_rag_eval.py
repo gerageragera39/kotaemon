@@ -64,9 +64,7 @@ def parse_args() -> argparse.Namespace:
         "--scope",
         choices=["expected-source", "all"],
         default="all",
-        help=(
-            "Retrieve from each sample's source_file or from all visible documents."
-        ),
+        help=("Retrieve from each sample's source_file or from all visible documents."),
     )
     parser.add_argument(
         "--output-dir",
@@ -105,9 +103,7 @@ def main() -> int:
         output_dir / "rag_eval_samples.csv", index=False
     )
     result.ragas_scores.to_csv(output_dir / "ragas_scores.csv", index=False)
-    result.retrieval_metrics.to_csv(
-        output_dir / "retrieval_metrics.csv", index=False
-    )
+    result.retrieval_metrics.to_csv(output_dir / "retrieval_metrics.csv", index=False)
     result.retrieval_candidates.to_json(
         output_dir / "retrieval_candidates.jsonl",
         orient="records",
@@ -127,7 +123,9 @@ def main() -> int:
         encoding="utf-8",
     )
     if result.warnings:
-        (output_dir / "warnings.txt").write_text("\n".join(result.warnings), encoding="utf-8")
+        (output_dir / "warnings.txt").write_text(
+            "\n".join(result.warnings), encoding="utf-8"
+        )
 
     print(json.dumps(result.summary, indent=2, ensure_ascii=False))
     if result.warnings:

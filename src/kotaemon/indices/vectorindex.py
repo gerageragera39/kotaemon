@@ -14,27 +14,88 @@ from typing import Any, Optional, Sequence, cast
 from theflow.settings import settings as flowsettings
 
 from kotaemon.base import BaseComponent, Document, RetrievedDocument
-from kotaemon.embeddings import BaseEmbeddings
-from kotaemon.storages import BaseDocumentStore, BaseVectorStore
+from kotaemon.embeddings.base import BaseEmbeddings
+from kotaemon.storages.docstores.base import BaseDocumentStore
+from kotaemon.storages.vectorstores.base import BaseVectorStore
 from kotaemon.utils.rag_debug import rag_log
 
 from .base import BaseIndexing, BaseRetrieval
-from .rankings import BaseReranking
+from .rankings.base import BaseReranking
 
 VECTOR_STORE_FNAME = "vectorstore"
 DOC_STORE_FNAME = "docstore"
 logger = logging.getLogger(__name__)
 
 LEXICAL_STOPWORDS = {
-    "a", "an", "and", "are", "as", "at", "be", "by", "can", "does",
-    "for", "from", "how", "in", "is", "it", "many", "of", "on", "or",
-    "the", "that", "this", "to", "what", "when", "which", "with", "you",
+    "a",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "be",
+    "by",
+    "can",
+    "does",
+    "for",
+    "from",
+    "how",
+    "in",
+    "is",
+    "it",
+    "many",
+    "of",
+    "on",
+    "or",
+    "the",
+    "that",
+    "this",
+    "to",
+    "what",
+    "when",
+    "which",
+    "with",
+    "you",
     "your",
-    "aber", "alle", "als", "am", "an", "auch", "auf", "aus", "bei",
-    "bis", "da", "das", "dem", "den", "der", "des", "die", "ein",
-    "eine", "einem", "einen", "einer", "eines", "für", "ist", "im",
-    "mit", "nach", "oder", "sich", "und", "von", "vor", "wann", "was",
-    "wie", "zu", "zum", "zur",
+    "aber",
+    "alle",
+    "als",
+    "am",
+    "an",
+    "auch",
+    "auf",
+    "aus",
+    "bei",
+    "bis",
+    "da",
+    "das",
+    "dem",
+    "den",
+    "der",
+    "des",
+    "die",
+    "ein",
+    "eine",
+    "einem",
+    "einen",
+    "einer",
+    "eines",
+    "für",
+    "ist",
+    "im",
+    "mit",
+    "nach",
+    "oder",
+    "sich",
+    "und",
+    "von",
+    "vor",
+    "wann",
+    "was",
+    "wie",
+    "zu",
+    "zum",
+    "zur",
 }
 
 
@@ -108,9 +169,7 @@ class VectorIndexing(BaseIndexing):
                 if docs[i].text:
                     markdown_content += f"\ntext:\n{docs[i].text}"
 
-                export_index = docs[i].metadata.get(
-                    "ingestion_index", self.count_ + i
-                )
+                export_index = docs[i].metadata.get("ingestion_index", self.count_ + i)
                 with open(
                     Path(self.cache_dir) / f"{file_name.stem}_{export_index}.md",
                     "w",
@@ -164,7 +223,9 @@ class VectorIndexing(BaseIndexing):
             )
             _vector_log(f"Added {len(embeddings)} embeddings to vector store")
 
-    def _sanitize_embedding_metadata_for_vectorstore(self, embeddings: list[Any]) -> None:
+    def _sanitize_embedding_metadata_for_vectorstore(
+        self, embeddings: list[Any]
+    ) -> None:
         """Make LlamaIndex/Chroma vector metadata flat.
 
         Docstore metadata can keep structured values, but LlamaIndex vector
@@ -181,7 +242,9 @@ class VectorIndexing(BaseIndexing):
                 embedding.metadata = self._flat_vector_metadata(metadata)
 
     @staticmethod
-    def _flat_vector_metadata(metadata: dict[str, Any]) -> dict[str, str | int | float | None]:
+    def _flat_vector_metadata(
+        metadata: dict[str, Any]
+    ) -> dict[str, str | int | float | None]:
         return {
             str(key): VectorIndexing._flat_vector_metadata_value(str(key), value)
             for key, value in (metadata or {}).items()
@@ -239,7 +302,6 @@ class VectorRetrieval(BaseRetrieval):
     sibling_window: int = 1
     last_debug: dict[str, Any] = {}
 
-
     UNIVERSITY_QUERY_EXPANSIONS: tuple[tuple[str, tuple[str, ...]], ...] = (
         ("oral exam", ("mündliche Prüfung", "mündliche Prüfungsleistung")),
         ("oral", ("mündlich", "mündliche Prüfung")),
@@ -287,7 +349,11 @@ class VectorRetrieval(BaseRetrieval):
         ),
         (
             "foreign-language competence",
-            ("Fremdsprachenkompetenz", "fremdsprachliche Kompetenz", "Qualifikationsziel"),
+            (
+                "Fremdsprachenkompetenz",
+                "fremdsprachliche Kompetenz",
+                "Qualifikationsziel",
+            ),
         ),
         ("attendance requirement", ("Anwesenheitspflicht", "Fehlzeiten")),
         ("attendance", ("Anwesenheit", "Anwesenheitspflicht", "Fehlzeiten")),
@@ -381,17 +447,42 @@ class VectorRetrieval(BaseRetrieval):
         ("exam board", ("Prüfungsausschuss",)),
         (
             "studium.pro",
-            ("Studium.Pro", "Pro Diskurs", "Pro Horizont", "Pro Gesellschaft", "Pro Beruf", "Pro International"),
+            (
+                "Studium.Pro",
+                "Pro Diskurs",
+                "Pro Horizont",
+                "Pro Gesellschaft",
+                "Pro Beruf",
+                "Pro International",
+            ),
         ),
         (
             "studium pro",
-            ("Studium.Pro", "Pro Diskurs", "Pro Horizont", "Pro Gesellschaft", "Pro Beruf", "Pro International"),
+            (
+                "Studium.Pro",
+                "Pro Diskurs",
+                "Pro Horizont",
+                "Pro Gesellschaft",
+                "Pro Beruf",
+                "Pro International",
+            ),
         ),
         (
             "digital data-driven business",
-            ("Digital & Data-Driven Business", "Digital and Data-Driven Business", "180 ECTS"),
+            (
+                "Digital & Data-Driven Business",
+                "Digital and Data-Driven Business",
+                "180 ECTS",
+            ),
         ),
-        ("d3b", ("Digital & Data-Driven Business", "Studienverlaufsplan", "Studiengangsbeschreibung")),
+        (
+            "d3b",
+            (
+                "Digital & Data-Driven Business",
+                "Studienverlaufsplan",
+                "Studiengangsbeschreibung",
+            ),
+        ),
         ("total ects", ("180 ECTS", "ECTS-Leistungspunkte", "Leistungspunkte")),
         ("study profile", ("Studienprofil", "Studienprofile")),
         (
@@ -532,11 +623,21 @@ class VectorRetrieval(BaseRetrieval):
         ),
         (
             "study plan",
-            ("Studienverlaufsplan", "Exemplarisches Studienprofil", "Semester", "30 ECTS"),
+            (
+                "Studienverlaufsplan",
+                "Exemplarisches Studienprofil",
+                "Semester",
+                "30 ECTS",
+            ),
         ),
         (
             "study plans",
-            ("Studienverlaufsplan", "Exemplarisches Studienprofil", "Semester", "30 ECTS"),
+            (
+                "Studienverlaufsplan",
+                "Exemplarisches Studienprofil",
+                "Semester",
+                "30 ECTS",
+            ),
         ),
         (
             "first two semesters",
@@ -587,7 +688,11 @@ class VectorRetrieval(BaseRetrieval):
             .replace("Ü", "Ue")
             .replace("ß", "ss")
         )
-        ascii_fold = unicodedata.normalize("NFKD", query).encode("ascii", "ignore").decode("ascii")
+        ascii_fold = (
+            unicodedata.normalize("NFKD", query)
+            .encode("ascii", "ignore")
+            .decode("ascii")
+        )
         return de_umlaut if de_umlaut != query else ascii_fold
 
     def query_variants(self, text: str | Document) -> list[str]:
@@ -620,9 +725,24 @@ class VectorRetrieval(BaseRetrieval):
             token
             for token in re.findall(r"[\wÄÖÜäöüß]+", query)
             if len(token) > 2
-            and token.lower() not in {
-                "the", "and", "for", "with", "when", "what", "which", "how",
-                "does", "can", "are", "you", "your", "from", "that", "this",
+            and token.lower()
+            not in {
+                "the",
+                "and",
+                "for",
+                "with",
+                "when",
+                "what",
+                "which",
+                "how",
+                "does",
+                "can",
+                "are",
+                "you",
+                "your",
+                "from",
+                "that",
+                "this",
             }
         ]
         if keywords:
@@ -778,9 +898,7 @@ class VectorRetrieval(BaseRetrieval):
         is_competencies = (
             module_section == "competencies" or "kompetenzen" in section_text
         )
-        if (contents_query and is_contents) or (
-            competencies_query and is_competencies
-        ):
+        if (contents_query and is_contents) or (competencies_query and is_competencies):
             score += 0.4
         elif (contents_query and is_competencies) or (
             competencies_query and is_contents
@@ -934,9 +1052,11 @@ class VectorRetrieval(BaseRetrieval):
             entry["metadata"]["_fusion_score"] = entry["score"]
             entry["metadata"]["_lexical_score"] = lexical_score
             entry["metadata"]["_metadata_score"] = metadata_score
-            entry["metadata"]["_ranking_score"] = entry["score"] + (
-                lexical_weight * lexical_score
-            ) + (metadata_weight * metadata_score)
+            entry["metadata"]["_ranking_score"] = (
+                entry["score"]
+                + (lexical_weight * lexical_score)
+                + (metadata_weight * metadata_score)
+            )
             entry["metadata"]["_retrieval_sources"] = entry["sources"]
             entry["metadata"]["retrieval_source"] = (
                 "both"
@@ -1030,7 +1150,7 @@ class VectorRetrieval(BaseRetrieval):
         if top_k is None:
             top_k = self.top_k
 
-        do_extend = kwargs.pop("do_extend", False)
+        kwargs.pop("do_extend", False)
         thumbnail_count = kwargs.pop("thumbnail_count", 3)
 
         candidate_multiplier = max(1, int(self.first_round_top_k_mult))
@@ -1045,8 +1165,6 @@ class VectorRetrieval(BaseRetrieval):
         result: list[RetrievedDocument] = []
         # TODO: should declare scope directly in the run params
         scope = kwargs.pop("scope", None)
-        emb: list[float]
-
         _vector_log(
             f"Retrieval started: retrieval_mode={self.retrieval_mode}, "
             f"final_top_k={top_k}, candidate_multiplier={candidate_multiplier}, "
@@ -1082,11 +1200,7 @@ class VectorRetrieval(BaseRetrieval):
             _, scores, ids = self.vector_store.query(
                 embedding=emb_local, top_k=top_k_first_round, **vector_kwargs
             )
-            if (
-                not ids
-                and scope
-                and "filters" in vector_kwargs
-            ):
+            if not ids and scope and "filters" in vector_kwargs:
                 # The selected chunk ids already scope the query.  Some
                 # LlamaIndex/Chroma filter translations are stricter than the
                 # metadata actually stored in older indexes and can eliminate all
@@ -1108,7 +1222,9 @@ class VectorRetrieval(BaseRetrieval):
             return docs_local, list(scores)
 
         def text_search(query_text: str) -> list[Document]:
-            return self.doc_store.query(query_text, top_k=top_k_first_round, doc_ids=scope)
+            return self.doc_store.query(
+                query_text, top_k=top_k_first_round, doc_ids=scope
+            )
 
         def merge_vector_batches(
             batches: list[tuple[list[Document], list[float]]]
@@ -1257,7 +1373,9 @@ class VectorRetrieval(BaseRetrieval):
                     if "rerank" not in sources:
                         sources.append("rerank")
                     doc.metadata["_retrieval_sources"] = sources
-                    doc.metadata["retrieval_source"] = doc.metadata.get("retrieval_source") or "rerank"
+                    doc.metadata["retrieval_source"] = (
+                        doc.metadata.get("retrieval_source") or "rerank"
+                    )
                 _vector_log(
                     f"Reranker returned {len(result)} docs "
                     f"in {time.time() - rerank_start:.2f}s"
@@ -1323,7 +1441,9 @@ class VectorRetrieval(BaseRetrieval):
             result = self._expand_parent_context(result)
 
         debug["final_docs_after_expansion"] = len(result)
-        debug["final_docs"] = [self._debug_doc(doc, rank) for rank, doc in enumerate(result, start=1)]
+        debug["final_docs"] = [
+            self._debug_doc(doc, rank) for rank, doc in enumerate(result, start=1)
+        ]
         self.last_debug = debug
         rag_log("retrieval.vector.result", **debug)
         return result
@@ -1334,8 +1454,10 @@ class VectorRetrieval(BaseRetrieval):
             "rank": rank,
             "doc_id": doc.doc_id,
             "source_file": metadata.get("source_file") or metadata.get("file_name"),
-            "page_label_start": metadata.get("page_label_start") or metadata.get("page_label"),
-            "page_label_end": metadata.get("page_label_end") or metadata.get("page_label"),
+            "page_label_start": metadata.get("page_label_start")
+            or metadata.get("page_label"),
+            "page_label_end": metadata.get("page_label_end")
+            or metadata.get("page_label"),
             "section_id": metadata.get("section_id"),
             "section_title": metadata.get("section_title"),
             "section_path": metadata.get("section_path"),
@@ -1348,7 +1470,8 @@ class VectorRetrieval(BaseRetrieval):
             "child_index": metadata.get("child_index"),
             "index_role": metadata.get("index_role"),
             "score": doc.score,
-            "ranking_score": metadata.get("_ranking_score") or metadata.get("_fusion_score"),
+            "ranking_score": metadata.get("_ranking_score")
+            or metadata.get("_fusion_score"),
             "vector_score": metadata.get("_vector_score"),
             "text_score": metadata.get("_text_score"),
             "lexical_score": metadata.get("_lexical_score"),
@@ -1372,7 +1495,9 @@ class VectorRetrieval(BaseRetrieval):
         for doc in all_docs:
             metadata = doc.metadata or {}
             if metadata.get("index_role") == "child" and metadata.get("parent_id"):
-                children_by_parent.setdefault(str(metadata["parent_id"]), []).append(doc)
+                children_by_parent.setdefault(str(metadata["parent_id"]), []).append(
+                    doc
+                )
         for siblings in children_by_parent.values():
             siblings.sort(key=lambda d: int((d.metadata or {}).get("child_index") or 0))
 
@@ -1382,7 +1507,11 @@ class VectorRetrieval(BaseRetrieval):
             metadata = doc.metadata or {}
             parent_id = metadata.get("parent_id")
             child_index = metadata.get("child_index")
-            if metadata.get("index_role") != "child" or not parent_id or child_index is None:
+            if (
+                metadata.get("index_role") != "child"
+                or not parent_id
+                or child_index is None
+            ):
                 if doc.doc_id not in seen:
                     expanded.append(doc)
                     seen.add(doc.doc_id)
@@ -1393,12 +1522,21 @@ class VectorRetrieval(BaseRetrieval):
             group = [
                 sibling
                 for sibling in siblings
-                if abs(int((sibling.metadata or {}).get("child_index") or 0) - matched_idx) <= window
+                if abs(
+                    int((sibling.metadata or {}).get("child_index") or 0) - matched_idx
+                )
+                <= window
             ]
             group.sort(
                 key=lambda sibling: (
-                    0 if int((sibling.metadata or {}).get("child_index") or 0) == matched_idx else 1,
-                    abs(int((sibling.metadata or {}).get("child_index") or 0) - matched_idx),
+                    0
+                    if int((sibling.metadata or {}).get("child_index") or 0)
+                    == matched_idx
+                    else 1,
+                    abs(
+                        int((sibling.metadata or {}).get("child_index") or 0)
+                        - matched_idx
+                    ),
                     int((sibling.metadata or {}).get("child_index") or 0),
                 )
             )
@@ -1407,16 +1545,22 @@ class VectorRetrieval(BaseRetrieval):
                     continue
                 sibling_metadata = dict(sibling.metadata or {})
                 sibling_metadata["context_role"] = (
-                    "matched_child" if sibling.doc_id == doc.doc_id else "sibling_context"
+                    "matched_child"
+                    if sibling.doc_id == doc.doc_id
+                    else "sibling_context"
                 )
                 sibling_metadata["retrieval_source"] = (
-                    metadata.get("retrieval_source") if sibling.doc_id == doc.doc_id else "sibling_context"
+                    metadata.get("retrieval_source")
+                    if sibling.doc_id == doc.doc_id
+                    else "sibling_context"
                 )
                 sibling_metadata["matched_child_id"] = doc.doc_id
                 expanded.append(
                     RetrievedDocument(
                         **{**sibling.to_dict(), "metadata": sibling_metadata},
-                        score=doc.score if sibling.doc_id == doc.doc_id else max((doc.score or 0.0) - 1e-6, 0.0),
+                        score=doc.score
+                        if sibling.doc_id == doc.doc_id
+                        else max((doc.score or 0.0) - 1e-6, 0.0),
                     )
                 )
                 seen.add(sibling.doc_id)
@@ -1427,9 +1571,7 @@ class VectorRetrieval(BaseRetrieval):
     ) -> list[RetrievedDocument]:
         """Parents are docstore context, not raw retrieval candidates."""
 
-        return [
-            doc for doc in documents if doc.metadata.get("index_role") != "parent"
-        ]
+        return [doc for doc in documents if doc.metadata.get("index_role") != "parent"]
 
     def _expand_parent_context(
         self, documents: list[RetrievedDocument]

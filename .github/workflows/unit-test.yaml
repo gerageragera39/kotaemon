@@ -10,30 +10,32 @@ jobs:
   unit-test:
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    strategy:
-      matrix:
-        python-version: ["3.11"]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.11"
           cache: pip
 
-      - name: Install OS packages
-        run: |
-          sudo apt update -qqy
-          sudo apt install -y poppler-utils libpoppler-dev tesseract-ocr
-
-      - name: Install Python dependencies
+      - name: Install test dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install -r requirements_gerageragera39.txt
-          pip install -e .
-          pip install pytest
+          python -m pip install \
+            "langchain>=0.2.17,<0.3" \
+            "llama-index-core>=0.10.40,<0.11" \
+            "markdown>=3.6,<4" \
+            "pandas>=2.2.2,<2.3" \
+            "python-decouple>=3.8,<4" \
+            "sqlalchemy>=2.0.29,<3" \
+            "sqlmodel>=0.0.16,<0.1" \
+            "theflow>=0.8.6,<0.9" \
+            "tiktoken>=0.6,<1" \
+            "tzlocal>=5" \
+            pytest
+          python -m pip install -e . --no-deps
 
       - name: Run tests
         run: pytest tests

@@ -8,10 +8,10 @@ from typing import Any
 
 from theflow.settings import settings as flowsettings
 
-
-CHAT_OUTPUT_DIR = Path(
-    getattr(flowsettings, "KH_APP_DATA_DIR", Path.cwd() / "ktem_app_data")
-) / "chats"
+CHAT_OUTPUT_DIR = (
+    Path(getattr(flowsettings, "KH_APP_DATA_DIR", Path.cwd() / "ktem_app_data"))
+    / "chats"
+)
 
 
 def _json_csv_cell(value: Any) -> str:

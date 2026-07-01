@@ -57,9 +57,7 @@ class PrepareEvidencePipeline(BaseComponent):
             metadata.get("_ranking_score") or metadata.get("_fusion_score") or ""
         )
         retrieval_source = (
-            metadata.get("retrieval_source")
-            or metadata.get("_retrieval_sources")
-            or ""
+            metadata.get("retrieval_source") or metadata.get("_retrieval_sources") or ""
         )
         fields = [f"doc_id={doc.doc_id}", f"source={source}{page}"]
         optional_fields = (
@@ -252,7 +250,8 @@ class PrepareEvidencePipeline(BaseComponent):
                     "rank": rank,
                     "doc_id": retrieved_item.doc_id,
                     "tokens": tokens,
-                    "source_file": metadata.get("source_file") or metadata.get("file_name"),
+                    "source_file": metadata.get("source_file")
+                    or metadata.get("file_name"),
                     "section_id": metadata.get("section_id"),
                     "paragraph_id": metadata.get("paragraph_id"),
                     "score": retrieved_item.score,
@@ -286,5 +285,7 @@ class PrepareEvidencePipeline(BaseComponent):
             evidence_preview=evidence[:3000],
         )
         if docs and not evidence:
-            raise RuntimeError("Retrieved documents existed but prompt context became empty.")
+            raise RuntimeError(
+                "Retrieved documents existed but prompt context became empty."
+            )
         return Document(content=(evidence_mode, evidence, images))

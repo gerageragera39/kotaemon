@@ -4,13 +4,13 @@ This section is for contributors and integrators working on **`kotaemon`** (libr
 
 ## Repository layout
 
-| Path | Package | Role |
-|------|---------|------|
-| `src/kotaemon/` | `kotaemon` | RAG components: LLM, embeddings, loaders, stores, indices, agents |
-| `src/ktem/` | `ktem` | Application UI, index manager, reasoning pipelines, DB |
-| `flowsettings.py` | — | Runtime config (`KH_*`, default models, stores) |
-| `app.py` | — | Inserts `src/` on `sys.path`, launches Gradio |
-| `tests/` | — | pytest from **repository root** |
+| Path              | Package    | Role                                                              |
+| ----------------- | ---------- | ----------------------------------------------------------------- |
+| `src/kotaemon/`   | `kotaemon` | RAG components: LLM, embeddings, loaders, stores, indices, agents |
+| `src/ktem/`       | `ktem`     | Application UI, index manager, reasoning pipelines, DB            |
+| `flowsettings.py` | —          | Runtime config (`KH_*`, default models, stores)                   |
+| `app.py`          | —          | Inserts `src/` on `sys.path`, launches Gradio                     |
+| `tests/`          | —          | pytest from **repository root**                                   |
 
 Read [`PROJECT_CONTEXT.md`](../../PROJECT_CONTEXT.md) for architecture, data flow, and configuration. [`AI_GUIDE.md`](../../AI_GUIDE.md) lists task → file mappings for agents.
 

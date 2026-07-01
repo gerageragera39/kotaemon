@@ -216,9 +216,7 @@ def test_vector_scope_uses_canonical_ids_parameter_for_vectorstore_contract():
         retrieval_mode="vector",
     )
 
-    results = retrieval.run(
-        "hello", top_k=3, scope=["scoped-hit"], expand_parent=False
-    )
+    results = retrieval.run("hello", top_k=3, scope=["scoped-hit"], expand_parent=False)
 
     assert vectorstore.query_calls == [
         {"embedding": [1.0, 0.0], "top_k": 30, "ids": ["scoped-hit"], "kwargs": {}}
@@ -309,8 +307,7 @@ def test_vector_metadata_is_flattened_before_vectorstore_insert():
     assert metadata["is_probably_latest"] == 1
     assert metadata["nested"] == '{"origin": "docling"}'
     assert all(
-        value is None or type(value) in {str, int, float}
-        for value in metadata.values()
+        value is None or type(value) in {str, int, float} for value in metadata.values()
     )
 
 
@@ -440,9 +437,9 @@ def test_hybrid_branch_errors_are_propagated_to_caller():
 
 
 def test_file_retrieval_defaults_include_hybrid_candidate_multiplier_and_context_window():
+    from kotaemon.indices.qa.format_context import PrepareEvidencePipeline
     from ktem.index.file.pipelines import DocumentRetrievalPipeline
     from ktem.reasoning.simple import FullQAPipeline
-    from kotaemon.indices.qa.format_context import PrepareEvidencePipeline
 
     retrieval_settings = DocumentRetrievalPipeline.get_user_settings()
     reasoning_settings = FullQAPipeline.get_user_settings()
@@ -496,7 +493,10 @@ def test_query_expansion_adds_german_oral_exam_variant():
         ("What teaching and learning methods are used?", "didaktische Konzepte"),
         ("What foreign-language competence is expected?", "Fremdsprachenkompetenz"),
         ("When is the foundations and orientation exam passed?", "40 ECTS-Punkten"),
-        ("Which main study areas does the program combine?", "Informationsverarbeitende Systeme"),
+        (
+            "Which main study areas does the program combine?",
+            "Informationsverarbeitende Systeme",
+        ),
         ("Which semester is suitable for study abroad?", "fünfte Studiensemester"),
         ("Which semester is suitable for studying abroad?", "Internationalisierung"),
         ("What must an unsupervised written assignment include?", "ohne Aufsicht"),

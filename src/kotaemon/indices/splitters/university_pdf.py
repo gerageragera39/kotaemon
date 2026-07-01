@@ -315,8 +315,10 @@ class UniversityPDFChunker(BaseSplitter):
             # previous implementation used a token threshold here, so a short
             # Modulnote/Bemerkungen/Polyvalenz tail could be prepended to the
             # next module before the first child window was built.
-            if detected and current and self._contains_module_terminal_section(
-                current_text
+            if (
+                detected
+                and current
+                and self._contains_module_terminal_section(current_text)
             ):
                 starts_new = different_title
             if starts_new:
@@ -366,7 +368,9 @@ class UniversityPDFChunker(BaseSplitter):
             )
 
         non_table = [
-            doc for doc in structured_docs if doc.metadata.get("element_type") != "table"
+            doc
+            for doc in structured_docs
+            if doc.metadata.get("element_type") != "table"
         ]
         for block in self._generic_blocks(non_table):
             if self._should_keep_short_block(block):
@@ -389,7 +393,10 @@ class UniversityPDFChunker(BaseSplitter):
                 "Unterschriften und Erklärungen",
                 r"(?i)(unterschrift|signature|erklärung|erklaerung|datenschutz|bestätigung|bestaetigung)",
             ),
-            ("Kontakt/Prüfungsamt", r"(?i)(kontakt|prüfungsamt|pruefungsamt|dekanat|büro|buero|office)"),
+            (
+                "Kontakt/Prüfungsamt",
+                r"(?i)(kontakt|prüfungsamt|pruefungsamt|dekanat|büro|buero|office)",
+            ),
         ]
         lines = [line.strip() for line in full_text.splitlines() if line.strip()]
         buckets: dict[str, list[str]] = {name: [] for name, _ in categories}
@@ -569,14 +576,10 @@ class UniversityPDFChunker(BaseSplitter):
         if block.chunk_type == "module":
             child_section_title = self._module_section_title(child_text)
             child_section_path = [
-                part
-                for part in [block.module_title, child_section_title]
-                if part
+                part for part in [block.module_title, child_section_title] if part
             ]
             section_label = child_section_title or block.module_title or block.title
-            page_start, page_end = self._module_child_pages(
-                block, child_section_title
-            )
+            page_start, page_end = self._module_child_pages(block, child_section_title)
 
         page_label = self._page_range(page_start, page_end)
 
@@ -587,7 +590,9 @@ class UniversityPDFChunker(BaseSplitter):
         if block.module_title:
             header_lines.append(f"Module: {block.module_title}")
         if block.module_code or block.module_number:
-            header_lines.append(f"Module code: {block.module_code or block.module_number}")
+            header_lines.append(
+                f"Module code: {block.module_code or block.module_number}"
+            )
         header_lines.append(f"Abschnitt: {section_label}")
         if child_section_path:
             header_lines.append(f"Section path: {' > '.join(child_section_path)}")
@@ -650,7 +655,9 @@ class UniversityPDFChunker(BaseSplitter):
         if self._token_count(text) <= self.max_child_size:
             return [text]
         if block.chunk_type == "section":
-            return self._regulation_child_texts(text, block.section_title or block.title)
+            return self._regulation_child_texts(
+                text, block.section_title or block.title
+            )
         return self._token_windows(text)
 
     def _regulation_child_texts(self, text: str, section_title: str) -> list[str]:
@@ -715,7 +722,11 @@ class UniversityPDFChunker(BaseSplitter):
             body = body.strip()
             if not body:
                 continue
-            group = body if section in body[: len(section) + 10] else f"{section}\n{body}".strip()
+            group = (
+                body
+                if section in body[: len(section) + 10]
+                else f"{section}\n{body}".strip()
+            )
             if self._token_count(group) <= self.max_child_size:
                 chunks.append(group)
                 continue
@@ -783,7 +794,9 @@ class UniversityPDFChunker(BaseSplitter):
             if current_rows and self._token_count(candidate) > self.max_child_size:
                 chunks.append(
                     "\n".join(
-                        part for part in [prefix, header, separator, *current_rows] if part.strip()
+                        part
+                        for part in [prefix, header, separator, *current_rows]
+                        if part.strip()
                     )
                 )
                 current_rows = [row]
@@ -792,7 +805,9 @@ class UniversityPDFChunker(BaseSplitter):
         if current_rows:
             chunks.append(
                 "\n".join(
-                    part for part in [prefix, header, separator, *current_rows] if part.strip()
+                    part
+                    for part in [prefix, header, separator, *current_rows]
+                    if part.strip()
                 )
             )
         return chunks or [text]
@@ -988,7 +1003,9 @@ class UniversityPDFChunker(BaseSplitter):
                 previous_heading = title
             else:
                 metadata["previous_heading"] = previous_heading
-                metadata["nearest_heading"] = stack[-1][1] if stack else previous_heading
+                metadata["nearest_heading"] = (
+                    stack[-1][1] if stack else previous_heading
+                )
 
             metadata["section_path"] = [title for _, title in stack]
             output.append(Document(text=doc.text, id_=doc.doc_id, metadata=metadata))
@@ -1290,7 +1307,9 @@ class UniversityPDFChunker(BaseSplitter):
         return bool(re.match(r"^(TEIL|ABSCHNITT)\s+[IVXLCDM\d]+\b", stripped))
 
     def _major_heading_from_text(self, text: str) -> Optional[str]:
-        for line in reversed([line.strip() for line in text.splitlines() if line.strip()]):
+        for line in reversed(
+            [line.strip() for line in text.splitlines() if line.strip()]
+        ):
             if self._is_major_heading(line):
                 return self._clean_title(line)
         return None
@@ -1359,7 +1378,9 @@ class UniversityPDFChunker(BaseSplitter):
             text = (candidate.text or "").strip()
             if not text:
                 continue
-            if (candidate.metadata or {}).get("element_type") == "heading" and offset > 1:
+            if (candidate.metadata or {}).get(
+                "element_type"
+            ) == "heading" and offset > 1:
                 break
             normalized = self._normalize_for_match(text.splitlines()[0])
             if normalized in {
@@ -1417,16 +1438,34 @@ class UniversityPDFChunker(BaseSplitter):
             return None
         normalized = self._normalize_for_match(first)
         section_patterns: list[tuple[str, str]] = [
-            ("Kompetenzen", r"^(kompetenzen|qualifikationsziele|learning outcomes|lernergebnisse)$"),
-            ("Inhalte und Themen", r"^(inhalte|inhalte und themen|contents|lehrinhalte)$"),
+            (
+                "Kompetenzen",
+                r"^(kompetenzen|qualifikationsziele|learning outcomes|lernergebnisse)$",
+            ),
+            (
+                "Inhalte und Themen",
+                r"^(inhalte|inhalte und themen|contents|lehrinhalte)$",
+            ),
             ("Formale Voraussetzungen für die Teilnahme", r"^formale voraussetzungen"),
-            ("Empfohlene Voraussetzungen für die Teilnahme", r"^empfohlene voraussetzungen"),
+            (
+                "Empfohlene Voraussetzungen für die Teilnahme",
+                r"^empfohlene voraussetzungen",
+            ),
             ("Lehr- und Prüfungssprache", r"^lehr und prufungssprache"),
             ("Lehr- und Lernformen/Lehrveranstaltungstypen", r"^lehr und lernformen"),
-            ("Voraussetzungen für die Vergabe von ECTS-Punkten", r"^voraussetzungen fur die vergabe"),
-            ("Zeitaufwand/Berechnung der ECTS-Punkte innerhalb des Moduls", r"^zeitaufwand"),
+            (
+                "Voraussetzungen für die Vergabe von ECTS-Punkten",
+                r"^voraussetzungen fur die vergabe",
+            ),
+            (
+                "Zeitaufwand/Berechnung der ECTS-Punkte innerhalb des Moduls",
+                r"^zeitaufwand",
+            ),
             ("Modulnote", r"^modulnote$"),
-            ("Erläuterung der Prüfungsmodalitäten", r"^erlauterung der prufungsmodalitaten"),
+            (
+                "Erläuterung der Prüfungsmodalitäten",
+                r"^erlauterung der prufungsmodalitaten",
+            ),
             ("Polyvalenz mit anderen Studiengängen", r"^polyvalenz"),
             ("Bemerkungen", r"^bemerkungen"),
         ]
@@ -1525,9 +1564,13 @@ class UniversityPDFChunker(BaseSplitter):
                     and self._looks_like_module_title_value(value)
                 ):
                     metadata["module_title_en"] = value
-                elif label_norm == "modultitel" and self._looks_like_module_title_value(value):
+                elif label_norm == "modultitel" and self._looks_like_module_title_value(
+                    value
+                ):
                     metadata["module_title_de"] = value
-                elif "modulnummer" in label_norm or re.search(r"\bmodule (no|number)\b", label_norm):
+                elif "modulnummer" in label_norm or re.search(
+                    r"\bmodule (no|number)\b", label_norm
+                ):
                     metadata["module_code"] = value
                     metadata["module_number"] = value
                 elif "leistungspunkte" in label_norm or "ects" in label_norm:
@@ -1581,8 +1624,7 @@ class UniversityPDFChunker(BaseSplitter):
             if re.fullmatch(r"\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*", line):
                 continue
             cells = [
-                self._clean_title(cell)
-                for cell in line.strip().strip("|").split("|")
+                self._clean_title(cell) for cell in line.strip().strip("|").split("|")
             ]
             cells = [cell for cell in cells if cell and not re.fullmatch(r"-+", cell)]
             if len(cells) >= 2:
@@ -1637,7 +1679,10 @@ class UniversityPDFChunker(BaseSplitter):
         }.get(section, section)
 
     def _title_from_filename(self, file_name: str) -> str:
-        return Path(file_name).stem.replace("_", " ").replace("-", " ").strip() or file_name
+        return (
+            Path(file_name).stem.replace("_", " ").replace("-", " ").strip()
+            or file_name
+        )
 
     def _clean_title(self, value: str) -> str:
         return re.sub(r"\s+", " ", value).strip(" :-\t")[:180]

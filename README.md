@@ -24,8 +24,7 @@ KURAGa helps students and staff ask questions over indexed university and study-
 
 Instead of asking a language model to answer from memory, KURAGa first retrieves relevant passages from the indexed document collection and then generates an answer grounded in that context.
 
-> [!IMPORTANT]
-> **KURAGa is a course project, not an official KU service.**
+> [!IMPORTANT] > **KURAGa is a course project, not an official KU service.**
 > Answers can be incomplete or wrong. Always verify important academic, legal, or administrative decisions against official university documents or university staff guidance.
 
 ---
@@ -34,11 +33,11 @@ Instead of asking a language model to answer from memory, KURAGa first retrieves
 
 University information is often distributed across many documents, formats, languages, and update cycles. A normal chatbot can easily hallucinate. A plain keyword search can miss relevant passages. KURAGa combines both approaches:
 
-* **document search** to find relevant evidence,
-* **language generation** to explain it clearly,
-* **citations/evidence** to let users verify the answer,
-* **guest mode** so anyone can try the chatbot without accessing admin tools,
-* **admin-managed indexing** so the document base stays controlled.
+- **document search** to find relevant evidence,
+- **language generation** to explain it clearly,
+- **citations/evidence** to let users verify the answer,
+- **guest mode** so anyone can try the chatbot without accessing admin tools,
+- **admin-managed indexing** so the document base stays controlled.
 
 The result is a focused RAG assistant for university-programme questions rather than a generic document-chat demo.
 
@@ -271,12 +270,12 @@ Guests are intentionally restricted to a simple, safe interface:
 
 Guest users:
 
-* can chat with indexed university documents,
-* are forced to use **Search All** over admin-indexed documents,
-* cannot upload files,
-* cannot select only one private file,
-* cannot disable document search,
-* cannot access Resources, Settings, Evaluation, or admin file-management pages.
+- can chat with indexed university documents,
+- are forced to use **Search All** over admin-indexed documents,
+- cannot upload files,
+- cannot select only one private file,
+- cannot disable document search,
+- cannot access Resources, Settings, Evaluation, or admin file-management pages.
 
 ### Admin flow
 
@@ -350,11 +349,11 @@ local model caches
 
 ### Important development notes
 
-* Run commands from the repository root.
-* Keep Python imports as `kotaemon` and `ktem` unless a full migration plan proves that renaming is safe.
-* Do not use old upstream `libs/kotaemon` or `libs/ktem` paths in this fork.
-* Keep guest access restricted and test it after UI changes.
-* Keep attribution to the original Kotaemon project visible and honest.
+- Run commands from the repository root.
+- Keep Python imports as `kotaemon` and `ktem` unless a full migration plan proves that renaming is safe.
+- Do not use old upstream `libs/kotaemon` or `libs/ktem` paths in this fork.
+- Keep guest access restricted and test it after UI changes.
+- Keep attribution to the original Kotaemon project visible and honest.
 
 ---
 
@@ -392,12 +391,12 @@ KH_OLLAMA_URL=http://ollama:11434/v1/
 
 Try:
 
-* using a stronger local model,
-* increasing context length,
-* checking whether the correct documents were indexed,
-* inspecting retrieved evidence,
-* running the evaluation/debug scripts,
-* improving chunking or metadata if relevant passages are missed.
+- using a stronger local model,
+- increasing context length,
+- checking whether the correct documents were indexed,
+- inspecting retrieved evidence,
+- running the evaluation/debug scripts,
+- improving chunking or metadata if relevant passages are missed.
 
 ### Guest users can access too much
 
@@ -411,12 +410,12 @@ KURAGa is an active university course project. The goal is not to replace offici
 
 Current focus areas:
 
-* robust guest-only chat access,
-* reliable document retrieval,
-* transparent citations/evidence,
-* local-first deployment,
-* clean project documentation,
-* evaluation-driven RAG improvements.
+- robust guest-only chat access,
+- reliable document retrieval,
+- transparent citations/evidence,
+- local-first deployment,
+- clean project documentation,
+- evaluation-driven RAG improvements.
 
 ---
 
@@ -428,8 +427,8 @@ KURAGa keeps the upstream license and retains original architecture/components w
 
 See:
 
-* [`LICENSE.txt`](LICENSE.txt)
-* [`NOTICE.md`](NOTICE.md)
+- [`LICENSE.txt`](LICENSE.txt)
+- [`NOTICE.md`](NOTICE.md)
 
 ---
 

@@ -33,7 +33,11 @@ class KeywordEmbedding(BaseEmbeddings):
         out = []
         for doc in docs:
             text = (doc.text if isinstance(doc, Document) else str(doc)).lower()
-            out.append(DocumentWithEmbedding(embedding=[float(term in text) for term in self.terms]))
+            out.append(
+                DocumentWithEmbedding(
+                    embedding=[float(term in text) for term in self.terms]
+                )
+            )
         return out
 
 
@@ -71,23 +75,53 @@ def main() -> int:
     run_dir.mkdir(parents=True, exist_ok=True)
 
     source_docs = [
-        Document(text="§ 13 Bewertung der Prüfungsleistungen", metadata={"file_name": "smoke_APO.pdf", "page_label": 8, "order": 1, "element_type": "heading"}),
-        Document(text="(1) Prüfungen können schriftlich oder als mündliche Prüfung durchgeführt werden.", metadata={"file_name": "smoke_APO.pdf", "page_label": 8, "order": 2, "element_type": "paragraph"}),
+        Document(
+            text="§ 13 Bewertung der Prüfungsleistungen",
+            metadata={
+                "file_name": "smoke_APO.pdf",
+                "page_label": 8,
+                "order": 1,
+                "element_type": "heading",
+            },
+        ),
+        Document(
+            text="(1) Prüfungen können schriftlich oder als mündliche Prüfung durchgeführt werden.",
+            metadata={
+                "file_name": "smoke_APO.pdf",
+                "page_label": 8,
+                "order": 2,
+                "element_type": "paragraph",
+            },
+        ),
     ]
     chunks = UniversityPDFChunker().run(source_docs)
     docstore = InMemoryDocumentStore()
     vectorstore = MemoryVectorStore()
     embedding = KeywordEmbedding()
-    VectorIndexing(vector_store=vectorstore, doc_store=docstore, embedding=embedding).run(chunks)
+    VectorIndexing(
+        vector_store=vectorstore, doc_store=docstore, embedding=embedding
+    ).run(chunks)
 
-    retrieval = VectorRetrieval(vector_store=vectorstore, doc_store=docstore, embedding=embedding, retrieval_mode="hybrid", first_round_top_k_mult=5)
+    retrieval = VectorRetrieval(
+        vector_store=vectorstore,
+        doc_store=docstore,
+        embedding=embedding,
+        retrieval_mode="hybrid",
+        first_round_top_k_mult=5,
+    )
     docs = retrieval.run("oral exam", top_k=3, do_extend=True, expand_parent="siblings")
     debug = retrieval.last_debug
-    (run_dir / "retrieval_debug.jsonl").write_text(json.dumps(debug, ensure_ascii=False) + "\n", encoding="utf-8")
-    (run_dir / "settings.json").write_text(json.dumps({"smoke": True}, indent=2), encoding="utf-8")
+    (run_dir / "retrieval_debug.jsonl").write_text(
+        json.dumps(debug, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
+    (run_dir / "settings.json").write_text(
+        json.dumps({"smoke": True}, indent=2), encoding="utf-8"
+    )
     print(f"Saved smoke debug to {run_dir}")
     for rank, doc in enumerate(docs, start=1):
-        print(f"#{rank} {doc.doc_id} score={doc.score} {doc.text[:180].replace(chr(10), ' ')}")
+        print(
+            f"#{rank} {doc.doc_id} score={doc.score} {doc.text[:180].replace(chr(10), ' ')}"
+        )
     if not docs:
         raise SystemExit("No documents retrieved")
     return 0

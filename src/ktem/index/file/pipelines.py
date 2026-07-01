@@ -15,10 +15,6 @@ from typing import Generator, Optional, Sequence
 
 import tiktoken
 from decouple import config
-from ktem.db.models import engine
-from ktem.embeddings.manager import embedding_models_manager
-from ktem.llms.manager import llms
-from ktem.rerankings.manager import reranking_models_manager
 from llama_index.core.readers.base import BaseReader
 from llama_index.core.readers.file.base import default_file_metadata_func
 from llama_index.core.vector_stores import (
@@ -36,18 +32,11 @@ from theflow.utils.modules import import_dotted_string
 from kotaemon.base import BaseComponent, Document, Node, Param, RetrievedDocument
 from kotaemon.embeddings import BaseEmbeddings
 from kotaemon.indices import VectorIndexing, VectorRetrieval
-from kotaemon.indices.ingests.files import (
-    KH_DEFAULT_FILE_EXTRACTORS,
-    adobe_reader,
-    azure_reader,
-    docling_reader,
-    unstructured,
-    web_reader,
-)
 from kotaemon.indices.rankings import BaseReranking, LLMReranking, LLMTrulensScoring
 from kotaemon.indices.splitters import BaseSplitter, TokenSplitter, UniversityPDFChunker
 from kotaemon.loaders import DoclingStructuredPDFReader
 from kotaemon.utils.rag_debug import rag_log
+from ktem.db.models import engine
 
 from .base import BaseFileIndexIndexing, BaseFileIndexRetriever
 from .ingestion_v2 import build_ingestion_v2
@@ -218,9 +207,7 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             text=text,
             top_k=self.top_k,
             expand_parent=(
-                "siblings"
-                if expand_mode == "siblings"
-                else expand_mode == "parent"
+                "siblings" if expand_mode == "siblings" else expand_mode == "parent"
             ),
             **retrieval_kwargs,
         )
@@ -354,15 +341,17 @@ class DocumentRetrievalPipeline(BaseFileIndexRetriever):
             settings: the settings of the app
             kwargs: other arguments
         """
+        from ktem.embeddings.manager import embedding_models_manager
+        from ktem.llms.manager import llms
+        from ktem.rerankings.manager import reranking_models_manager
+
         use_llm_reranking = user_settings.get("use_llm_reranking", False)
 
         retriever = cls(
             get_extra_table=user_settings.get("prioritize_table", False),
             top_k=user_settings.get("num_retrieval", 15),
             candidate_multiplier=user_settings.get("candidate_multiplier", 20),
-            context_expansion_mode=user_settings.get(
-                "context_expansion_mode", "none"
-            ),
+            context_expansion_mode=user_settings.get("context_expansion_mode", "none"),
             sibling_window=user_settings.get("sibling_window", 1),
             enable_query_expansion=user_settings.get("enable_query_expansion", True),
             mmr=user_settings.get("mmr", False),
@@ -507,7 +496,9 @@ class IndexPipeline(BaseComponent):
                 channel="debug",
             )
         else:
-            _index_log(f"[{file_name}] No splitter configured; using text docs as chunks")
+            _index_log(
+                f"[{file_name}] No splitter configured; using text docs as chunks"
+            )
             all_chunks = text_docs
 
         # add the thumbnails doc_id to the chunks
@@ -803,9 +794,15 @@ class IndexPipeline(BaseComponent):
         _index_log(f"[{file_name}] Converted to text: docs={len(docs)}")
         yield Document(f" => Converted {file_name} to text", channel="debug")
         yield from self.handle_docs(docs, file_id, file_name)
-        parents_created = sum(1 for doc in docs if doc.metadata.get("index_role") == "parent")
-        children_created = sum(1 for doc in docs if doc.metadata.get("index_role") == "child")
-        embedded_docs_count = sum(1 for doc in docs if doc.metadata.get("index_role") != "parent")
+        parents_created = sum(
+            1 for doc in docs if doc.metadata.get("index_role") == "parent"
+        )
+        children_created = sum(
+            1 for doc in docs if doc.metadata.get("index_role") == "child"
+        )
+        embedded_docs_count = sum(
+            1 for doc in docs if doc.metadata.get("index_role") != "parent"
+        )
         skipped_parent_docs_count = len(docs) - embedded_docs_count
         _index_log(
             f"[{file_name}] Index summary: documents_created={len(docs)}, "
@@ -844,14 +841,27 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
     @Param.auto(depends_on="reader_mode")
     def readers(self):
+        if self.reader_mode == "university":
+            from kotaemon.loaders import TxtReader
+
+            return {".txt": TxtReader(), ".md": TxtReader()}
+        if self.reader_mode == "docling":
+            from kotaemon.loaders import DoclingReader
+
+            return {".pdf": DoclingReader()}
+
+        from kotaemon.indices.ingests.files import (
+            KH_DEFAULT_FILE_EXTRACTORS,
+            adobe_reader,
+            azure_reader,
+        )
+
         readers = deepcopy(KH_DEFAULT_FILE_EXTRACTORS)
         print("reader_mode", self.reader_mode)
         if self.reader_mode == "adobe":
             readers[".pdf"] = adobe_reader
         elif self.reader_mode == "azure-di":
             readers[".pdf"] = azure_reader
-        elif self.reader_mode == "docling":
-            readers[".pdf"] = docling_reader
 
         dev_readers, _, _ = dev_settings()
         readers.update(dev_readers)
@@ -900,6 +910,8 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
     @classmethod
     def get_pipeline(cls, user_settings, index_settings) -> BaseFileIndexIndexing:
+        from ktem.embeddings.manager import embedding_models_manager
+
         use_quick_index_mode = user_settings.get("quick_index_mode", False)
         print("use_quick_index_mode", use_quick_index_mode)
         obj = cls(
@@ -955,9 +967,8 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
         if configured_mode == "university":
             return "env"
 
-        configured_dir = (
-            config("UNIVERSITY_RAG_DOCUMENTS_DIR", default="")
-            or str(getattr(settings, "UNIVERSITY_RAG_DOCUMENTS_DIR", ""))
+        configured_dir = config("UNIVERSITY_RAG_DOCUMENTS_DIR", default="") or str(
+            getattr(settings, "UNIVERSITY_RAG_DOCUMENTS_DIR", "")
         )
         if configured_dir:
             try:
@@ -996,6 +1007,8 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
 
         # check if file_path is a URL
         if self.is_url(file_path):
+            from kotaemon.indices.ingests.files import web_reader
+
             reader = web_reader
             splitter: BaseSplitter = TokenSplitter(
                 chunk_size=chunk_size or 1024,
@@ -1011,13 +1024,17 @@ class IndexDocumentPipeline(BaseFileIndexIndexing):
                 university_trigger = "ui"
 
             if self.reader_mode == "voldemort" and ext == ".pdf":
+                from kotaemon.indices.ingests.files import docling_reader
+
                 reader = docling_reader
                 splitter = None
             elif university_trigger != "none" and ext == ".pdf":
                 reader = DoclingStructuredPDFReader()
                 splitter = self._university_chunker()
             else:
-                reader = self.readers.get(ext, unstructured)
+                from kotaemon.loaders import UnstructuredReader
+
+                reader = self.readers.get(ext, UnstructuredReader())
                 splitter = TokenSplitter(
                     chunk_size=chunk_size or 1024,
                     chunk_overlap=chunk_overlap or 256,

@@ -5,7 +5,7 @@ Welcome to the documentation for **KURAGa** — the **KU Retrieval-Augmented Gui
 KURAGa is a student-built university-document RAG chatbot for the KU / WFI Digital Projects course. It helps users ask questions over curated university and programme documents. It is based on the open-source Cinnamon/kotaemon project, but this repository has been heavily adapted for the course.
 
 !!! warning "Not an official KU service"
-    KURAGa can make mistakes. Verify important decisions against official university documents and staff guidance.
+KURAGa can make mistakes. Verify important decisions against official university documents and staff guidance.
 
 ## Start here
 

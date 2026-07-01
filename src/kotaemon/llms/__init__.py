@@ -1,59 +1,47 @@
-from kotaemon.base.schema import AIMessage, BaseMessage, HumanMessage, SystemMessage
+"""LLM implementations with optional providers loaded on demand."""
 
-from .base import BaseLLM
-from .branching import GatedBranchingPipeline, SimpleBranchingPipeline
-from .chats import (
-    AzureChatOpenAI,
-    ChatLLM,
-    ChatOpenAI,
-    EndpointChatLLM,
-    LCAnthropicChat,
-    LCAzureChatOpenAI,
-    LCChatOpenAI,
-    LCCohereChat,
-    LCGeminiChat,
-    LCOllamaChat,
-    LlamaCppChat,
-    StructuredOutputChatOpenAI,
-)
-from .completions import LLM, AzureOpenAI, LlamaCpp, OpenAI
-from .cot import ManualSequentialChainOfThought, Thought
-from .linear import GatedLinearPipeline, SimpleLinearPipeline
-from .prompts import BasePromptComponent, PromptTemplate
+from importlib import import_module
+from typing import Any
 
-__all__ = [
-    "BaseLLM",
-    # chat-specific components
-    "ChatLLM",
-    "EndpointChatLLM",
-    "BaseMessage",
-    "HumanMessage",
-    "AIMessage",
-    "SystemMessage",
-    "AzureChatOpenAI",
-    "ChatOpenAI",
-    "StructuredOutputChatOpenAI",
-    "LCAnthropicChat",
-    "LCGeminiChat",
-    "LCCohereChat",
-    "LCOllamaChat",
-    "LCAzureChatOpenAI",
-    "LCChatOpenAI",
-    "LlamaCppChat",
-    # completion-specific components
-    "LLM",
-    "OpenAI",
-    "AzureOpenAI",
-    "LlamaCpp",
-    # prompt-specific components
-    "BasePromptComponent",
-    "PromptTemplate",
-    # strategies
-    "SimpleLinearPipeline",
-    "GatedLinearPipeline",
-    "SimpleBranchingPipeline",
-    "GatedBranchingPipeline",
-    # chain-of-thoughts
-    "ManualSequentialChainOfThought",
-    "Thought",
-]
+_EXPORTS = {
+    "BaseMessage": ("kotaemon.base.schema", "BaseMessage"),
+    "HumanMessage": ("kotaemon.base.schema", "HumanMessage"),
+    "AIMessage": ("kotaemon.base.schema", "AIMessage"),
+    "SystemMessage": ("kotaemon.base.schema", "SystemMessage"),
+    "BaseLLM": (".base", "BaseLLM"),
+    "ChatLLM": (".chats.base", "ChatLLM"),
+    "EndpointChatLLM": (".chats", "EndpointChatLLM"),
+    "AzureChatOpenAI": (".chats", "AzureChatOpenAI"),
+    "ChatOpenAI": (".chats", "ChatOpenAI"),
+    "StructuredOutputChatOpenAI": (".chats", "StructuredOutputChatOpenAI"),
+    "LCAnthropicChat": (".chats", "LCAnthropicChat"),
+    "LCGeminiChat": (".chats", "LCGeminiChat"),
+    "LCCohereChat": (".chats", "LCCohereChat"),
+    "LCOllamaChat": (".chats", "LCOllamaChat"),
+    "LCAzureChatOpenAI": (".chats", "LCAzureChatOpenAI"),
+    "LCChatOpenAI": (".chats", "LCChatOpenAI"),
+    "LlamaCppChat": (".chats", "LlamaCppChat"),
+    "LLM": (".completions", "LLM"),
+    "OpenAI": (".completions", "OpenAI"),
+    "AzureOpenAI": (".completions", "AzureOpenAI"),
+    "LlamaCpp": (".completions", "LlamaCpp"),
+    "BasePromptComponent": (".prompts", "BasePromptComponent"),
+    "PromptTemplate": (".prompts", "PromptTemplate"),
+    "SimpleLinearPipeline": (".linear", "SimpleLinearPipeline"),
+    "GatedLinearPipeline": (".linear", "GatedLinearPipeline"),
+    "SimpleBranchingPipeline": (".branching", "SimpleBranchingPipeline"),
+    "GatedBranchingPipeline": (".branching", "GatedBranchingPipeline"),
+    "ManualSequentialChainOfThought": (".cot", "ManualSequentialChainOfThought"),
+    "Thought": (".cot", "Thought"),
+}
+
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = _EXPORTS[name]
+    value = getattr(import_module(module_name, __name__), attribute)
+    globals()[name] = value
+    return value

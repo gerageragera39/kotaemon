@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 from kotaemon.base import BaseComponent
 from kotaemon.base.schema import HumanMessage, SystemMessage
-from kotaemon.llms import BaseLLM
+from kotaemon.llms.base import BaseLLM
 
 
 class CiteEvidence(BaseModel):

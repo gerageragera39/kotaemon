@@ -4,14 +4,15 @@ from typing import Optional
 
 import gradio as gr
 import pluggy
+from theflow.settings import settings
+from theflow.utils.modules import import_dotted_string
+
 from ktem import extension_protocol
 from ktem.assets import PDFJS_PREBUILT_DIR, KotaemonTheme
 from ktem.components import reasonings
 from ktem.exceptions import HookAlreadyDeclared, HookNotDeclared
 from ktem.index import IndexManager
 from ktem.settings import BaseSettingGroup, SettingGroup, SettingReasoningGroup
-from theflow.settings import settings
-from theflow.utils.modules import import_dotted_string
 
 BASE_PATH = os.environ.get("GR_FILE_ROOT_PATH", "")
 

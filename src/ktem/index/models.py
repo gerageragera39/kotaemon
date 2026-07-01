@@ -1,8 +1,9 @@
 from typing import Optional
 
-from ktem.db.engine import engine
 from sqlalchemy import JSON, Column
 from sqlmodel import Field, SQLModel
+
+from ktem.db.engine import engine
 
 
 # TODO: simplify with using SQLAlchemy directly

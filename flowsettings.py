@@ -4,8 +4,9 @@ from inspect import currentframe, getframeinfo
 from pathlib import Path
 
 from decouple import config
-from ktem.utils.lang import SUPPORTED_LANGUAGE_MAP
 from theflow.settings.default import *  # noqa
+
+from ktem.utils.lang import SUPPORTED_LANGUAGE_MAP
 
 try:
     import torch

@@ -44,9 +44,7 @@ def get_page_thumbnails(
     except ImportError:
         raise ImportError("Please install PyMuPDF: 'pip install PyMuPDF'")
 
-    _pdf_log(
-        f"{file_path.name}: rendering {len(pages)} page thumbnails at {dpi} DPI"
-    )
+    _pdf_log(f"{file_path.name}: rendering {len(pages)} page thumbnails at {dpi} DPI")
     start_time = time.time()
     output_imgs = []
     doc = fitz.open(file_path)

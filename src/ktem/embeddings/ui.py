@@ -3,9 +3,10 @@ from copy import deepcopy
 import gradio as gr
 import pandas as pd
 import yaml
+from theflow.utils.modules import deserialize
+
 from ktem.app import BasePage
 from ktem.utils.file import YAMLNoDateSafeLoader
-from theflow.utils.modules import deserialize
 
 from .manager import embedding_models_manager
 

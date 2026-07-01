@@ -3,11 +3,11 @@ from copy import deepcopy
 from pathlib import Path
 
 import gradio as gr
-from ktem.app import BasePage
-from ktem.db.models import Conversation, User, engine
 from sqlmodel import Session, or_, select
 
 import flowsettings
+from ktem.app import BasePage
+from ktem.db.models import Conversation, User, engine
 
 from ...utils.conversation import sync_retrieval_n_message
 from .chat_suggestion import ChatSuggestion
@@ -17,9 +17,7 @@ logger = logging.getLogger(__name__)
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
-ASSETS_DIR = (
-    Path(__file__).resolve().parents[2] / "assets" / "icons"
-).as_posix()
+ASSETS_DIR = (Path(__file__).resolve().parents[2] / "assets" / "icons").as_posix()
 
 
 logout_js = """

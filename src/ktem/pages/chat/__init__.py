@@ -7,6 +7,15 @@ from typing import Optional
 
 import gradio as gr
 from decouple import config
+from plotly.io import from_json
+from sqlmodel import Session, select
+from theflow.settings import settings as flowsettings
+from theflow.utils.modules import import_dotted_string
+
+from kotaemon.base import Document
+from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
+from kotaemon.indices.qa.utils import strip_think_tag
+from kotaemon.utils.rag_debug import rag_log
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Conversation, User, engine
@@ -18,15 +27,6 @@ from ktem.reasoning.prompt_optimization.suggest_conversation_name import (
 from ktem.reasoning.prompt_optimization.suggest_followup_chat import (
     SuggestFollowupQuesPipeline,
 )
-from plotly.io import from_json
-from sqlmodel import Session, select
-from theflow.settings import settings as flowsettings
-from theflow.utils.modules import import_dotted_string
-
-from kotaemon.base import Document
-from kotaemon.indices.ingests.files import KH_DEFAULT_FILE_EXTRACTORS
-from kotaemon.indices.qa.utils import strip_think_tag
-from kotaemon.utils.rag_debug import rag_log
 
 from ...utils import SUPPORTED_LANGUAGE_MAP, get_file_names_regex, get_urls
 from ...utils.chat_export import export_chat_csv
@@ -1403,7 +1403,9 @@ class ChatPage(BasePage):
             likes.append([liked.index, liked.value, liked.liked])
             data_source["likes"] = likes
             retrieval_history = data_source.get("retrieval_messages", [])
-            if message_index is not None and 0 <= message_index < len(retrieval_history):
+            if message_index is not None and 0 <= message_index < len(
+                retrieval_history
+            ):
                 retrieval_before = retrieval_history[message_index]
             event_id = append_feedback_event(
                 data_source,
@@ -1562,13 +1564,17 @@ class ChatPage(BasePage):
         if feedback_regen:
             reason = normalize_feedback_reason(feedback_regen.get("reason"))
             feedback_regen["repair_preset_name"] = reason
-            feedback_regen["settings_before"] = snapshot_feedback_repair_settings(settings)
+            feedback_regen["settings_before"] = snapshot_feedback_repair_settings(
+                settings
+            )
             settings = apply_feedback_repair_settings(
                 settings,
                 reason,
                 reasoning_id=reasoning_id,
             )
-            feedback_regen["settings_after"] = snapshot_feedback_repair_settings(settings)
+            feedback_regen["settings_after"] = snapshot_feedback_repair_settings(
+                settings
+            )
             state["app"]["feedback_regen"] = feedback_regen
 
         # get retrievers
@@ -1709,8 +1715,7 @@ class ChatPage(BasePage):
         except Exception as e:
             print(f"Chat generation failed: {e!r}")
             refs += (
-                "<h5><b>Generation error.</b></h5>"
-                f"<pre>{html.escape(str(e))}</pre>"
+                "<h5><b>Generation error.</b></h5>" f"<pre>{html.escape(str(e))}</pre>"
             )
             yield (
                 chat_history + [(chat_input, text or msg_placeholder)],

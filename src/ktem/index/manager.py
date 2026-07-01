@@ -1,9 +1,10 @@
 from typing import Optional, Type
 
-from ktem.db.models import engine
 from sqlmodel import Session, select
 from theflow.settings import settings
 from theflow.utils.modules import import_dotted_string
+
+from ktem.db.models import engine
 
 from .base import BaseIndex
 from .models import Index

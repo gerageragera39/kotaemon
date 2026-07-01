@@ -86,8 +86,12 @@ def main() -> int:
         "pdf_mode": "university",
         "reader": "DoclingStructuredPDFReader",
         "splitter": "UniversityPDFChunker",
-        "parent_count": sum(1 for doc in chunks if doc.metadata.get("index_role") == "parent"),
-        "child_count": sum(1 for doc in chunks if doc.metadata.get("index_role") == "child"),
+        "parent_count": sum(
+            1 for doc in chunks if doc.metadata.get("index_role") == "parent"
+        ),
+        "child_count": sum(
+            1 for doc in chunks if doc.metadata.get("index_role") == "child"
+        ),
         "chunk_count": len(chunks),
         "output_jsonl": str(jsonl_path),
     }

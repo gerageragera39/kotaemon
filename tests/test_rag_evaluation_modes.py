@@ -4,8 +4,7 @@ from types import SimpleNamespace
 
 import pandas as pd
 
-from ktem.evaluation import build_evaluation_export_frame
-from ktem.evaluation import ragas_eval
+from ktem.evaluation import build_evaluation_export_frame, ragas_eval
 
 
 def _sample_row() -> dict:

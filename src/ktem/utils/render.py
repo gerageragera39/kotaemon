@@ -1,7 +1,6 @@
 import os
 
 import markdown
-from fast_langdetect import detect
 
 from kotaemon.base import RetrievedDocument
 
@@ -98,6 +97,8 @@ class Render:
         if not highlight_text:
             phrase = "false"
             try:
+                from fast_langdetect import detect
+
                 lang = detect(text.replace("\n", " "))["lang"]
                 if lang not in ["ja", "cn"]:
                     highlight_words = [

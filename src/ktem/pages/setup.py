@@ -3,11 +3,12 @@ import json
 import gradio as gr
 import requests
 from decouple import config
+from theflow.settings import settings as flowsettings
+
 from ktem.app import BasePage
 from ktem.embeddings.manager import embedding_models_manager as embeddings
 from ktem.llms.manager import llms
 from ktem.rerankings.manager import reranking_models_manager as rerankers
-from theflow.settings import settings as flowsettings
 
 KH_OLLAMA_URL = getattr(flowsettings, "KH_OLLAMA_URL", "http://localhost:11434/v1/")
 DEFAULT_OLLAMA_URL = KH_OLLAMA_URL.replace("v1", "api")

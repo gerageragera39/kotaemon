@@ -48,4 +48,5 @@ class SentenceWindowSplitter(LlamaIndexDocTransformerMixin, BaseSplitter):
 
         return SentenceWindowNodeParser
 
+
 from .university_pdf import UniversityPDFChunker

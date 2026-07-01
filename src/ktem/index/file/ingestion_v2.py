@@ -19,17 +19,13 @@ from typing import Any, Iterable
 
 from kotaemon.base import Document
 
-
 INGESTION_VERSION = "v2"
 SCHEMA_VERSION = "ingestion-v2.1"
 
 _LEGAL_SECTION = re.compile(r"^§{1,2}\s*\d+[a-zA-Z]?(?:\s+.*)?$")
-_NUMBERED_HEADING = re.compile(
-    r"^(\d+(?:\.\d+){0,4})[.)]\s+([A-ZÄÖÜ][^.!?]{2,160})$"
-)
+_NUMBERED_HEADING = re.compile(r"^(\d+(?:\.\d+){0,4})[.)]\s+([A-ZÄÖÜ][^.!?]{2,160})$")
 _AMENDMENT_ITEM = re.compile(
-    r"^(\d{1,3})\.\s+(?:(?:In|Der|Die|Das|Nach|Vor)\s+)?"
-    r"§\s*(\d+[a-zA-Z]?)\b.*$",
+    r"^(\d{1,3})\.\s+(?:(?:In|Der|Die|Das|Nach|Vor)\s+)?" r"§\s*(\d+[a-zA-Z]?)\b.*$",
     re.IGNORECASE,
 )
 _PROFILE_HEADING = re.compile(
@@ -98,9 +94,7 @@ def _clean_cell(value: Any) -> str:
     text = _clean_text(value, single_line=True)
     # A hyphen followed by whitespace inside one Docling cell is a line-wrap.
     # Hyphens without whitespace are retained because they may be semantic.
-    text = re.sub(
-        r"([A-Za-zÄÖÜäöüß])-\s+([A-Za-zÄÖÜäöüß])", r"\1\2", text
-    )
+    text = re.sub(r"([A-Za-zÄÖÜäöüß])-\s+([A-Za-zÄÖÜäöüß])", r"\1\2", text)
     return text
 
 
@@ -230,7 +224,11 @@ def _is_heading(element: SourceElement, family: str) -> bool:
             return True
     if _PROFILE_HEADING.fullmatch(text):
         return True
-    if 3 <= len(text) <= 100 and text.isupper() and any(char.isalpha() for char in text):
+    if (
+        3 <= len(text) <= 100
+        and text.isupper()
+        and any(char.isalpha() for char in text)
+    ):
         return True
     return False
 
@@ -244,7 +242,11 @@ def _heading_level(text: str, family: str) -> int:
         base = 2 if family == "program_description" else 1
         return min(5, numbered.group(1).count(".") + base)
     if family == "module_catalog":
-        return 2 if _ascii_key(stripped) in {_ascii_key(v) for v in _MODULE_SUBHEADINGS} else 1
+        return (
+            2
+            if _ascii_key(stripped) in {_ascii_key(v) for v in _MODULE_SUBHEADINGS}
+            else 1
+        )
     if _PROFILE_HEADING.match(stripped):
         return 2
     return 1
@@ -286,7 +288,11 @@ def _deterministic_context(
     source_file: str, family: str, pages: tuple[int, int], path: str
 ) -> str:
     page_label = str(pages[0]) if pages[0] == pages[1] else f"{pages[0]}-{pages[1]}"
-    parts = [f"Dokument: {source_file}", f"Dokumenttyp: {family}", f"Seite: {page_label}"]
+    parts = [
+        f"Dokument: {source_file}",
+        f"Dokumenttyp: {family}",
+        f"Seite: {page_label}",
+    ]
     if path:
         parts.append(f"Abschnitt: {path}")
     return "\n".join(parts)
@@ -329,7 +335,9 @@ def _build_text_chunks(
 ) -> tuple[list[Document], dict[str, Any]]:
     base = dict(text_docs[0].metadata or {}) if text_docs else {}
     elements: list[SourceElement] = []
-    for doc in sorted(text_docs, key=lambda value: int((value.metadata or {}).get("page_label", 0))):
+    for doc in sorted(
+        text_docs, key=lambda value: int((value.metadata or {}).get("page_label", 0))
+    ):
         page = int((doc.metadata or {}).get("page_label", 1) or 1)
         elements.extend(_parse_page_elements(doc, page))
 
@@ -338,7 +346,10 @@ def _build_text_chunks(
         element
         for element in elements
         if " ".join(element.text.lower().split()) not in artifacts
-        and not (_PAGE_NUMBER.fullmatch(element.text) and element.label in {"page_footer", "text"})
+        and not (
+            _PAGE_NUMBER.fullmatch(element.text)
+            and element.label in {"page_footer", "text"}
+        )
     ]
     has_toc = any(_DOT_LEADER.search(element.text) for element in retained)
     if has_toc:
@@ -404,7 +415,10 @@ def _build_text_chunks(
             mapped_ids.update(element.element_id for element in group)
             continue
         path = " > ".join(path_parts)
-        page_span = (min(element.page for element in group), max(element.page for element in group))
+        page_span = (
+            min(element.page for element in group),
+            max(element.page for element in group),
+        )
         ids = [element.element_id for element in group]
         mapped_ids.update(ids)
         for split_index, piece in enumerate(_split_long_text(text, max_chars)):
@@ -470,7 +484,9 @@ def _header_position(headers: list[str], aliases: Iterable[str]) -> int | None:
         key = _ascii_key(header)
         if any(alias in key or key in alias for alias in alias_keys if alias and key):
             return index
-        if any(SequenceMatcher(None, key, alias).ratio() >= 0.84 for alias in alias_keys):
+        if any(
+            SequenceMatcher(None, key, alias).ratio() >= 0.84 for alias in alias_keys
+        ):
             return index
     return None
 
@@ -492,11 +508,15 @@ def _classify_table(grid: list[list[str]]) -> tuple[str, float]:
     if module is not None and signals >= 2:
         return "elective_catalog", min(0.99, 0.75 + signals * 0.05)
     normalized = [_ascii_key(header) for header in headers]
-    if sum("semester" in value for value in normalized) >= 2 and sum(
-        "ects" in value for value in normalized
-    ) >= 2:
+    if (
+        sum("semester" in value for value in normalized) >= 2
+        and sum("ects" in value for value in normalized) >= 2
+    ):
         semester_row = grid[1]
-        if sum(bool(re.fullmatch(r"\d{1,2}", value)) for value in semester_row[::2]) >= 2:
+        if (
+            sum(bool(re.fullmatch(r"\d{1,2}", value)) for value in semester_row[::2])
+            >= 2
+        ):
             return "study_plan", 0.98
     return "unknown", 0.0
 
@@ -506,7 +526,9 @@ def _is_toc_table(grid: list[list[str]]) -> bool:
         return False
     flattened = [cell for row in grid for cell in row if cell]
     dotted = sum(bool(_DOT_LEADER.search(cell)) for cell in flattened)
-    page_like = sum(bool(re.fullmatch(r".*\.{4,}\s*\d{1,4}", cell)) for cell in flattened)
+    page_like = sum(
+        bool(re.fullmatch(r".*\.{4,}\s*\d{1,4}", cell)) for cell in flattened
+    )
     return dotted >= 4 or page_like >= 4
 
 
@@ -520,7 +542,9 @@ def _valid_module_name(value: str) -> bool:
     )
 
 
-def _study_plan_records(grid: list[list[str]]) -> tuple[list[dict[str, str]], list[str]]:
+def _study_plan_records(
+    grid: list[list[str]],
+) -> tuple[list[dict[str, str]], list[str]]:
     errors: list[str] = []
     if len(grid) < 3:
         return [], ["table has fewer than three rows"]
@@ -544,9 +568,9 @@ def _study_plan_records(grid: list[list[str]]) -> tuple[list[dict[str, str]], li
             module = row[module_col].strip() if module_col < len(row) else ""
             ects = row[ects_col].strip() if ects_col < len(row) else ""
             if module and not ects:
-                if semester_records and semester_records[-1]["module"].rstrip().endswith(
-                    ("-", "&", "/", ",")
-                ):
+                if semester_records and semester_records[-1][
+                    "module"
+                ].rstrip().endswith(("-", "&", "/", ",")):
                     semester_records[-1]["module"] = _clean_cell(
                         f'{semester_records[-1]["module"]} {module}'
                     )
@@ -593,10 +617,14 @@ def _study_plan_records(grid: list[list[str]]) -> tuple[list[dict[str, str]], li
 def _catalog_records(grid: list[list[str]]) -> tuple[list[dict[str, str]], list[str]]:
     headers = grid[0] if grid else []
     positions = {
-        "module": _header_position(headers, ("Modulbezeichnung", "Modultitel", "Module")),
+        "module": _header_position(
+            headers, ("Modulbezeichnung", "Modultitel", "Module")
+        ),
         "exam_form": _header_position(headers, ("Prüfungsform", "Assessment")),
         "ects": _header_position(headers, ("ECTS", "ECTS-Anzahl", "Leistungspunkte")),
-        "semester": _header_position(headers, ("Semesterlage", "Smesterlage", "Offering")),
+        "semester": _header_position(
+            headers, ("Semesterlage", "Smesterlage", "Offering")
+        ),
         "prerequisites": _header_position(
             headers, ("Zulassungsvoraussetzungen", "Voraussetzungen", "Prerequisites")
         ),
@@ -637,7 +665,9 @@ def _table_source(
 ) -> Document:
     metadata = dict(table.metadata or {})
     page = int(metadata.get("page_label", 1) or 1)
-    heading = str(metadata.get("table_heading") or metadata.get("section_heading") or "")
+    heading = str(
+        metadata.get("table_heading") or metadata.get("section_heading") or ""
+    )
     table_id = f"table-{_stable_id(source_file, page, table_index, table.text)}"
     context = _deterministic_context(source_file, family, (page, page), heading)
     metadata.update(
@@ -748,7 +778,9 @@ def _process_tables(
                     f'ECTS: {record["ects"]}.'
                 )
                 output.append(
-                    _fact_document(source, "study_plan_module", str(index), text, record)
+                    _fact_document(
+                        source, "study_plan_module", str(index), text, record
+                    )
                 )
                 facts += 1
                 per_semester[record["semester"]].append(record)
@@ -767,7 +799,11 @@ def _process_tables(
                 )
                 output.append(
                     _fact_document(
-                        source, "study_plan_semester", f"semester-{semester}", text, fields
+                        source,
+                        "study_plan_semester",
+                        f"semester-{semester}",
+                        text,
+                        fields,
                     )
                 )
                 facts += 1
@@ -783,7 +819,9 @@ def _process_tables(
                     f'ECTS: {record["ects"]}; Semester: {semester}; '
                     f'Zulassungsvoraussetzungen: "{prerequisites}".'
                 )
-                output.append(_fact_document(source, "module_row", str(index), text, record))
+                output.append(
+                    _fact_document(source, "module_row", str(index), text, record)
+                )
                 facts += 1
             if records:
                 modules = "; ".join(record["module"] for record in records)
@@ -824,8 +862,12 @@ def build_ingestion_v2(
     text_chunks, text_report = _build_text_chunks(
         text_docs, source_file, family, max(800, max_chunk_chars)
     )
-    tables = [doc for doc in non_text_docs if (doc.metadata or {}).get("type") == "table"]
-    other = [doc for doc in non_text_docs if (doc.metadata or {}).get("type") != "table"]
+    tables = [
+        doc for doc in non_text_docs if (doc.metadata or {}).get("type") == "table"
+    ]
+    other = [
+        doc for doc in non_text_docs if (doc.metadata or {}).get("type") != "table"
+    ]
     table_records, table_report = _process_tables(tables, source_file, family)
     for item in other:
         metadata = dict(item.metadata or {})

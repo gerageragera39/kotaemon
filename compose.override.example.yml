@@ -8,5 +8,4 @@ services:
   kuraga:
     volumes:
       - kuraga_app_data:/app/ktem_app_data
-
 # volumes: kuraga_app_data  # already declared in docker-compose.yml

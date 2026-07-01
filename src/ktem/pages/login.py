@@ -3,10 +3,11 @@ import secrets
 from pathlib import Path
 
 import gradio as gr
+from sqlmodel import Session, select
+
 from ktem.app import BasePage
 from ktem.db.models import User, engine
 from ktem.pages.resources.user import create_user
-from sqlmodel import Session, select
 
 GUEST_USERNAME = "guest"
 
@@ -48,9 +49,7 @@ class LoginPage(BasePage):
         self.on_building_ui()
 
     def on_building_ui(self):
-        logo_path = (
-            Path(__file__).resolve().parents[1] / "assets" / "img" / "logo.jpg"
-        )
+        logo_path = Path(__file__).resolve().parents[1] / "assets" / "img" / "logo.jpg"
         gr.Image(
             value=str(logo_path),
             show_label=False,

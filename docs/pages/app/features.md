@@ -35,6 +35,7 @@ middle of the conversation history.
 #### Components and responsibilities
 
 - `src/ktem/pages/chat/__init__.py`
+
   - Renders the feedback repair UI: reason selector, optional comment, and
     regenerate/cancel buttons.
   - Handles Gradio `Chatbot.like(...)` events.
@@ -46,6 +47,7 @@ middle of the conversation history.
     `state["app"]["feedback_regen"]` and clears it after persistence.
 
 - `src/ktem/utils/feedback_repair.py`
+
   - Defines the feedback reason values shown in the UI.
   - Maps each reason to a one-shot repair instruction.
   - Applies temporary retrieval/prompt changes to a copied settings dictionary.
@@ -61,28 +63,33 @@ middle of the conversation history.
 #### Repair presets
 
 - `incomplete`
+
   - Broadens retrieval with a higher final chunk count and candidate pool.
   - Enables sibling context expansion and a slightly larger sibling window.
   - Adds an instruction to include all relevant conditions, exceptions, dates,
     constraints, course names, module names, and requirements.
 
 - `not_answering`
+
   - Enables query expansion when available.
   - Adds an instruction to focus strictly on the user's exact question.
   - Avoids blindly increasing the final top-k because extra context can add
     noise when the main issue is focus.
 
 - `bad_sources`
+
   - Enables reranking and MMR where supported by the selected retriever.
   - Expands the candidate pool cautiously while keeping final top-k bounded.
   - Adds an instruction to use only the strongest relevant evidence.
 
 - `hallucination`
+
   - Enables reranking but does not aggressively increase final top-k.
   - Adds a stricter grounding instruction to remove unsupported claims and say
     when the knowledge base is insufficient.
 
 - `bad_format`
+
   - Leaves retrieval settings unchanged.
   - Adds a formatting-only instruction: short answer first, then details, then
     sources/citations if available.

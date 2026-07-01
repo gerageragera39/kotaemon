@@ -1,6 +1,7 @@
 import gradio as gr
-from ktem.app import BasePage
 from theflow.settings import settings as flowsettings
+
+from ktem.app import BasePage
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 
@@ -39,9 +40,7 @@ class ChatPanel(BasePage):
                 interactive=True,
                 scale=20,
                 file_count="multiple",
-                placeholder=(
-                    "Type your question here."
-                ),
+                placeholder=("Type your question here."),
                 container=False,
                 show_label=False,
                 elem_id="chat-input",

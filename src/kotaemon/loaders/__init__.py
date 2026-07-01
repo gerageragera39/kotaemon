@@ -1,37 +1,43 @@
-from .adobe_loader import AdobeReader
-from .azureai_document_intelligence_loader import AzureAIDocumentIntelligenceLoader
-from .base import AutoReader, BaseReader
-from .composite_loader import DirectoryReader
-from .docling_loader import DoclingReader
-from .docling_structured_pdf_loader import DoclingStructuredPDFReader
-from .docx_loader import DocxReader
-from .excel_loader import ExcelReader, PandasExcelReader
-from .html_loader import HtmlReader, MhtmlReader
-from .mathpix_loader import MathpixPDFReader
-from .ocr_loader import ImageReader, OCRReader
-from .pdf_loader import PDFThumbnailReader
-from .txt_loader import TxtReader
-from .unstructured_loader import UnstructuredReader
-from .web_loader import WebReader
+"""Document readers with optional formats loaded on demand."""
 
-__all__ = [
-    "AutoReader",
-    "AzureAIDocumentIntelligenceLoader",
-    "BaseReader",
-    "PandasExcelReader",
-    "ExcelReader",
-    "MathpixPDFReader",
-    "ImageReader",
-    "OCRReader",
-    "DirectoryReader",
-    "UnstructuredReader",
-    "DocxReader",
-    "HtmlReader",
-    "MhtmlReader",
-    "AdobeReader",
-    "TxtReader",
-    "PDFThumbnailReader",
-    "WebReader",
-    "DoclingReader",
-    "DoclingStructuredPDFReader",
-]
+from importlib import import_module
+from typing import Any
+
+_EXPORTS = {
+    "AutoReader": (".base", "AutoReader"),
+    "BaseReader": (".base", "BaseReader"),
+    "AzureAIDocumentIntelligenceLoader": (
+        ".azureai_document_intelligence_loader",
+        "AzureAIDocumentIntelligenceLoader",
+    ),
+    "PandasExcelReader": (".excel_loader", "PandasExcelReader"),
+    "ExcelReader": (".excel_loader", "ExcelReader"),
+    "MathpixPDFReader": (".mathpix_loader", "MathpixPDFReader"),
+    "ImageReader": (".ocr_loader", "ImageReader"),
+    "OCRReader": (".ocr_loader", "OCRReader"),
+    "DirectoryReader": (".composite_loader", "DirectoryReader"),
+    "UnstructuredReader": (".unstructured_loader", "UnstructuredReader"),
+    "DocxReader": (".docx_loader", "DocxReader"),
+    "HtmlReader": (".html_loader", "HtmlReader"),
+    "MhtmlReader": (".html_loader", "MhtmlReader"),
+    "AdobeReader": (".adobe_loader", "AdobeReader"),
+    "TxtReader": (".txt_loader", "TxtReader"),
+    "PDFThumbnailReader": (".pdf_loader", "PDFThumbnailReader"),
+    "WebReader": (".web_loader", "WebReader"),
+    "DoclingReader": (".docling_loader", "DoclingReader"),
+    "DoclingStructuredPDFReader": (
+        ".docling_structured_pdf_loader",
+        "DoclingStructuredPDFReader",
+    ),
+}
+
+__all__ = list(_EXPORTS)
+
+
+def __getattr__(name: str) -> Any:
+    if name not in _EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attribute = _EXPORTS[name]
+    value = getattr(import_module(module_name, __name__), attribute)
+    globals()[name] = value
+    return value

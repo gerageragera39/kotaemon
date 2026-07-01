@@ -96,7 +96,9 @@ class DoclingStructuredPDFReader(BaseReader):
 
         return docs
 
-    def _ordered_docling_items(self, result_dict: dict[str, Any]) -> list[tuple[str, dict]]:
+    def _ordered_docling_items(
+        self, result_dict: dict[str, Any]
+    ) -> list[tuple[str, dict]]:
         body = result_dict.get("body") or {}
         ordered: list[tuple[str, dict]] = []
 
@@ -164,7 +166,9 @@ class DoclingStructuredPDFReader(BaseReader):
     ) -> Optional[Document]:
         label = str(item.get("label", "") or "")
         element_type = self._element_type(label)
-        text = self._extract_text(item=item, element_type=element_type, result_dict=result_dict)
+        text = self._extract_text(
+            item=item, element_type=element_type, result_dict=result_dict
+        )
         if not text and element_type != "figure":
             return None
 

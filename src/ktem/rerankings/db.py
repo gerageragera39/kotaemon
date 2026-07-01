@@ -1,10 +1,11 @@
 from typing import Type
 
-from ktem.db.engine import engine
 from sqlalchemy import JSON, Boolean, Column, String
 from sqlalchemy.orm import DeclarativeBase
 from theflow.settings import settings as flowsettings
 from theflow.utils.modules import import_dotted_string
+
+from ktem.db.engine import engine
 
 
 class Base(DeclarativeBase):

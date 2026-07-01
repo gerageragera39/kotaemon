@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import statistics
 import sys
-import argparse
 from pathlib import Path
 from typing import Any
 
@@ -54,7 +54,11 @@ def write_markdown(path: Path, docs) -> None:
     with path.open("w", encoding="utf-8") as f:
         for idx, doc in enumerate(docs, start=1):
             role = doc.metadata.get("index_role", "element")
-            title = doc.metadata.get("section_title") or doc.metadata.get("module_title") or doc.metadata.get("chunk_type")
+            title = (
+                doc.metadata.get("section_title")
+                or doc.metadata.get("module_title")
+                or doc.metadata.get("chunk_type")
+            )
             f.write(f"\n\n## {idx}. {role}: {title}\n\n")
             f.write("```json\n")
             f.write(json.dumps(doc.metadata, ensure_ascii=False, indent=2))
@@ -72,11 +76,19 @@ def assert_sanity(chunks) -> None:
         for key in ["parent_id", "source_file", "doc_type", "chunk_id"]:
             assert child.metadata.get(key), f"child missing {key}"
 
-    assert all(p.metadata.get("index_role") == "parent" for p in parents), "invalid parent role"
-    assert not [p for p in parents if p.metadata.get("chunk_id")], "parent has child chunk_id"
+    assert all(
+        p.metadata.get("index_role") == "parent" for p in parents
+    ), "invalid parent role"
+    assert not [
+        p for p in parents if p.metadata.get("chunk_id")
+    ], "parent has child chunk_id"
 
     for child in children:
-        if child.metadata.get("doc_type") in {"general_regulation", "exam_regulation", "amendment"}:
+        if child.metadata.get("doc_type") in {
+            "general_regulation",
+            "exam_regulation",
+            "amendment",
+        }:
             title = child.metadata.get("section_title") or ""
             if title.startswith("§"):
                 assert title in child.text, "regulation child lost § title"
@@ -92,15 +104,23 @@ def assert_sanity(chunks) -> None:
                     child.metadata.get("section_title")
                     == "§ 8 Prüfende, Beisitzende, Aufsichtsführende"
                 ), "two-line § 8 title was not joined"
-            if title.startswith("§") and "PRÜFUNGSORGANE" in (child.metadata.get("major_heading") or ""):
+            if title.startswith("§") and "PRÜFUNGSORGANE" in (
+                child.metadata.get("major_heading") or ""
+            ):
                 assert "Hauptüberschrift: III. PRÜFUNGSORGANE" in child.text
         if child.metadata.get("chunk_type") == "table":
-            assert "|" in child.text and "---" in child.text, "table chunk lost markdown syntax"
+            assert (
+                "|" in child.text and "---" in child.text
+            ), "table chunk lost markdown syntax"
         if child.metadata.get("doc_type") == "module_catalog":
-            assert child.metadata.get("module_title"), "module child missing module_title"
+            assert child.metadata.get(
+                "module_title"
+            ), "module child missing module_title"
             module = child.metadata.get("module_title")
             path = child.metadata.get("section_path") or []
-            assert not path or path[0] == module, "module child section_path lost module title"
+            assert (
+                not path or path[0] == module
+            ), "module child section_path lost module title"
             if str(module).lower().startswith("modulkatalog"):
                 continue
             for forbidden in _other_module_titles(child, children):
@@ -238,7 +258,9 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
                 if d.metadata.get("page_label_start") is None
                 and d.metadata.get("page_label_end") is None
             ),
-            "token_count": sum(1 for d in children if not d.metadata.get("token_count")),
+            "token_count": sum(
+                1 for d in children if not d.metadata.get("token_count")
+            ),
         }
     )
     return {
@@ -250,12 +272,17 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
         "avg_token_count": round(statistics.mean(counts), 1) if counts else 0,
         "max_token_count": max(counts) if counts else 0,
         "empty_chunks_count": sum(1 for d in children if not (d.text or "").strip()),
-        "chunks_over_max_size": sum(1 for d in children if int(d.metadata.get("token_count") or 0) > chunker.max_child_size),
+        "chunks_over_max_size": sum(
+            1
+            for d in children
+            if int(d.metadata.get("token_count") or 0) > chunker.max_child_size
+        ),
         "missing_metadata": missing_metadata,
         "chunks_without_page_metadata": sum(
             1
             for d in children
-            if d.metadata.get("page_label_start") is None and d.metadata.get("page_label_end") is None
+            if d.metadata.get("page_label_start") is None
+            and d.metadata.get("page_label_end") is None
         ),
         "parent_docs_embeddable_count": sum(
             1 for d in parents if d.metadata.get("index_role") != "parent"
@@ -265,7 +292,9 @@ def stats_for(file_name: str, chunks, chunker: UniversityPDFChunker) -> dict[str
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Dump university PDF chunks to JSONL/Markdown.")
+    parser = argparse.ArgumentParser(
+        description="Dump university PDF chunks to JSONL/Markdown."
+    )
     parser.add_argument("--documents-dir", default=str(DOCS_DIR))
     parser.add_argument("--output-dir", default=str(OUT_DIR))
     args = parser.parse_args()
@@ -300,11 +329,15 @@ def main() -> int:
             "children={num_child_chunks} | tokens min/avg/max="
             "{min_token_count}/{avg_token_count}/{max_token_count} | "
             "empty={empty_chunks_count} | over_max={chunks_over_max_size} | "
-            "no_page={chunks_without_page_metadata} | missing={missing_metadata}".format(**stats)
+            "no_page={chunks_without_page_metadata} | missing={missing_metadata}".format(
+                **stats
+            )
         )
 
     summary_path = out_dir / "_summary.json"
-    summary_path.write_text(json.dumps(all_stats, ensure_ascii=False, indent=2), encoding="utf-8")
+    summary_path.write_text(
+        json.dumps(all_stats, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
     print(f"Wrote debug chunks to {out_dir}")
     return 0
 

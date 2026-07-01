@@ -1,9 +1,10 @@
 from typing import Optional
 
 import gradio as gr
+from sqlmodel import Session
+
 from ktem.app import BasePage
 from ktem.db.models import IssueReport, engine
-from sqlmodel import Session
 
 
 class ReportIssue(BasePage):

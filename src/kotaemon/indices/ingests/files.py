@@ -8,11 +8,7 @@ from theflow.settings import settings as flowsettings
 
 from kotaemon.base import BaseComponent, Document, Param
 from kotaemon.indices.extractors import BaseDocParser
-from kotaemon.indices.splitters import (
-    BaseSplitter,
-    TokenSplitter,
-    UniversityPDFChunker,
-)
+from kotaemon.indices.splitters import BaseSplitter, TokenSplitter, UniversityPDFChunker
 from kotaemon.loaders import (
     AdobeReader,
     AzureAIDocumentIntelligenceLoader,
