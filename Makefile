@@ -32,7 +32,7 @@ docker-down:
 	docker compose down
 
 docker-logs:
-	docker compose logs -f kotaemon
+	docker compose logs -f kuraga
 
 docker-ps:
 	docker compose ps

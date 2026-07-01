@@ -1,4 +1,4 @@
-# Kotaemon — persistent Docker Compose stack
+# KURAGa — persistent Docker Compose stack
 #
 # Quick start:
 #   cp .env.example .env          # edit API keys / model names
@@ -11,19 +11,19 @@
 # Data survives container restarts and `docker compose down`
 # (removed only with `docker compose down -v` or `docker volume rm`).
 
-name: kotaemon
+name: kuraga
 
 services:
-  kotaemon:
+  kuraga:
     build:
       context: .
       dockerfile: Dockerfile
-      target: ${KOTAEMON_BUILD_TARGET:-full}
+      target: ${KURAGA_BUILD_TARGET:-full}
       args:
         REQUIREMENTS_FILE: ${REQUIREMENTS_FILE:-requirements_gerageragera39.txt}
         TORCH_INDEX_URL: ${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}
-    image: kotaemon:${KOTAEMON_BUILD_TARGET:-full}
-    container_name: kotaemon-app
+    image: kuraga:${KURAGA_BUILD_TARGET:-full}
+    container_name: kuraga-app
     restart: unless-stopped
     ports:
       - "${GRADIO_HOST_PORT:-7860}:7860"
@@ -39,7 +39,7 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       # Bind mount: data on host (default, easy backup). See compose.override.example.yml for named volume.
-      - ${KOTAEMON_DATA_DIR:-./ktem_app_data}:/app/ktem_app_data
+      - ${KURAGA_DATA_DIR:-./ktem_app_data}:/app/ktem_app_data
     healthcheck:
       test:
         [
@@ -51,20 +51,20 @@ services:
       retries: 5
       start_period: 180s
     networks:
-      - kotaemon-net
+      - kuraga-net
 
   # Optional: Ollama with persistent model storage (enable: --profile ollama)
   ollama:
     profiles: ["ollama"]
     image: ollama/ollama:latest
-    container_name: kotaemon-ollama
+    container_name: kuraga-ollama
     restart: unless-stopped
     ports:
       - "${OLLAMA_HOST_PORT:-11434}:11434"
     volumes:
       - ollama_models:/root/.ollama
     networks:
-      - kotaemon-net
+      - kuraga-net
     # Uncomment for NVIDIA GPU (requires NVIDIA Container Toolkit):
     # deploy:
     #   resources:
@@ -78,13 +78,13 @@ services:
   reranker:
     profiles: ["reranker"]
     image: ghcr.io/huggingface/text-embeddings-inference:latest
-    container_name: kotaemon-reranker
+    container_name: kuraga-reranker
     restart: unless-stopped
     command: --model-id BAAI/bge-reranker-v2-m3
     ports:
       - "${TEI_HOST_PORT:-8080}:80"
     networks:
-      - kotaemon-net
+      - kuraga-net
     # deploy:
     #   resources:
     #     reservations:
@@ -94,10 +94,10 @@ services:
     #           capabilities: [gpu]
 
 networks:
-  kotaemon-net:
+  kuraga-net:
     driver: bridge
 
 volumes:
   # Used by profile `ollama` and optional named app data (see compose.override.example)
   ollama_models:
-  kotaemon_app_data:
+  kuraga_app_data:

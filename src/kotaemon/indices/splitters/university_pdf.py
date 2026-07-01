@@ -39,6 +39,9 @@ class _Block:
     nearest_heading: Optional[str] = None
     table_caption: Optional[str] = None
     semantic_title: Optional[str] = None
+    module_code: Optional[str] = None
+    module_title_de: Optional[str] = None
+    module_title_en: Optional[str] = None
 
 
 class UniversityPDFChunker(BaseSplitter):
@@ -253,18 +256,26 @@ class UniversityPDFChunker(BaseSplitter):
         blocks: list[_Block] = []
         current: list[Document] = []
         current_title: Optional[str] = None
+        current_module_meta: dict[str, Optional[str]] = {}
 
         def append_current() -> None:
-            nonlocal current, current_title
+            nonlocal current, current_title, current_module_meta
             if not current:
                 return
             text = self._join_docs(current)
+            text_metadata = self._module_metadata(text, current_title or "")
+            metadata = {
+                **text_metadata,
+                **{key: value for key, value in current_module_meta.items() if value},
+            }
             title = (
                 current_title
+                or metadata.get("module_title")
+                or metadata.get("module_title_en")
+                or metadata.get("module_title_de")
                 or self._module_title_from_text(text)
                 or self._title_from_filename(file_name)
             )
-            metadata = self._module_metadata(text, title)
             blocks.append(
                 _Block(
                     title=title,
@@ -272,26 +283,49 @@ class UniversityPDFChunker(BaseSplitter):
                     elements=list(current),
                     chunk_type="module",
                     module_title=title,
-                    module_number=metadata.get("module_number"),
+                    module_number=metadata.get("module_number")
+                    or metadata.get("module_code"),
+                    module_code=metadata.get("module_code")
+                    or metadata.get("module_number"),
                     ects=metadata.get("ects"),
                     semester=metadata.get("semester"),
+                    module_title_de=metadata.get("module_title_de"),
+                    module_title_en=metadata.get("module_title_en"),
+                    section_path=[title],
                 )
             )
             current = []
             current_title = None
+            current_module_meta = {}
 
-        for doc in docs:
+        ordered = sorted(docs, key=lambda d: d.metadata.get("order", 0))
+        for idx, doc in enumerate(ordered):
             text = (doc.text or "").strip()
             if not text:
                 continue
-            detected = self._detect_module_title(text, doc.metadata.get("element_type"))
-            starts_new = bool(
-                detected and current and self._token_count(self._join_docs(current)) >= 80
-            )
+            detected_meta = self._detect_module_start(ordered, idx)
+            detected = detected_meta.get("module_title") if detected_meta else None
+            current_text = self._join_docs(current)
+            different_title = self._normalize_for_match(
+                detected or ""
+            ) != self._normalize_for_match(current_title or "")
+            starts_new = bool(detected and current and different_title)
+
+            # Never carry terminal fields from module A into module B.  The
+            # previous implementation used a token threshold here, so a short
+            # Modulnote/Bemerkungen/Polyvalenz tail could be prepended to the
+            # next module before the first child window was built.
+            if detected and current and self._contains_module_terminal_section(
+                current_text
+            ):
+                starts_new = different_title
             if starts_new:
                 append_current()
             if detected:
                 current_title = detected
+                current_module_meta.update(
+                    {key: value for key, value in detected_meta.items() if value}
+                )
             current.append(doc)
 
         append_current()
@@ -488,6 +522,12 @@ class UniversityPDFChunker(BaseSplitter):
             "major_heading": block.major_heading,
             "module_title": block.module_title,
             "module_number": block.module_number,
+            "module_code": block.module_code or block.module_number,
+            "module_title_de": block.module_title_de,
+            "module_title_en": block.module_title_en,
+            "module_pages": self._page_range(
+                self._page_start(block.elements), self._page_end(block.elements)
+            ),
             "ects": block.ects,
             "semester": block.semester,
             "module_section": block.module_section,
@@ -521,17 +561,36 @@ class UniversityPDFChunker(BaseSplitter):
         sentence_id = self._sentence_id(child_text)
         page_start = self._page_start(block.elements)
         page_end = self._page_end(block.elements)
-        page_label = self._page_range(page_start, page_end)
         # Keep the embedded child text content-centric.  Large repeated headers
         # made chunks from the same file overly similar; metadata is still carried
         # separately and rendered by PrepareEvidencePipeline.
+        child_section_title = block.section_title
+        child_section_path = block.section_path
+        if block.chunk_type == "module":
+            child_section_title = self._module_section_title(child_text)
+            child_section_path = [
+                part
+                for part in [block.module_title, child_section_title]
+                if part
+            ]
+            section_label = child_section_title or block.module_title or block.title
+            page_start, page_end = self._module_child_pages(
+                block, child_section_title
+            )
+
+        page_label = self._page_range(page_start, page_end)
+
         header_lines = [
             f"Dokument: {source_meta['source_file']}",
             f"Dokumenttyp: {source_meta['doc_type']}",
-            f"Abschnitt: {section_label}",
         ]
-        if block.section_path:
-            header_lines.append(f"Section path: {' > '.join(block.section_path)}")
+        if block.module_title:
+            header_lines.append(f"Module: {block.module_title}")
+        if block.module_code or block.module_number:
+            header_lines.append(f"Module code: {block.module_code or block.module_number}")
+        header_lines.append(f"Abschnitt: {section_label}")
+        if child_section_path:
+            header_lines.append(f"Section path: {' > '.join(child_section_path)}")
         if block.nearest_heading:
             header_lines.append(f"Nearest heading: {block.nearest_heading}")
         if block.table_caption:
@@ -556,16 +615,20 @@ class UniversityPDFChunker(BaseSplitter):
             "child_index": child_index,
             "chunk_type": block.chunk_type,
             "section_id": block.section_id,
-            "section_title": block.section_title,
             "paragraph_id": paragraph_id,
             "sentence_id": sentence_id,
             "major_heading": block.major_heading,
             "module_title": block.module_title,
             "module_number": block.module_number,
+            "module_code": block.module_code or block.module_number,
+            "module_title_de": block.module_title_de,
+            "module_title_en": block.module_title_en,
+            "module_pages": page_label,
             "ects": block.ects,
             "semester": block.semester,
             "module_section": module_section,
-            "section_path": block.section_path,
+            "section_title": child_section_title,
+            "section_path": child_section_path,
             "nearest_heading": block.nearest_heading,
             "table_caption": block.table_caption,
             "semantic_title": block.semantic_title,
@@ -582,12 +645,12 @@ class UniversityPDFChunker(BaseSplitter):
             return []
         if block.chunk_type == "table":
             return self._split_markdown_table(text)
+        if block.chunk_type == "module":
+            return self._module_child_texts(block)
         if self._token_count(text) <= self.max_child_size:
             return [text]
         if block.chunk_type == "section":
             return self._regulation_child_texts(text, block.section_title or block.title)
-        if block.chunk_type == "module":
-            return self._module_child_texts(block)
         return self._token_windows(text)
 
     def _regulation_child_texts(self, text: str, section_title: str) -> list[str]:
@@ -652,47 +715,36 @@ class UniversityPDFChunker(BaseSplitter):
             body = body.strip()
             if not body:
                 continue
-            group = f"{section}\n{body}".strip()
+            group = body if section in body[: len(section) + 10] else f"{section}\n{body}".strip()
             if self._token_count(group) <= self.max_child_size:
                 chunks.append(group)
                 continue
+            body_without_heading = self._module_section_body(group, section)
             chunks.extend(
                 f"{section}\n{window}".strip()
-                for window in self._token_windows(body)
+                for window in self._token_windows(body_without_heading)
                 if window.strip()
             )
         return chunks or [block.text]
 
     def _split_module_facets(self, text: str) -> list[tuple[str, str]]:
-        facet_patterns = [
-            ("overview", r"(?im)^(modul|modulbezeichnung|module|credits?|ects|semester|dauer|sprache)\b"),
-            ("contents", r"(?im)^(inhalte?|contents?|lehrinhalte)\b"),
-            (
-                "competencies",
-                r"(?im)^(kompetenzen|qualifikationsziele|learning outcomes?|lernergebnisse)\b",
-            ),
-            (
-                "exam/assessment",
-                r"(?im)^(prüfung|pruefung|exam|prüfungsform|leistungsnachweis|assessment)\b",
-            ),
-            (
-                "workload/ECTS/semester",
-                r"(?im)^(workload|arbeitsaufwand|aufwand|ects|semester|leistungspunkte)\b",
-            ),
-        ]
         lines = text.splitlines()
         buckets: dict[str, list[str]] = defaultdict(list)
-        active = "overview"
+        order: list[str] = []
+        active = "Module overview"
+        order.append(active)
         for line in lines:
             stripped = line.strip()
-            for name, pattern in facet_patterns:
-                if re.search(pattern, stripped):
-                    active = name
-                    break
+            detected_section = self._module_section_heading(stripped)
+            if detected_section:
+                active = detected_section
+                if active not in order:
+                    order.append(active)
             buckets[active].append(line)
         return [
             (name, "\n".join(items).strip())
-            for name, items in buckets.items()
+            for name in order
+            for items in [buckets.get(name, [])]
             if "\n".join(items).strip()
         ]
 
@@ -1243,6 +1295,193 @@ class UniversityPDFChunker(BaseSplitter):
                 return self._clean_title(line)
         return None
 
+    def _detect_module_start(
+        self, docs: list[Document], index: int
+    ) -> dict[str, Optional[str]]:
+        doc = docs[index]
+        metadata = doc.metadata or {}
+        text = (doc.text or "").strip()
+        if not text:
+            return {}
+
+        table_metadata = self._module_metadata(text, "")
+        if table_metadata.get("module_title"):
+            return table_metadata
+
+        explicit = self._detect_module_title(text, metadata.get("element_type"))
+        if explicit:
+            parsed = self._module_metadata(text, explicit)
+            parsed["module_title"] = (
+                parsed.get("module_title")
+                or parsed.get("module_title_en")
+                or parsed.get("module_title_de")
+                or explicit
+            )
+            return parsed
+
+        if metadata.get("element_type") != "heading":
+            return {}
+
+        heading = self._clean_title(text.splitlines()[0])
+        if not self._looks_like_module_heading(heading):
+            return {}
+
+        nearby = self._nearby_module_table_metadata(docs, index)
+        if nearby.get("module_title"):
+            return nearby
+        if self._nearby_module_metadata_markers(docs, index):
+            return {"module_title": heading, "module_title_de": heading}
+        return {}
+
+    def _nearby_module_table_metadata(
+        self, docs: list[Document], index: int
+    ) -> dict[str, Optional[str]]:
+        for offset in range(1, 4):
+            if index + offset >= len(docs):
+                break
+            candidate = docs[index + offset]
+            text = (candidate.text or "").strip()
+            if not text:
+                continue
+            metadata = self._module_metadata(text, "")
+            if metadata.get("module_title"):
+                return metadata
+            if (candidate.metadata or {}).get("element_type") == "heading":
+                break
+        return {}
+
+    def _nearby_module_metadata_markers(self, docs: list[Document], index: int) -> bool:
+        marker_hits = 0
+        for offset in range(1, 10):
+            if index + offset >= len(docs):
+                break
+            candidate = docs[index + offset]
+            text = (candidate.text or "").strip()
+            if not text:
+                continue
+            if (candidate.metadata or {}).get("element_type") == "heading" and offset > 1:
+                break
+            normalized = self._normalize_for_match(text.splitlines()[0])
+            if normalized in {
+                "modultitel",
+                "modultitel englisch",
+                "modulnummer",
+                "leistungspunkte ects punkte",
+            }:
+                marker_hits += 1
+            if marker_hits >= 2:
+                return True
+        return False
+
+    def _looks_like_module_heading(self, heading: str) -> bool:
+        if not heading:
+            return False
+        normalized = self._normalize_for_match(heading)
+        if re.fullmatch(r"\d+", normalized):
+            return False
+        if re.search(r"\b\d{1,2}\s+[a-z]+\s+20\d{2}\b", normalized):
+            return False
+        sentence_starts = (
+            "in diesem modul",
+            "die studierenden",
+            "studierende",
+            "der studierende",
+            "das modul",
+            "aufgrund der",
+            "informationen zur",
+        )
+        if normalized.startswith(sentence_starts):
+            return False
+        if len(heading.split()) > 8 and re.search(
+            r"\b(ist|sind|werden|wird|erwerben|erlernen|vermittelt|notwendig)\b",
+            normalized,
+        ):
+            return False
+        if self._module_section_heading(heading):
+            return False
+        blocked = {
+            "inhaltsverzeichnis",
+            "pflichtkurse",
+            "wahlpflichtkurse",
+            "pflichtkurse semester 1",
+            "pflichtkurse semester 2",
+            "pflichtkurse semester 3",
+        }
+        if normalized in blocked:
+            return False
+        return len(heading.split()) <= 14 and len(heading) <= 140
+
+    def _module_section_heading(self, text: str) -> Optional[str]:
+        first = self._clean_title((text or "").splitlines()[0] if text else "")
+        if not first:
+            return None
+        normalized = self._normalize_for_match(first)
+        section_patterns: list[tuple[str, str]] = [
+            ("Kompetenzen", r"^(kompetenzen|qualifikationsziele|learning outcomes|lernergebnisse)$"),
+            ("Inhalte und Themen", r"^(inhalte|inhalte und themen|contents|lehrinhalte)$"),
+            ("Formale Voraussetzungen für die Teilnahme", r"^formale voraussetzungen"),
+            ("Empfohlene Voraussetzungen für die Teilnahme", r"^empfohlene voraussetzungen"),
+            ("Lehr- und Prüfungssprache", r"^lehr und prufungssprache"),
+            ("Lehr- und Lernformen/Lehrveranstaltungstypen", r"^lehr und lernformen"),
+            ("Voraussetzungen für die Vergabe von ECTS-Punkten", r"^voraussetzungen fur die vergabe"),
+            ("Zeitaufwand/Berechnung der ECTS-Punkte innerhalb des Moduls", r"^zeitaufwand"),
+            ("Modulnote", r"^modulnote$"),
+            ("Erläuterung der Prüfungsmodalitäten", r"^erlauterung der prufungsmodalitaten"),
+            ("Polyvalenz mit anderen Studiengängen", r"^polyvalenz"),
+            ("Bemerkungen", r"^bemerkungen"),
+        ]
+        for label, pattern in section_patterns:
+            if re.search(pattern, normalized):
+                return label
+        return None
+
+    def _module_section_title(self, child_text: str) -> Optional[str]:
+        first = child_text.strip().splitlines()[0].strip() if child_text.strip() else ""
+        if self._normalize_for_match(first) == "module overview":
+            return "Module overview"
+        return self._module_section_heading(first)
+
+    def _module_section_body(self, text: str, section_title: str) -> str:
+        lines = text.splitlines()
+        if lines and self._module_section_heading(lines[0]) == section_title:
+            return "\n".join(lines[1:]).strip()
+        return text.strip()
+
+    def _contains_module_terminal_section(self, text: str) -> bool:
+        terminal_sections = {
+            "Modulnote",
+            "Erläuterung der Prüfungsmodalitäten",
+            "Polyvalenz mit anderen Studiengängen",
+            "Bemerkungen",
+        }
+        return any(
+            self._module_section_heading(line) in terminal_sections
+            for line in (text or "").splitlines()
+        )
+
+    def _module_child_pages(
+        self, block: _Block, section_title: Optional[str]
+    ) -> tuple[Optional[Any], Optional[Any]]:
+        """Return the pages occupied by one module subsection when available."""
+
+        if not section_title:
+            return self._page_start(block.elements), self._page_end(block.elements)
+
+        selected: list[Document] = []
+        active = section_title == "Module overview"
+        for element in block.elements:
+            heading = self._module_section_heading(element.text or "")
+            if heading:
+                if active:
+                    break
+                active = heading == section_title
+            if active:
+                selected.append(element)
+
+        if not selected:
+            selected = block.elements
+        return self._page_start(selected), self._page_end(selected)
+
     def _detect_module_title(
         self, text: str, element_type: Any = None
     ) -> Optional[str]:
@@ -1254,8 +1493,6 @@ class UniversityPDFChunker(BaseSplitter):
             match = re.search(pattern, first)
             if match:
                 return self._clean_title(match.group(1))
-        if element_type == "heading" and "modul" in self._normalize(first):
-            return self._clean_title(first)
         return None
 
     def _module_title_from_text(self, text: str) -> Optional[str]:
@@ -1267,20 +1504,57 @@ class UniversityPDFChunker(BaseSplitter):
 
     def _module_metadata(self, text: str, title: str) -> dict[str, Optional[str]]:
         metadata: dict[str, Optional[str]] = {
+            "module_title": None,
+            "module_title_de": None,
+            "module_title_en": None,
+            "module_code": None,
             "module_number": None,
             "ects": None,
             "semester": None,
         }
+        for row in self._markdown_table_rows(text):
+            label_values = self._module_table_label_values(row)
+            for label, value in label_values:
+                label_norm = self._normalize_for_match(label)
+                value = self._clean_title(value)
+                if not value:
+                    continue
+                if (
+                    "modultitel" in label_norm
+                    and "englisch" in label_norm
+                    and self._looks_like_module_title_value(value)
+                ):
+                    metadata["module_title_en"] = value
+                elif label_norm == "modultitel" and self._looks_like_module_title_value(value):
+                    metadata["module_title_de"] = value
+                elif "modulnummer" in label_norm or re.search(r"\bmodule (no|number)\b", label_norm):
+                    metadata["module_code"] = value
+                    metadata["module_number"] = value
+                elif "leistungspunkte" in label_norm or "ects" in label_norm:
+                    ects = re.search(r"(\d+(?:[,.]\d+)?)", value)
+                    if ects:
+                        metadata["ects"] = ects.group(1).replace(",", ".")
+                elif "semester" in label_norm or "turnus" in label_norm:
+                    metadata["semester"] = value
+
+        metadata["module_title"] = (
+            metadata.get("module_title_en")
+            or metadata.get("module_title_de")
+            or (self._clean_title(title) if title else None)
+        )
+
         number_match = re.search(
             r"(?im)^(?:modulnummer|module\s*(?:no\.?|number)|nummer)\s*[:\-]?\s*(.+)$",
             text,
         )
         if number_match:
             metadata["module_number"] = self._clean_title(number_match.group(1))
+            metadata["module_code"] = metadata["module_number"]
         else:
             compact = re.search(r"\b([A-Z]{2,}[\-_ ]?\d{2,}[A-Z]?)\b", title)
             if compact:
                 metadata["module_number"] = compact.group(1)
+                metadata["module_code"] = metadata["module_number"]
 
         ects_match = re.search(
             r"(?im)^\s*(?:ects|leistungspunkte|credits?|lp)\s*[:\-]?\s*(\d+(?:[,.]\d+)?)\b",
@@ -1299,16 +1573,68 @@ class UniversityPDFChunker(BaseSplitter):
             metadata["semester"] = self._clean_title(semester_match.group(1))
         return metadata
 
+    def _markdown_table_rows(self, text: str) -> list[list[str]]:
+        rows: list[list[str]] = []
+        for line in (text or "").splitlines():
+            if "|" not in line:
+                continue
+            if re.fullmatch(r"\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*", line):
+                continue
+            cells = [
+                self._clean_title(cell)
+                for cell in line.strip().strip("|").split("|")
+            ]
+            cells = [cell for cell in cells if cell and not re.fullmatch(r"-+", cell)]
+            if len(cells) >= 2:
+                rows.append(cells)
+        return rows
+
+    def _module_table_label_values(self, row: list[str]) -> list[tuple[str, str]]:
+        known_label_re = re.compile(
+            r"(modultitel(?:\s+englisch)?|modulnummer|module\s+(?:no|number)|"
+            r"leistungspunkte|ects|semester|turnus)",
+            flags=re.I,
+        )
+        pairs: list[tuple[str, str]] = []
+        for idx, cell in enumerate(row):
+            if not known_label_re.search(cell):
+                continue
+            label = cell
+            other_cells = [value for pos, value in enumerate(row) if pos != idx]
+            value = other_cells[0] if other_cells else ""
+            inline = known_label_re.sub("", cell).strip(" :-")
+            if inline and inline != cell:
+                value = inline
+            pairs.append((label, value))
+        return pairs
+
+    def _looks_like_module_title_value(self, value: str) -> bool:
+        value = self._clean_title(value)
+        if not value:
+            return False
+        return self._looks_like_module_heading(value)
+
     def _infer_module_section(self, child_text: str) -> Optional[str]:
         first = child_text.strip().splitlines()[0].strip() if child_text.strip() else ""
-        allowed = {
-            "overview",
-            "contents",
-            "competencies",
-            "exam/assessment",
-            "workload/ECTS/semester",
-        }
-        return first if first in allowed else None
+        if self._normalize_for_match(first) == "module overview":
+            return "overview"
+        section = self._module_section_heading(first)
+        if not section:
+            return None
+        return {
+            "Kompetenzen": "competencies",
+            "Inhalte und Themen": "contents",
+            "Formale Voraussetzungen für die Teilnahme": "formal_requirements",
+            "Empfohlene Voraussetzungen für die Teilnahme": "recommended_requirements",
+            "Lehr- und Prüfungssprache": "language",
+            "Lehr- und Lernformen/Lehrveranstaltungstypen": "teaching_formats",
+            "Voraussetzungen für die Vergabe von ECTS-Punkten": "ects_requirements",
+            "Zeitaufwand/Berechnung der ECTS-Punkte innerhalb des Moduls": "workload",
+            "Modulnote": "assessment",
+            "Erläuterung der Prüfungsmodalitäten": "exam_modalities",
+            "Polyvalenz mit anderen Studiengängen": "polyvalence",
+            "Bemerkungen": "remarks",
+        }.get(section, section)
 
     def _title_from_filename(self, file_name: str) -> str:
         return Path(file_name).stem.replace("_", " ").replace("-", " ").strip() or file_name
@@ -1324,6 +1650,17 @@ class UniversityPDFChunker(BaseSplitter):
             .replace("ü", "ue")
             .replace("ß", "ss")
         )
+
+    def _normalize_for_match(self, value: str) -> str:
+        normalized = self._normalize(value or "")
+        normalized = (
+            normalized.replace("¨ a", "ae")
+            .replace("¨ o", "oe")
+            .replace("¨ u", "ue")
+            .replace("¨", "")
+        )
+        normalized = re.sub(r"[^a-z0-9]+", " ", normalized)
+        return re.sub(r"\s+", " ", normalized).strip()
 
     def _token_count(self, text: str) -> int:
         return len(re.findall(r"\w+|[^\w\s]", text or "", flags=re.UNICODE))

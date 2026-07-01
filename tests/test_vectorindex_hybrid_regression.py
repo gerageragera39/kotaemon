@@ -487,6 +487,39 @@ def test_query_expansion_adds_german_oral_exam_variant():
     assert any("mündliche Prüfung" in variant for variant in variants)
 
 
+@pytest.mark.parametrize(
+    ("question", "expected"),
+    [
+        ("How many ECTS are in the compulsory area?", "Pflichtbereich"),
+        ("How many ECTS are in the elective compulsory area?", "Wahlpflichtbereich"),
+        ("Who is the bachelor's program aimed at?", "Zielgruppe"),
+        ("What teaching and learning methods are used?", "didaktische Konzepte"),
+        ("What foreign-language competence is expected?", "Fremdsprachenkompetenz"),
+        ("When is the foundations and orientation exam passed?", "40 ECTS-Punkten"),
+        ("Which main study areas does the program combine?", "Informationsverarbeitende Systeme"),
+        ("Which semester is suitable for study abroad?", "fünfte Studiensemester"),
+        ("Which semester is suitable for studying abroad?", "Internationalisierung"),
+        ("What must an unsupervised written assignment include?", "ohne Aufsicht"),
+        ("How may I cite aids or sources?", "Verzeichnis der benutzten Hilfsmittel"),
+        ("When does artificial intelligence count as cheating?", "Ghostwriter"),
+        ("What algorithm topics are taught?", "Eigenschaften von Algorithmen"),
+        (
+            "What does the bachelor's thesis module require students to produce?",
+            "Formulierung einer Forschungsfrage",
+        ),
+    ],
+)
+def test_query_expansion_adds_university_structure_terms(question, expected):
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+        enable_query_expansion=True,
+    )
+
+    assert any(expected in variant for variant in retrieval.query_variants(question))
+
+
 def test_sibling_expansion_includes_matched_child_before_neighbors():
     parent = "parent-1"
     docs = [
@@ -543,6 +576,32 @@ def test_context_formatter_keeps_ranked_metadata_and_non_empty_context():
     assert formatter.last_debug["dropped_docs"] == []
 
 
+def test_context_formatter_exposes_module_section_and_final_ranking():
+    from kotaemon.indices.qa.format_context import PrepareEvidencePipeline
+
+    formatter = PrepareEvidencePipeline(max_context_length=300)
+    content = RetrievedDocument(
+        text="Selbstständige Bearbeitung eines Themas.",
+        id_="thesis-content",
+        score=0.7,
+        metadata={
+            "source_file": "Modulkatalog.pdf",
+            "module_title": "Bachelor Thesis",
+            "section_title": "Inhalte und Themen",
+            "section_path": ["Bachelor Thesis", "Inhalte und Themen"],
+            "module_section": "contents",
+            "_ranking_score": 0.42,
+        },
+    )
+
+    _, evidence, _ = formatter.run([content]).content
+
+    assert "module_title=Bachelor Thesis" in evidence
+    assert "section_title=Inhalte und Themen" in evidence
+    assert "module_section=contents" in evidence
+    assert "ranking_score=0.42" in evidence
+
+
 def test_context_formatter_reports_budget_dropped_docs():
     from kotaemon.base import RetrievedDocument
     from kotaemon.indices.qa.format_context import PrepareEvidencePipeline
@@ -587,6 +646,212 @@ def test_rrf_lexical_signal_promotes_exact_university_candidate():
 
     assert fused[0].doc_id == "exact"
     assert fused[0].metadata["_lexical_score"] > fused[1].metadata["_lexical_score"]
+
+
+def test_rrf_metadata_signal_prefers_named_module_assessment_chunk():
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    wrong_module = doc(
+        "digital-project",
+        text="Modulnote: Schriftliche Ausarbeitung 50 Prozent.",
+        module_title="Digital Project",
+        module_section="assessment",
+        section_title="Modulnote",
+    )
+    requested_module = doc(
+        "digital-seminar",
+        text="Softwareimplementierung 50 Prozent, Hausarbeit 30 Prozent, Präsentation 20 Prozent.",
+        module_title="Digital Seminar in Data Science & Quantitative Applications",
+        module_section="assessment",
+        section_title="Modulnote",
+    )
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[wrong_module, requested_module],
+        vector_scores=[0.91, 0.89],
+        text_docs=[],
+        query_variants=[
+            "How is Digital Seminar in Data Science & Quantitative Applications assessed?"
+        ],
+    )
+
+    assert fused[0].doc_id == "digital-seminar"
+    assert fused[0].metadata["_metadata_score"] == 1.0
+    assert fused[1].metadata["_metadata_score"] == 0.4
+
+
+def test_rrf_metadata_signal_prefers_study_description_prose_for_program_question():
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    module = doc(
+        "module-teaching",
+        text="Lehr- und Lernformen: Vorlesung und Übung.",
+        doc_type="module_catalog",
+        chunk_type="module",
+    )
+    program = doc(
+        "program-teaching",
+        text="Die Lehre kombiniert Vorlesungen, Übungen und Projektarbeit.",
+        doc_type="study_description",
+        chunk_type="heading",
+        section_path=["Didaktisches Konzept"],
+    )
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[module, program],
+        vector_scores=[0.91, 0.89],
+        text_docs=[],
+        query_variants=["What teaching and learning methods are used in the program?"],
+    )
+
+    assert fused[0].doc_id == "program-teaching"
+    assert fused[0].metadata["_metadata_score"] == 0.5
+
+
+@pytest.mark.parametrize(
+    ("question", "direct_metadata", "distractor_metadata", "direct_text"),
+    [
+        (
+            "What does the Bachelor Thesis module require students to produce?",
+            {
+                "doc_type": "module_catalog",
+                "module_title": "Bachelor Thesis",
+                "module_section": "contents",
+                "section_title": "Inhalte und Themen",
+            },
+            {
+                "doc_type": "module_catalog",
+                "module_title": "Bachelor Thesis",
+                "module_section": "assessment",
+                "section_title": "Modulnote",
+            },
+            "Selbstständige Bearbeitung und Formulierung einer Forschungsfrage.",
+        ),
+        (
+            "What algorithm topics are taught in Algorithms and Data Structures?",
+            {
+                "doc_type": "module_catalog",
+                "module_title": "Algorithms and Data Structures",
+                "module_section": "contents",
+                "section_title": "Inhalte und Themen",
+            },
+            {
+                "doc_type": "module_catalog",
+                "module_title": "Algorithms and Data Structures",
+                "module_section": "assessment",
+                "section_title": "Modulnote",
+            },
+            "Eigenschaften von Algorithmen; Effizienz, Komplexität und Rekursion.",
+        ),
+    ],
+)
+def test_rrf_content_intent_prefers_contents_over_assessment(
+    question, direct_metadata, distractor_metadata, direct_text
+):
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    distractor = doc("assessment", text="Klausur (100%).", **distractor_metadata)
+    direct = doc("contents", text=direct_text, **direct_metadata)
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[distractor, direct],
+        vector_scores=[0.91, 0.89],
+        text_docs=[],
+        query_variants=retrieval.query_variants(question),
+    )
+
+    assert fused[0].doc_id == "contents"
+    assert fused[0].metadata["_metadata_score"] == 1.0
+    assert fused[1].metadata["_metadata_score"] == 0.6
+
+
+def test_rrf_legal_intent_prefers_exact_apo_paragraph():
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    generic = doc(
+        "generic-rule",
+        text="Allgemeine Regelungen zu Prüfungsleistungen.",
+        doc_type="amendment",
+        section_title="§ 17 Prüfungsformen",
+    )
+    direct = doc(
+        "ai-rule",
+        text=(
+            "Täuschung durch Ghostwriter oder Einsatz einer künstlichen Intelligenz, "
+            "wenn diese nicht als Hilfsmittel zugelassen ist."
+        ),
+        doc_type="amendment",
+        section_title="§ 27 Täuschung, Ordnungsverstoß",
+    )
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[generic, direct],
+        vector_scores=[0.91, 0.89],
+        text_docs=[],
+        query_variants=retrieval.query_variants(
+            "When does artificial intelligence count as cheating under the exam rules?"
+        ),
+    )
+
+    assert fused[0].doc_id == "ai-rule"
+    assert fused[0].metadata["_metadata_score"] > fused[1].metadata["_metadata_score"]
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Which main study areas does the program combine?",
+        "Which semester is suitable for study abroad?",
+    ],
+)
+def test_rrf_study_description_intent_prefers_prose_over_profile_tables(question):
+    retrieval = VectorRetrieval(
+        vector_store=RecordingVectorStore(),
+        doc_store=RecordingDocStore(),
+        embedding=DummyEmbedding(),
+    )
+    table = doc(
+        "profile-table",
+        text="Exemplarisches Studienprofil",
+        doc_type="study_description",
+        chunk_type="table",
+    )
+    prose = doc(
+        "program-prose",
+        text="Grundsätzliche Studienbereiche und Ausgestaltung der Internationalisierung.",
+        doc_type="study_description",
+        chunk_type="heading",
+    )
+    overview = doc(
+        "unrelated-module-overview",
+        text="Turnus des Angebots: fifth semester.",
+        doc_type="module_catalog",
+        module_title="Unrelated Module",
+        module_section="overview",
+        section_title="Module overview",
+    )
+
+    fused = retrieval._rrf_fuse(
+        vector_docs=[overview, table, prose],
+        vector_scores=[0.92, 0.91, 0.89],
+        text_docs=[],
+        query_variants=retrieval.query_variants(question),
+    )
+
+    assert fused[0].doc_id == "program-prose"
+    assert fused[0].metadata["_metadata_score"] == 0.5
 
 
 def test_context_formatter_uses_final_ranking_before_display_score():

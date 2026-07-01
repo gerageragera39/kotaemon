@@ -30,7 +30,7 @@ ProgressFn = Callable[[int, int, str], None]
 
 @dataclass
 class EvalRunResult:
-    """Result bundle returned by the local Kotaemon + RAGAS evaluation run."""
+    """Result bundle returned by the local KURAGa + RAGAS evaluation run."""
 
     samples: pd.DataFrame
     ragas_scores: pd.DataFrame
@@ -40,6 +40,75 @@ class EvalRunResult:
     runtime_config: dict[str, Any]
     failure_report: str
     warnings: list[str]
+
+
+_EXPORT_REQUIRED_COLUMNS = [
+    "id",
+    "question",
+    "reference",
+    "source_file",
+    "indexed_source",
+    "retrieval_scope",
+    "answer",
+    "contexts",
+    "context_count",
+    "top_context_preview",
+    "top_source",
+    "top_score",
+    "latency_sec",
+    "retrieval_latency_sec",
+    "generation_latency_sec",
+    "status",
+    "error",
+]
+
+
+def _merge_export_frame(
+    base: pd.DataFrame, extra: pd.DataFrame, prefix: str
+) -> pd.DataFrame:
+    """Merge one diagnostic row per sample without ambiguous columns."""
+
+    if extra.empty or "id" not in extra.columns:
+        return base
+    addition = extra.copy()
+    addition = addition.rename(
+        columns={
+            column: f"{prefix}_{column}"
+            for column in addition.columns
+            if column != "id" and column in base.columns
+        }
+    )
+    addition = addition.drop_duplicates(subset=["id"], keep="last")
+    return base.merge(addition, on="id", how="left")
+
+
+def build_evaluation_export_frame(result: EvalRunResult) -> pd.DataFrame:
+    """Build the complete per-question CSV frame for either evaluation mode."""
+
+    export = result.samples.copy()
+    export = _merge_export_frame(export, result.ragas_scores, "ragas")
+    export = _merge_export_frame(export, result.retrieval_metrics, "retrieval")
+
+    defaults: dict[str, Any] = {
+        "retrieval_scope": result.runtime_config.get("retrieval_scope", ""),
+        "contexts": [],
+    }
+    for column in _EXPORT_REQUIRED_COLUMNS:
+        if column not in export.columns:
+            default = defaults.get(column, "")
+            export[column] = [default for _ in range(len(export))]
+
+    ordered = _EXPORT_REQUIRED_COLUMNS + [
+        column for column in export.columns if column not in _EXPORT_REQUIRED_COLUMNS
+    ]
+    export = export[ordered]
+    for column in export.columns:
+        export[column] = export[column].map(
+            lambda value: json.dumps(value, ensure_ascii=False)
+            if isinstance(value, (list, tuple, dict))
+            else value
+        )
+    return export
 
 
 @dataclass
@@ -778,7 +847,7 @@ def _find_source_ids(
                 statement = statement.where(Source.user == user_id)
 
             # Prefer exact normalized basename match; fallback to contains match for
-            # uploads where Kotaemon preserved a prefix/suffix around the PDF name.
+            # uploads where KURAGa preserved a prefix/suffix around the PDF name.
             rows = session.execute(statement).scalars().all()
             exact: list[Any] = []
             fuzzy: list[Any] = []
@@ -801,7 +870,7 @@ def _build_retrievers(
     settings: dict[str, Any],
     user_id: Any,
     source_file: str,
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
 ):
     if retrieval_scope == "all":
         retrievers = []
@@ -844,7 +913,7 @@ def _retrieve_with_pipeline(
     settings: dict[str, Any],
     user_id: Any,
     sample: dict[str, Any],
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
 ) -> PreparedEvalSample:
     question = sample["question"]
     source_file = sample.get("source_file", "")
@@ -989,7 +1058,7 @@ def _answer_with_pipeline(
     settings: dict[str, Any],
     user_id: Any,
     sample: dict[str, Any],
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
 ) -> tuple[dict[str, Any], list[dict[str, Any]], dict[str, Any]]:
     """Backward-compatible one-sample path used when phased execution is disabled."""
 
@@ -1041,7 +1110,7 @@ def _ragas_metrics() -> list[Any]:
 
 
 def _to_langchain_llm(settings: dict[str, Any]) -> tuple[Any, str]:
-    """Resolve the active Kotaemon LLM as a LangChain model for RAGAS."""
+    """Resolve the active KURAGa LLM as a LangChain model for RAGAS."""
 
     from ktem.llms.manager import llms
 
@@ -1061,7 +1130,7 @@ def _to_langchain_llm(settings: dict[str, Any]) -> tuple[Any, str]:
         if langchain_llm is not None:
             return langchain_llm, llm_name
         raise RuntimeError(
-            f"Kotaemon LLM `{llm_name}` cannot be passed to RAGAS. "
+            f"KURAGa LLM `{llm_name}` cannot be passed to RAGAS. "
             "Use a local LangChain-compatible LLM such as Ollama or LlamaCpp."
         )
 
@@ -1072,19 +1141,19 @@ def _to_langchain_llm(settings: dict[str, Any]) -> tuple[Any, str]:
         if langchain_llm is not None:
             return langchain_llm, llm_name
         raise RuntimeError(
-            f"Kotaemon LLM `{llm_name}` exposes no LangChain adapter for RAGAS. "
+            f"KURAGa LLM `{llm_name}` exposes no LangChain adapter for RAGAS. "
             "Use a LangChain-compatible LLM or an OpenAI-compatible local endpoint."
         )
 
 
 def _openai_compatible_chat_to_langchain(llm: Any) -> Any | None:
-    """Adapt Kotaemon's OpenAI-compatible chat client to LangChain for RAGAS.
+    """Adapt KURAGa's OpenAI-compatible chat client to LangChain for RAGAS.
 
-    Kotaemon's own ``ChatOpenAI`` works for the app and for local Ollama
+    KURAGa's own ``ChatOpenAI`` works for the app and for local Ollama
     OpenAI-compatible endpoints, but it inherits ``to_langchain_format`` from the
     abstract base where it raises ``NotImplementedError``. RAGAS requires a
     LangChain model, so rebuild an equivalent ``langchain_openai.ChatOpenAI``
-    when the active Kotaemon LLM has the OpenAI-compatible chat shape.
+    when the active KURAGa LLM has the OpenAI-compatible chat shape.
     """
 
     if not all(
@@ -1130,7 +1199,7 @@ def _openai_compatible_chat_to_langchain(llm: Any) -> Any | None:
 
 
 def _kotaemon_embedding_adapter(embedding_model: Any) -> Any:
-    """Wrap any Kotaemon embedding model in LangChain's Embeddings interface."""
+    """Wrap any KURAGa embedding model in LangChain's Embeddings interface."""
 
     try:
         from langchain_core.embeddings import Embeddings
@@ -1149,7 +1218,7 @@ def _kotaemon_embedding_adapter(embedding_model: Any) -> Any:
 
 
 def _to_langchain_embeddings(settings: dict[str, Any]) -> tuple[Any, str]:
-    """Resolve the active Kotaemon embedding model for RAGAS."""
+    """Resolve the active KURAGa embedding model for RAGAS."""
 
     from ktem.embeddings.manager import embedding_models_manager
 
@@ -1171,7 +1240,7 @@ def _to_langchain_embeddings(settings: dict[str, Any]) -> tuple[Any, str]:
     if hasattr(embedding_model, "to_langchain_format"):
         return embedding_model.to_langchain_format(), embedding_name
 
-    # LangChain-based Kotaemon embeddings keep the underlying object in `_obj`.
+    # LangChain-based KURAGa embeddings keep the underlying object in `_obj`.
     raw_obj = getattr(embedding_model, "_obj", None)
     if raw_obj is not None and all(
         hasattr(raw_obj, method) for method in ("embed_documents", "embed_query")
@@ -1217,7 +1286,7 @@ def _local_ragas_evaluator_models(
 
     If these are omitted, RAGAS creates its default evaluator stack, which is
     OpenAI-backed and requires OPENAI_API_KEY. The app must stay local, so every
-    RAGAS evaluate() call receives Kotaemon's configured local models.
+    RAGAS evaluate() call receives KURAGa's configured local models.
     """
 
     llm, llm_name = _to_langchain_llm(settings)
@@ -1233,7 +1302,7 @@ def _local_ragas_evaluator_models(
         embeddings_name=embeddings_name,
         run_config=run_config,
         notes=[
-            "RAGAS evaluator uses Kotaemon local models: "
+            "RAGAS evaluator uses KURAGa local models: "
             f"llm={llm_name}, embeddings={embeddings_name}.",
             _run_config_note(run_config),
         ],
@@ -1602,10 +1671,14 @@ def _run_ragas(
 
 
 def _effective_runtime_config(
-    settings: dict[str, Any], retrieval_scope: str
+    settings: dict[str, Any], retrieval_scope: str, run_ragas_metrics: bool
 ) -> dict[str, Any]:
     config: dict[str, Any] = {
         "retrieval_scope": retrieval_scope,
+        "run_ragas_metrics": run_ragas_metrics,
+        "evaluation_mode": (
+            "with_quality_metrics" if run_ragas_metrics else "answers_only"
+        ),
         "retrieval_mode": settings.get("index.options.1.retrieval_mode"),
         "retrieval_count": settings.get("index.options.1.num_retrieval"),
         "reranking_enabled": settings.get("index.options.1.use_reranking"),
@@ -1831,10 +1904,10 @@ def run_evaluation(
     dataset_path: str | Path,
     question_limit: int,
     run_ragas_metrics: bool = True,
-    retrieval_scope: str = "expected-source",
+    retrieval_scope: str = "all",
     progress: ProgressFn | None = None,
 ) -> EvalRunResult:
-    """Run Kotaemon RAG over a dataset subset and optionally score it with RAGAS."""
+    """Run KURAGa RAG over a dataset subset and optionally score it with RAGAS."""
 
     if retrieval_scope not in {"expected-source", "all"}:
         raise ValueError("retrieval_scope must be 'expected-source' or 'all'")
@@ -1998,37 +2071,18 @@ def run_evaluation(
             )
         except Exception as exc:
             warnings.append(f"RAGAS scoring failed: {exc}")
-    elif _env_bool("RAG_EVAL_LIGHTWEIGHT_METRICS", True):
-        valid_rows = [row for row in rows if row.get("status") == "ok"]
-        if valid_rows:
-            try:
-                _check_memory_guard("lightweight answer-quality metrics")
-                scoring_embeddings, _ = _to_langchain_embeddings(eval_settings)
-                with _temporary_model_attribute(
-                    embedding, "ollama_keep_alive", embedding_keep_alive
-                ):
-                    ragas_df, local_notes = _local_defined_scores(
-                        valid_rows,
-                        scoring_embeddings,
-                        note=(
-                            "Showing lightweight local answer-quality metrics. "
-                            "Enable RAGAS in the UI for LLM-judge metrics."
-                        ),
-                    )
-                warnings.extend(local_notes)
-            except Exception as exc:
-                warnings.append(f"Lightweight quality scoring failed: {exc}")
-            finally:
-                if unload_at_end:
-                    _unload_ollama_resource(
-                        embedding, warnings, "quality-metric embedding"
-                    )
 
     samples_df = pd.DataFrame(rows)
     retrieval_df = pd.DataFrame(retrieval_rows)
     candidates_df = pd.DataFrame(candidate_rows)
     summary = _summarize(samples_df, ragas_df, retrieval_df)
-    runtime_config = _effective_runtime_config(eval_settings, retrieval_scope)
+    summary["run_ragas_metrics"] = run_ragas_metrics
+    summary["evaluation_mode"] = (
+        "with_quality_metrics" if run_ragas_metrics else "answers_only"
+    )
+    runtime_config = _effective_runtime_config(
+        eval_settings, retrieval_scope, run_ragas_metrics
+    )
     failure_report = _build_failure_report(samples_df, retrieval_df)
     return EvalRunResult(
         samples=samples_df,

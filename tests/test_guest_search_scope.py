@@ -63,3 +63,37 @@ def test_retriever_rebinds_hidden_selector_to_callback_user():
 
     assert len(pipelines) == 1
     assert pipelines[0].user_id == "guest-id"
+
+
+def test_guest_submit_ignores_urls_and_web_search(monkeypatch):
+    import pytest
+
+    pytest.importorskip("gradio")
+
+    import ktem.pages.chat.__init__ as chat_module
+    from ktem.pages.chat import ChatPage
+
+    page = object.__new__(ChatPage)
+
+    def fail_index(*args, **kwargs):  # pragma: no cover - should never be called
+        raise AssertionError("guest URL input must not trigger indexing")
+
+    page.first_indexing_url_fn = fail_index
+    page.chat_control = object()
+    monkeypatch.setattr(chat_module, "is_guest_user", lambda user_id: True)
+
+    result = page.submit_msg(
+        {"text": f"@{chat_module.WEB_SEARCH_COMMAND} https://example.edu"},
+        [],
+        "guest-id",
+        {},
+        "existing-conv",
+        "Guest conversation",
+        [],
+        request=None,
+    )
+
+    assert result[-3] == "all"
+    assert result[-2]["value"] == []
+    assert result[-1] is None
+    assert result[1][-1][0] == chat_module.DEFAULT_QUESTION

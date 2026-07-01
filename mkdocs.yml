@@ -1,38 +1,22 @@
-# Update repo_name / repo_url to your fork when publishing docs
-repo_name: kotaemon
-repo_url: https://github.com/Cinnamon/kotaemon
-site_name: Kotaemon Documentation
+repo_name: gerageragera39/kotaemon
+repo_url: https://github.com/gerageragera39/kotaemon
+site_name: KURAG Documentation
 edit_uri: edit/main/docs/
 
 nav:
-  - Getting Started:
-      - Quick Start: index.md
-      - Basic Usage: usage.md
-      - Local Models: local_model.md
-      - About: about.md
-  # - Application:
-  #     - Customize UI: pages/app/customize-ui.md
-  # - Functional description: pages/app/functional-description.md
-  - Development:
-      - development/index.md
-      # - Data & Data Structure Components: development/data-components.md
-      # - Features: pages/app/features.md
-      - Customize flow logic: pages/app/customize-flows.md
-      - Creating a Component: development/create-a-component.md
-      - Components:
-          - Index:
-              - File index: pages/app/index/file.md
-          - Settings:
-              - pages/app/settings/overview.md
-              - pages/app/settings/user-settings.md
-          - Extension:
-              - User management: pages/app/ext/user-management.md
-      - Contributing: development/contributing.md
-  # generated using gen-files + literate-nav
-  - API Reference: reference/
-  - Changelogs: https://github.com/Cinnamon/kotaemon/releases
-  - Issue Tracker: https://github.com/Cinnamon/kotaemon/issues
-  - Live Demo: https://huggingface.co/spaces/cin-model/kotaemon-demo
+  - Home: index.md
+  - About: about.md
+  - Project Overview: project_overview.md
+  - Guest Guide: guest_guide.md
+  - Admin Guide: admin_guide.md
+  - Usage: usage.md
+  - Local Models: local_model.md
+  - Evaluation: evaluation.md
+  - Development: development.md
+  - Attribution: attribution.md
+  - Upstream Kotaemon:
+      - Source: https://github.com/Cinnamon/kotaemon
+      - Releases: https://github.com/Cinnamon/kotaemon/releases
 
 markdown_extensions:
   - admonition
@@ -90,7 +74,6 @@ theme:
     - content.action.edit
     - content.tabs.link
     - content.code.annotate
-    - content.code.annotations
     - content.code.copy
     - navigation.tabs
     - navigation.top
@@ -112,11 +95,10 @@ theme:
     view: material/eye
 
 extra_css:
-  - extra/css/code_select.css
-  - assets/pymdownx-extras/extra-fb5a2a1c86.css
+  - theme/assets/pymdownx-extras/extra-fb5a2a1c86.css
 
 extra_javascript:
-  - assets/pymdownx-extras/extra-loader-MCFnu0Wd.js
+  - theme/assets/pymdownx-extras/extra-loader-MCFnu0Wd.js
 
 validation:
   absolute_links: warn

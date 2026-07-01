@@ -1,16 +1,16 @@
-# fly.toml app configuration file generated for kotaemon on 2024-12-24T20:56:32+07:00
+# fly.toml app configuration file adapted for kuraga on 2024-12-24T20:56:32+07:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'kotaemon'
+app = 'kuraga'
 primary_region = 'sin'
 
 [build]
 
 [mounts]
   destination = "/app/ktem_app_data"
-  source = "ktem_volume"
+  source = "kuraga_volume"
 
 [http_service]
   internal_port = 7860

@@ -30,7 +30,7 @@ pytest tests
 python app.py
 ```
 
-Python **3.11+** is required. Do **not** use `cd libs/kotaemon` — that path is upstream-only.
+Python **3.11+** is required. Run commands from the repository root; this fork has no upstream `libs/*` application layout.
 
 ## Topics in this section
 

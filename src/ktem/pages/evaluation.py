@@ -11,7 +11,12 @@ from typing import Any
 import gradio as gr
 import pandas as pd
 from ktem.app import BasePage
-from ktem.evaluation import find_default_dataset_path, load_eval_dataset, run_evaluation
+from ktem.evaluation import (
+    build_evaluation_export_frame,
+    find_default_dataset_path,
+    load_eval_dataset,
+    run_evaluation,
+)
 from theflow.settings import settings as flowsettings
 
 
@@ -198,7 +203,7 @@ EVALUATION_OUTPUT_DIR = Path(
 
 
 class EvaluationPage(BasePage):
-    """UI for evaluating the Kotaemon RAG chatbot on a curated dataset."""
+    """UI for evaluating the KURAGa RAG chatbot on a curated dataset."""
 
     def __init__(self, app):
         super().__init__(app)
@@ -212,9 +217,9 @@ class EvaluationPage(BasePage):
             <div class="eval-hero">
               <h1>RAG Evaluation</h1>
               <p>
-                Runs questions from rag_eval_dataset through the current Kotaemon RAG,
-                collects retrieved contexts, and scores quality with local Kotaemon
-                evaluator models.
+                Runs questions from rag_eval_dataset through the current KURAGa RAG,
+                collects retrieved contexts, and optionally scores quality with
+                local KURAGa evaluator models.
               </p>
             </div>
             """
@@ -232,6 +237,15 @@ class EvaluationPage(BasePage):
                 self.reload_btn = gr.Button("Reload dataset", variant="secondary")
 
         self.dataset_status = gr.Markdown()
+        self.run_quality_metrics = gr.Checkbox(
+            label="Run quality metrics (slow)",
+            value=False,
+            info=(
+                "Disable this to only generate answers and save retrieved "
+                "contexts to CSV."
+            ),
+        )
+
         with gr.Row():
             self.question_limit = gr.Slider(
                 minimum=1,
@@ -308,6 +322,17 @@ class EvaluationPage(BasePage):
             "",
             [],
         )
+
+    @staticmethod
+    def _disabled_ragas_outputs():
+        message = (
+            '<div class="eval-ragas-panel">'
+            '<div class="eval-ragas-empty">'
+            "Quality metrics were disabled for this run. Answers and contexts "
+            'are available in the &quot;Answers &amp; contexts&quot; tab and in the CSV.'
+            "</div></div>"
+        )
+        return message, gr.update(choices=[], value=None), "", []
 
     @staticmethod
     def _escape(value: Any) -> str:
@@ -718,45 +743,11 @@ class EvaluationPage(BasePage):
                 )
         return preview.where(pd.notna(preview), "")
 
-    @staticmethod
-    def _merge_export_frame(
-        base: pd.DataFrame,
-        extra: pd.DataFrame,
-        prefix: str,
-    ) -> pd.DataFrame:
-        """Add per-sample diagnostics without ambiguous duplicate columns."""
-
-        if extra.empty or "id" not in extra.columns:
-            return base
-
-        addition = extra.copy()
-        rename = {
-            column: f"{prefix}_{column}"
-            for column in addition.columns
-            if column != "id" and column in base.columns
-        }
-        addition = addition.rename(columns=rename)
-        # Evaluation IDs are expected to be unique. Keeping the final record avoids
-        # multiplying rows if a malformed dataset contains a duplicate diagnostic.
-        addition = addition.drop_duplicates(subset=["id"], keep="last")
-        return base.merge(addition, on="id", how="left")
-
     @classmethod
     def _export_results_csv(cls, result: Any) -> Path:
         """Persist one self-contained, per-question evaluation CSV."""
 
-        export = result.samples.copy()
-        export = cls._merge_export_frame(export, result.ragas_scores, "ragas")
-        export = cls._merge_export_frame(
-            export, result.retrieval_metrics, "retrieval"
-        )
-
-        for column in export.columns:
-            export[column] = export[column].map(
-                lambda value: json.dumps(value, ensure_ascii=False)
-                if isinstance(value, (list, tuple, dict))
-                else value
-            )
+        export = build_evaluation_export_frame(result)
 
         EVALUATION_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -768,6 +759,7 @@ class EvaluationPage(BasePage):
         self,
         dataset_path: str,
         question_limit: float,
+        run_quality_metrics: bool,
         settings: dict,
         user_id: Any,
         progress=gr.Progress(track_tqdm=False),
@@ -785,7 +777,7 @@ class EvaluationPage(BasePage):
                 user_id=user_id,
                 dataset_path=dataset_path,
                 question_limit=total,
-                run_ragas_metrics=False,
+                run_ragas_metrics=run_quality_metrics,
                 progress=on_progress,
             )
             progress((total, total), desc="Done")
@@ -793,13 +785,21 @@ class EvaluationPage(BasePage):
             status_icon = "✅" if result.summary.get("samples_failed", 0) == 0 else "⚠️"
             warnings_text = "\n".join(result.warnings)
 
-            ragas_html, ragas_dropdown, ragas_detail, ragas_records = self._build_ragas_ui(
-                result.ragas_scores
-            )
+            if run_quality_metrics:
+                ragas_outputs = self._build_ragas_ui(result.ragas_scores)
+            else:
+                ragas_outputs = self._disabled_ragas_outputs()
+            ragas_html, ragas_dropdown, ragas_detail, ragas_records = ragas_outputs
             csv_path = self._export_results_csv(result)
 
+            mode_status = (
+                "Evaluation with quality metrics finished"
+                if run_quality_metrics
+                else "Answer-only evaluation finished"
+            )
+
             return (
-                f"{status_icon} Evaluation finished: "
+                f"{status_icon} {mode_status}: "
                 f"{result.summary.get('samples_ok', 0)}/{result.summary.get('samples_total', 0)} samples OK. "
                 f"Saved to `{csv_path}`.",
                 self._summary_cards(result.summary),
@@ -852,6 +852,7 @@ class EvaluationPage(BasePage):
             inputs=[
                 self.dataset_path,
                 self.question_limit,
+                self.run_quality_metrics,
                 self._app.settings_state,
                 self._app.user_id,
             ],

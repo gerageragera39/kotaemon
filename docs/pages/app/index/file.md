@@ -53,7 +53,7 @@ You should define the following methods:
 - `get_pipeline(cls, user_settings, index_settings)`: return the
   fully-initialized pipeline, ready to be used by ktem.
   - `user_settings`: is a dictionary contains user settings (e.g. `{"pdf_mode": True, "num_retrieval": 5}`). You can declare these settings in the `get_user_settings` classmethod. ktem will collect these settings into the app Settings page, and will supply these user settings to your `get_pipeline` method.
-  - `index_settings`: is a dictionary. Currently it's empty for File Index.
+  - `index_settings`: is a dictionary. Currently it's empty for University document index.
 - `get_user_settings`: to declare user settings, return a dictionary.
 
 By subclassing `BaseFileIndexIndexing`, You will have access to the following resources:
@@ -95,7 +95,7 @@ You should define the following methods:
 - `get_pipeline(cls, user_settings, index_settings, selected)`: return the
   fully-initialized pipeline, ready to be used by ktem.
   - `user_settings`: is a dictionary contains user settings (e.g. `{"pdf_mode": True, "num_retrieval": 5}`). You can declare these settings in the `get_user_settings` classmethod. ktem will collect these settings into the app Settings page, and will supply these user settings to your `get_pipeline` method.
-    - `index_settings`: is a dictionary. Currently it's empty for File Index.
+    - `index_settings`: is a dictionary. Currently it's empty for University document index.
     - `selected`: a list of file ids selected by user. If user doesn't select
       anything, this variable will be None.
 - `get_user_settings`: to declare user settings, return a dictionary.

@@ -10,7 +10,7 @@ from decouple import config
 from ktem.app import BasePage
 from ktem.components import reasonings
 from ktem.db.models import Conversation, User, engine
-from ktem.index.file.ui import File
+from ktem.index.file.ui import File, is_guest_user
 from ktem.reasoning.prompt_optimization.mindmap import MINDMAP_HTML_EXPORT_TEMPLATE
 from ktem.reasoning.prompt_optimization.suggest_conversation_name import (
     SuggestConvNamePipeline,
@@ -1034,14 +1034,20 @@ class ChatPage(BasePage):
         # get all file names with pattern @"filename" in input_str
         file_names, chat_input_text = get_file_names_regex(chat_input_text)
 
-        # check if web search command is in file_names
-        if WEB_SEARCH_COMMAND in file_names:
-            used_command = WEB_SEARCH_COMMAND
-
         # get all urls in input_str
         urls, chat_input_text = get_urls(chat_input_text)
 
-        if urls and self.first_indexing_url_fn:
+        guest_user = is_guest_user(user_id)
+        if guest_user:
+            # Guests must always query all admin-indexed documents. Ignore file
+            # mentions, pasted URLs, and web-search commands so a guest cannot turn
+            # KURAGa into upload/select/web-only mode from hidden controls.
+            file_ids = []
+            used_command = None
+        elif WEB_SEARCH_COMMAND in file_names:
+            used_command = WEB_SEARCH_COMMAND
+
+        if not guest_user and urls and self.first_indexing_url_fn:
             print("Detected URLs", urls)
             file_ids = self.first_indexing_url_fn(
                 "\n".join(urls),
@@ -1068,7 +1074,9 @@ class ChatPage(BasePage):
         if not chat_input_text and not chat_history:
             chat_input_text = DEFAULT_QUESTION
 
-        if file_ids:
+        if guest_user:
+            selector_output = ["all", gr.update(value=[])]
+        elif file_ids:
             selector_output = [
                 "select",
                 gr.update(value=file_ids, choices=first_selector_choices),
@@ -1565,6 +1573,9 @@ class ChatPage(BasePage):
 
         # get retrievers
         retrievers = []
+
+        if is_guest_user(user_id):
+            command_state = None
 
         if command_state == WEB_SEARCH_COMMAND:
             # set retriever for web search

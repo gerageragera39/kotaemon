@@ -17,7 +17,7 @@ BASE_PATH = os.environ.get("GR_FILE_ROOT_PATH", "")
 
 
 class BaseApp:
-    """The main app of Kotaemon
+    """The main app of KURAGa
 
     The main application contains app-level information:
         - setting state
@@ -39,7 +39,7 @@ class BaseApp:
 
     def __init__(self):
         self.dev_mode = getattr(settings, "KH_MODE", "") == "dev"
-        self.app_name = getattr(settings, "KH_APP_NAME", "WFI D3B Chat")
+        self.app_name = getattr(settings, "KH_APP_NAME", "KURAGa")
         self.app_version = getattr(settings, "KH_APP_VERSION", "")
         self.f_user_management = getattr(settings, "KH_FEATURE_USER_MANAGEMENT", False)
         self._theme = KotaemonTheme()
@@ -254,7 +254,7 @@ class BaseApp:
 
 
 class BasePage:
-    """The logic of the Kotaemon app"""
+    """The logic of the KURAGa app"""
 
     public_events: list[str] = []
 

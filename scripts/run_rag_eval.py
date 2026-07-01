@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run Kotaemon RAG evaluation from the command line.
+"""Run KURAGa RAG evaluation from the command line.
 
 Example:
     PYTHONPATH=src python scripts/run_rag_eval.py \
@@ -18,13 +18,18 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
-from ktem.evaluation import find_default_dataset_path, run_evaluation  # noqa: E402
-from ktem.main import App  # noqa: E402
+from ktem.evaluation import (  # noqa: E402
+    build_evaluation_export_frame,
+    find_default_dataset_path,
+    run_evaluation,
+)
 
 
 def parse_args() -> argparse.Namespace:
     default_dataset = find_default_dataset_path(ROOT)
-    parser = argparse.ArgumentParser(description="Evaluate Kotaemon RAG with the Felix evaluator.")
+    parser = argparse.ArgumentParser(
+        description="Evaluate KURAGa RAG with the Felix evaluator."
+    )
     parser.add_argument(
         "--dataset",
         default=str(default_dataset or "rag_eval_dataset.json"),
@@ -39,17 +44,26 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--user-id",
         default="default",
-        help="Kotaemon user id for private indexes.",
+        help="KURAGa user id for private indexes.",
     )
-    parser.add_argument(
-        "--no-ragas",
+    metric_group = parser.add_mutually_exclusive_group()
+    metric_group.add_argument(
+        "--run-ragas",
+        dest="run_ragas",
         action="store_true",
-        help="Only collect answers/contexts/retrieval diagnostics, skip optional LLM-judge scoring.",
+        help="Run the slower RAGAS/local quality metrics after answer generation.",
     )
+    metric_group.add_argument(
+        "--no-ragas",
+        dest="run_ragas",
+        action="store_false",
+        help="Only collect answers/contexts/retrieval diagnostics (default).",
+    )
+    parser.set_defaults(run_ragas=False)
     parser.add_argument(
         "--scope",
         choices=["expected-source", "all"],
-        default="expected-source",
+        default="all",
         help=(
             "Retrieve from each sample's source_file or from all visible documents."
         ),
@@ -64,6 +78,9 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
+
+    from ktem.main import App
+
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
@@ -79,12 +96,14 @@ def main() -> int:
         user_id=args.user_id,
         dataset_path=args.dataset,
         question_limit=args.limit,
-        run_ragas_metrics=not args.no_ragas,
+        run_ragas_metrics=args.run_ragas,
         retrieval_scope=args.scope,
         progress=progress,
     )
 
-    result.samples.to_csv(output_dir / "rag_eval_samples.csv", index=False)
+    build_evaluation_export_frame(result).to_csv(
+        output_dir / "rag_eval_samples.csv", index=False
+    )
     result.ragas_scores.to_csv(output_dir / "ragas_scores.csv", index=False)
     result.retrieval_metrics.to_csv(
         output_dir / "retrieval_metrics.csv", index=False

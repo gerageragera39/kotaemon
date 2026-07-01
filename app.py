@@ -32,9 +32,7 @@ demo.queue().launch(
     inbrowser=True,
     allowed_paths=[
         (SRC_DIR / "ktem" / "assets").resolve().as_posix(),
-        (PROJECT_ROOT / "libs" / "ktem" / "ktem" / "assets")
-        .resolve()
-        .as_posix(),
+        (PROJECT_ROOT / "docs").resolve().as_posix(),
         Path(GRADIO_TEMP_DIR).resolve().as_posix(),
     ],
     share=KH_GRADIO_SHARE,

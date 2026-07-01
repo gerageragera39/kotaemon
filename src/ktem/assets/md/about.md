@@ -1,9 +1,7 @@
-# About Kotaemon
+# About KURAGa
 
-An open-source RAG tool for chatting with your documents.
+KURAGa is the KU Retrieval-Augmented Guide Assistant: a university-document RAG chatbot for KU Digital Projects.
 
-This build uses **Gradio** for the UI and **`kotaemon`** + **`ktem`** packages under `src/`.
+It is based on Cinnamon/kotaemon under Apache-2.0, with project-specific changes for guest chat, admin-indexed university documents, local model defaults, and evaluation.
 
-Configure models in **Resources**, documents in your **file collection** tab, and questions in **Chat**.
-
-For full documentation, see the `docs/` folder in the repository or your deployed MkDocs site.
+KURAGa is not an official KU service.

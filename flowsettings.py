@@ -21,8 +21,10 @@ if cur_frame is None:
 this_file = getframeinfo(cur_frame).filename
 this_dir = Path(this_file).parent
 
-# change this if your app use a different name
+# Internal package/distribution name inherited from upstream. User-facing branding is
+# configured separately with KH_APP_NAME.
 KH_PACKAGE_NAME = "kotaemon_app"
+KH_APP_NAME = config("KH_APP_NAME", default="KURAGa")
 
 KH_APP_VERSION = config("KH_APP_VERSION", None)
 if not KH_APP_VERSION:
@@ -209,7 +211,7 @@ GRAPHRAG_INDICES = []
 
 KH_INDICES = [
     {
-        "name": "File Collection",
+        "name": "University Documents",
         "config": {
             "supported_file_types": (
                 ".png, .jpeg, .jpg, .tiff, .tif, .pdf, .xls, .xlsx, .doc, .docx, "

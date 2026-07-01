@@ -41,7 +41,8 @@ class PrepareEvidencePipeline(BaseComponent):
             page = f", pages={page_start}-{page_end}"
         elif page_start:
             page = f", page={page_start}"
-        section = metadata.get("section_id") or metadata.get("section_title") or ""
+        section_id = metadata.get("section_id") or ""
+        section_title = metadata.get("section_title") or ""
         section_path = metadata.get("section_path") or ""
         if isinstance(section_path, list):
             section_path = " > ".join(str(part) for part in section_path if part)
@@ -51,15 +52,33 @@ class PrepareEvidencePipeline(BaseComponent):
         doc_type = metadata.get("doc_type") or ""
         chunk_type = metadata.get("chunk_type") or ""
         module_title = metadata.get("module_title") or ""
-        retrieval_source = metadata.get("retrieval_source") or metadata.get("_retrieval_sources") or ""
-        return (
-            f"[Context {rank}] doc_id={doc.doc_id}, source={source}{page}, doc_type={doc_type}, "
-            f"section={section}, section_path={section_path}, "
-            f"nearest_heading={nearest_heading}, chunk_type={chunk_type}, "
-            f"module_title={module_title}, paragraph={paragraph}, role={role}, "
-            f"retrieval_source={retrieval_source}, "
-            f"score={doc.score}"
+        module_section = metadata.get("module_section") or ""
+        ranking_score = (
+            metadata.get("_ranking_score") or metadata.get("_fusion_score") or ""
         )
+        retrieval_source = (
+            metadata.get("retrieval_source")
+            or metadata.get("_retrieval_sources")
+            or ""
+        )
+        fields = [f"doc_id={doc.doc_id}", f"source={source}{page}"]
+        optional_fields = (
+            ("doc_type", doc_type),
+            ("module_title", module_title),
+            ("module_section", module_section),
+            ("section_id", section_id),
+            ("section_title", section_title),
+            ("section_path", section_path),
+            ("nearest_heading", nearest_heading),
+            ("chunk_type", chunk_type),
+            ("paragraph", paragraph),
+            ("role", role),
+            ("retrieval_source", retrieval_source),
+            ("score", doc.score),
+            ("ranking_score", ranking_score),
+        )
+        fields.extend(f"{key}={value}" for key, value in optional_fields if value != "")
+        return f"[Context {rank}] " + ", ".join(fields)
 
     def _doc_text(self, doc: RetrievedDocument) -> tuple[str, int | None]:
         metadata = doc.metadata or {}

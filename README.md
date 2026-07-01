@@ -1,225 +1,440 @@
-# Kotaemon (custom fork)
+<div align="center">
 
-<!-- start-intro -->
+# KURAGa
 
-**Kotaemon** is an open-source RAG application for chatting with your documents (PDF, Office, images, HTML, and more). This repository is a **custom fork** of [Cinnamon/kotaemon](https://github.com/Cinnamon/kotaemon) with a flattened layout and project-specific defaults.
+### KU Retrieval-Augmented Guide Assistant
 
-The codebase ships two Python packages under `src/`:
+**A university-document RAG chatbot built for the KU / WFI Digital Projects course.**
 
-| Package | Role |
-|---------|------|
-| **`kotaemon`** | Reusable RAG building blocks: LLMs, embeddings, loaders, vector/doc stores, retrievers, QA pipelines, agents |
-| **`ktem`** | Gradio UI: Chat, file collections, Evaluation, Resources, Settings, Help |
+KURAGa helps students and staff ask questions over indexed university and study-program documents, with retrieved evidence, citations, guest access, and a local-first model setup.
 
-- **UI:** Gradio 4 (no separate React frontend; chat is Gradio callbacks, not a public REST API)
-- **Python:** 3.11+ (`pyproject.toml`)
-- **Config:** `flowsettings.py` + `.env` (see `.env.example`)
-- **Runtime data:** `ktem_app_data/` (SQLite, uploads, vector store — do not commit)
+[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-blue)](#quick-start)
+[![RAG](https://img.shields.io/badge/RAG-Retrieval--Augmented%20Generation-purple)](#how-kuraga-works)
+[![Gradio UI](https://img.shields.io/badge/UI-Gradio-orange)](#using-the-app)
+[![Docker](https://img.shields.io/badge/Docker-supported-2496ED)](#docker-setup)
+[![License: Apache--2.0](https://img.shields.io/badge/License-Apache--2.0-green)](#license-and-attribution)
 
-For architecture, entry points, and AI-agent routing, see [`PROJECT_CONTEXT.md`](PROJECT_CONTEXT.md) and [`AI_GUIDE.md`](AI_GUIDE.md).
+</div>
 
-<!-- end-intro -->
+---
 
-## Quick start (local)
+## What is KURAGa?
+
+**KURAGa** is a student-built Retrieval-Augmented Generation assistant for university documents. It was developed as part of the **Digital Projects** course at KU / WFI and is designed around a practical problem: students often need answers hidden inside examination regulations, module catalogues, study plans, forms, flyers, and other PDF-heavy university documents.
+
+Instead of asking a language model to answer from memory, KURAGa first retrieves relevant passages from the indexed document collection and then generates an answer grounded in that context.
+
+> [!IMPORTANT]
+> **KURAGa is a course project, not an official KU service.**
+> Answers can be incomplete or wrong. Always verify important academic, legal, or administrative decisions against official university documents or university staff guidance.
+
+---
+
+## Why this project exists
+
+University information is often distributed across many documents, formats, languages, and update cycles. A normal chatbot can easily hallucinate. A plain keyword search can miss relevant passages. KURAGa combines both approaches:
+
+* **document search** to find relevant evidence,
+* **language generation** to explain it clearly,
+* **citations/evidence** to let users verify the answer,
+* **guest mode** so anyone can try the chatbot without accessing admin tools,
+* **admin-managed indexing** so the document base stays controlled.
+
+The result is a focused RAG assistant for university-programme questions rather than a generic document-chat demo.
+
+---
+
+## Highlights
+
+| Area                          | What KURAGa provides                                                                                   |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------ |
+| **Guest chat**                | Guests can ask questions over all admin-indexed documents without upload or admin access.              |
+| **Search All by default**     | Guest users are scoped to the complete indexed university document base.                               |
+| **Admin document management** | Admins can upload, index, and manage university document collections.                                  |
+| **Evidence-aware answers**    | Answers include retrieved context/citations so users can check the source.                             |
+| **University-document focus** | The project is adapted for study regulations, module catalogues, forms, flyers, and similar documents. |
+| **Local-first models**        | Designed to work with Ollama/OpenAI-compatible local LLM and embedding endpoints.                      |
+| **Evaluation tooling**        | Includes curated datasets and scripts for checking RAG answer quality.                                 |
+| **In-app documentation**      | Guest users can read project documentation directly inside the UI.                                     |
+
+---
+
+## How KURAGa works
+
+```mermaid
+flowchart LR
+    A[University documents] --> B[Admin upload & indexing]
+    B --> C[Document parsing]
+    C --> D[Chunking & metadata]
+    D --> E[Vector / document stores]
+
+    U[Guest or admin question] --> Q[Query processing]
+    Q --> R[Hybrid retrieval]
+    E --> R
+    R --> K[Optional reranking]
+    K --> L[LLM answer generation]
+    L --> O[Answer + citations + evidence]
+```
+
+At a high level:
+
+1. **Admins index documents** such as PDFs, module catalogues, study plans, regulations, or forms.
+2. KURAGa parses the documents, splits them into searchable chunks, and stores them in retrieval indexes.
+3. A user asks a question in the chat UI.
+4. The retrieval pipeline finds relevant passages from the indexed collection.
+5. The LLM generates an answer using the retrieved context.
+6. The UI displays the answer together with source evidence/citations.
+
+---
+
+## Repository structure
+
+| Path              | Purpose                                                                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `src/ktem/`       | Gradio application layer: UI pages, chat, login/guest access, settings, evaluation, file index UI.                                               |
+| `src/kotaemon/`   | Reusable RAG components inherited/adapted from Kotaemon: loaders, splitters, stores, retrievers, LLMs, embeddings, rerankers, QA/citation logic. |
+| `flowsettings.py` | Main runtime configuration: app name, model defaults, stores, index definitions, feature flags.                                                  |
+| `docs/`           | Project documentation, including in-app guest documentation.                                                                                     |
+| `scripts/`        | Docker helpers, evaluation utilities, retrieval/chunking debugging tools, and project scripts.                                                   |
+| `dataset/`        | Course/evaluation documents and curated question sets where applicable.                                                                          |
+| `tests/`          | Project tests, including guest access/search-scope behavior.                                                                                     |
+| `ktem_app_data/`  | Runtime data directory created by the app. Contains uploads, SQLite DBs, vector stores, caches. Do not commit it.                                |
+
+> [!NOTE]
+> Internal Python package names still use `kotaemon` and `ktem` for compatibility with the upstream architecture. User-facing branding uses **KURAGa**.
+
+---
+
+## Quick start
+
+### 1. Clone the repository
 
 ```bash
-# From repository root
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-# source .venv/bin/activate     # Linux/macOS
+git clone https://github.com/gerageragera39/kotaemon.git
+cd kotaemon
+git checkout kuraga
+```
 
+### 2. Create a Python environment
+
+KURAGa expects **Python 3.11+**.
+
+#### Windows PowerShell
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+```
+
+#### Linux / macOS
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+```
+
+### 3. Install dependencies
+
+```bash
 pip install -r requirements_gerageragera39.txt
 pip install -e .
-cp .env.example .env            # edit API keys / local model names
-
-python app.py                   # http://localhost:7860
 ```
 
-Or with **Make** + **uv**:
+### 4. Create your local environment file
 
-```bash
-make install
-make run
+#### Windows PowerShell
+
+```powershell
+Copy-Item .env.example .env
 ```
 
-Default admin login (when user management is enabled): `admin` / `admin` — change after first login.
-
-## Evaluation dataset
-
-Luca's dataset is in `dataset/documents`.
-
-Upload `dataset/testing_files` in the app to try indexing and chat.
-
-`rag_eval_dataset.json` contains simple questions for files in `dataset/testing_files`.
-
-## Docker (Python 3.11)
-
-The container image uses **Python 3.11** and installs dependencies from `requirements_gerageragera39.txt`, matching a local `pip install -r requirements_gerageragera39.txt` setup.
-
-**Prerequisites:** Docker Desktop (or Docker Engine) with Compose v2.
-
-### Docker Compose (recommended)
-
-Persistent app data is stored in **`./ktem_app_data`** on the host (SQLite, uploads, vector index). The container uses **`restart: unless-stopped`**, so it comes back after a reboot; data is kept on `docker compose down` (only removed with `docker compose down -v`).
+#### Linux / macOS
 
 ```bash
-cp .env.example .env          # edit keys / model names
-docker compose up -d --build  # http://localhost:7860
+cp .env.example .env
 ```
 
-**With Ollama in Docker** (models in volume `ollama_models`):
+Then edit `.env` if you want to change the model, embedding model, API endpoint, app name, or authentication settings.
+
+### 5. Start the app
 
 ```bash
-# In .env set: KH_OLLAMA_URL=http://ollama:11434/v1/
+python app.py
+```
+
+Open:
+
+```text
+http://localhost:7860
+```
+
+The default local user-management setup may use:
+
+```text
+Username: admin
+Password: admin
+```
+
+Change the default credentials immediately after first login or through your deployment configuration.
+
+---
+
+## Local model setup with Ollama
+
+KURAGa is designed for a local-first setup through Ollama/OpenAI-compatible endpoints.
+
+Install Ollama, then pull a chat model and an embedding model:
+
+```bash
+ollama pull qwen3:8b
+ollama pull nomic-embed-text
+```
+
+Example `.env` values:
+
+```env
+KH_APP_NAME=KURAGa
+LOCAL_MODEL=qwen3:8b
+LOCAL_MODEL_EMBEDDINGS=nomic-embed-text
+KH_OLLAMA_URL=http://localhost:11434/v1/
+KH_OLLAMA_NUM_CTX=32768
+KH_OLLAMA_NUM_PREDICT=1024
+```
+
+For stronger machines, you can replace the chat model with a larger local model. For weaker machines, use a smaller model and reduce context length if needed.
+
+---
+
+## Docker setup
+
+KURAGa also includes a Docker Compose setup for local deployment with persistent app data.
+
+### Basic Docker launch
+
+```bash
+cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
+
+docker compose up -d --build
+```
+
+Open:
+
+```text
+http://localhost:7860
+```
+
+### With bundled Ollama container
+
+```bash
 docker compose --profile ollama up -d --build
-docker compose exec ollama ollama pull qwen2.5:7b
-docker compose exec ollama ollama pull nomic-embed-text
 ```
 
-**Optional local reranker (TEI):**
+When using the bundled Ollama profile, set the app to use the Docker network endpoint:
+
+```env
+KH_OLLAMA_URL=http://ollama:11434/v1/
+```
+
+### Optional reranker service
 
 ```bash
 docker compose --profile reranker up -d
-# In Resources use endpoint_url: http://host.docker.internal:8080
 ```
 
-**Makefile shortcuts:** `make docker-up`, `make docker-up-ollama`, `make docker-down`, `make docker-logs`
+Useful Docker commands:
 
-**Windows:** `.\scripts\docker-up.ps1 -Build` or `.\scripts\docker-up.ps1 -Ollama -Build`
+| Command                         | Effect                                           |
+| ------------------------------- | ------------------------------------------------ |
+| `docker compose config`         | Validate the Compose file before starting.       |
+| `docker compose up -d --build`  | Build and start KURAGa.                          |
+| `docker compose logs -f kuraga` | Follow app logs.                                 |
+| `docker compose down`           | Stop containers while keeping persistent data.   |
+| `docker compose down -v`        | Stop containers and remove named Docker volumes. |
 
-See [`.env.compose.example`](.env.compose.example) and [`compose.override.example.yml`](compose.override.example.yml) (named volume instead of bind mount).
+By default, app data is mounted into `./ktem_app_data` so it survives container restarts.
 
-| Command | Effect |
-|---------|--------|
-| `docker compose up -d` | Start app, keep data |
-| `docker compose down` | Stop containers, **keep** `./ktem_app_data` |
-| `docker compose down -v` | Stop and **delete** named volumes (`ollama_models`, etc.) |
-| `docker compose logs -f kotaemon` | Follow logs |
+---
 
-### Build images (manual `docker build`)
+## Using the app
 
-Three build targets are available:
+### Guest flow
 
-| Target | Description |
-|--------|-------------|
-| `lite` | Core app and pinned requirements |
-| `full` | Adds OCR, LibreOffice, PyTorch, and document-processing stack |
-| `ollama` | `full` plus Ollama and `nomic-embed-text` embedding model |
+Guests are intentionally restricted to a simple, safe interface:
+
+1. Open the app.
+2. Click **Access as Guest**.
+3. Ask questions in **Chat**.
+4. Read **Project Documentation** inside the app to understand scope, limitations, and attribution.
+
+Guest users:
+
+* can chat with indexed university documents,
+* are forced to use **Search All** over admin-indexed documents,
+* cannot upload files,
+* cannot select only one private file,
+* cannot disable document search,
+* cannot access Resources, Settings, Evaluation, or admin file-management pages.
+
+### Admin flow
+
+Admins manage the actual knowledge base:
+
+1. Log in as admin.
+2. Configure LLM, embedding, and optional reranking models.
+3. Upload university documents.
+4. Index the document collection.
+5. Test answers in the chat.
+6. Use evaluation scripts or the Evaluation tab to inspect retrieval and answer quality.
+
+---
+
+## Evaluation
+
+KURAGa includes evaluation assets for checking whether the chatbot actually answers university-document questions correctly.
+
+Typical assets include:
+
+| Asset                                | Purpose                                        |
+| ------------------------------------ | ---------------------------------------------- |
+| `rag_eval_dataset.json`              | Curated RAG evaluation questions.              |
+| `rag_eval_dataset_kazi.json`         | Additional/team-provided evaluation questions. |
+| `dataset/documents/`                 | Source documents for indexing/evaluation.      |
+| `scripts/run_rag_eval.py`            | Runs RAG evaluation against a dataset.         |
+| `scripts/debug_university_chunks.py` | Helps inspect chunking output.                 |
+| `scripts/evaluate_llm_judge.py`      | Optional LLM-judge based scoring.              |
+| `src/ktem/evaluation/ragas_eval.py`  | RAGAS integration used by the Evaluation page. |
+
+Example:
 
 ```bash
-# Minimal image
-docker build --target lite -t kotaemon:lite .
-
-# Recommended for document RAG (OCR, unstructured, torch)
-docker build --target full -t kotaemon:full .
-
-# Includes Ollama for local embeddings/models
-docker build --target ollama -t kotaemon:ollama .
+python scripts/run_rag_eval.py --help
 ```
 
-On **Linux amd64** with an NVIDIA GPU, you can pass a CUDA PyTorch index (optional):
+Run evaluation scripts from the repository root and inspect script options before using them against real data.
+
+---
+
+## Development workflow
+
+### Recommended checks
 
 ```bash
-docker build --target full \
-  --build-arg TORCH_INDEX_URL=https://download.pytorch.org/whl/cu121 \
-  -t kotaemon:full .
+python -m compileall src
+pytest tests
 ```
 
-Use a different requirements file (optional):
+If dependency installation is heavy on your machine, at least run targeted tests for the code you changed:
 
 ```bash
-docker build --target lite \
-  --build-arg REQUIREMENTS_FILE=requirements_gerageragera39.txt \
-  -t kotaemon:lite .
+pytest tests/test_guest_search_scope.py
 ```
 
-### Run the app
+### Things not to commit
 
-Create a `.env` file in the project root (copy from `.env.example`) before running, or mount your own env file.
+Do not commit local runtime data or secrets:
+
+```text
+.env
+ktem_app_data/
+__pycache__/
+*.pyc
+*.sqlite
+*.db
+vector stores
+user uploads
+local model caches
+```
+
+### Important development notes
+
+* Run commands from the repository root.
+* Keep Python imports as `kotaemon` and `ktem` unless a full migration plan proves that renaming is safe.
+* Do not use old upstream `libs/kotaemon` or `libs/ktem` paths in this fork.
+* Keep guest access restricted and test it after UI changes.
+* Keep attribution to the original Kotaemon project visible and honest.
+
+---
+
+## Troubleshooting
+
+### `ModuleNotFoundError: kotaemon` or `ktem`
+
+Make sure you installed the project in editable mode from the repository root:
 
 ```bash
-# Persist app data on the host (Windows cmd)
-docker run --rm -p 7860:7860 \
-  -v "%cd%\ktem_app_data:/app/ktem_app_data" \
-  --env-file .env \
-  kotaemon:full
+pip install -e .
 ```
 
-```powershell
-# PowerShell
-docker run --rm -p 7860:7860 `
-  -v "${PWD}\ktem_app_data:/app/ktem_app_data" `
-  --env-file .env `
-  kotaemon:full
-```
+### Ollama connection errors
 
-On Linux/macOS, replace `%cd%` with `$(pwd)`:
+Check that Ollama is running:
 
 ```bash
-docker run --rm -p 7860:7860 \
-  -v "$(pwd)/ktem_app_data:/app/ktem_app_data" \
-  --env-file .env \
-  kotaemon:full
+ollama list
 ```
 
-Open **http://localhost:7860** in your browser.
+For a host Ollama instance, `.env` should usually contain:
 
-### Local reranker (Text Embeddings Inference)
-
-You can run a **local cross-encoder reranker** in a separate container using [Hugging Face Text Embeddings Inference](https://huggingface.co/docs/text-embeddings-inference) (TEI). Kotaemon connects to it via the **TeiFastReranking** provider (Resources → Reranking models).
-
-**Prerequisites:** NVIDIA GPU and [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html) if you use `--gpus all`.
-
-Start TEI with `BAAI/bge-reranker-v2-m3` on port **8080**:
-
-```bash
-docker run -d --gpus all -p 8080:80 \
-  ghcr.io/huggingface/text-embeddings-inference:latest \
-  --model-id BAAI/bge-reranker-v2-m3
+```env
+KH_OLLAMA_URL=http://localhost:11434/v1/
 ```
 
-On first start the image downloads the model; wait until the service responds before running retrieval in Kotaemon.
+For Docker Compose with the bundled Ollama profile, use:
 
-**Register in Kotaemon**
-
-1. Open the app → **Resources** → **Reranking models** → **Add**.
-2. Choose vendor/spec **TeiFastReranking** (see `config_example.txt` for field names).
-3. Use this YAML spec (adjust `endpoint_url` if Kotaemon runs in Docker):
-
-```yaml
-__type__: kotaemon.rerankings.TeiFastReranking
-endpoint_url: http://localhost:8080
-is_truncated: true
-model_name: BAAI/bge-reranker-v2-m3
+```env
+KH_OLLAMA_URL=http://ollama:11434/v1/
 ```
 
-| Kotaemon runs on | `endpoint_url` |
-|------------------|----------------|
-| Host (`.venv`, `python app.py`) | `http://localhost:8080` |
-| Docker (`kotaemon:full` on same machine) | `http://host.docker.internal:8080` |
+### The model gives weak or incomplete answers
 
-Set the model as **default** if you want file-index retrieval to use it automatically (or pick it in index settings where reranking is enabled).
+Try:
 
-**Stop the reranker container**
+* using a stronger local model,
+* increasing context length,
+* checking whether the correct documents were indexed,
+* inspecting retrieved evidence,
+* running the evaluation/debug scripts,
+* improving chunking or metadata if relevant passages are missed.
 
-```bash
-docker ps   # note CONTAINER ID
-docker stop <container_id>
-```
+### Guest users can access too much
 
-### Demo / SSO modes
+Guest users should only see Chat and Project Documentation. They should not be able to upload files, select one private file, disable document search, or access admin pages. Re-run guest-related tests after changing login, tab visibility, or file-selection logic.
 
-```bash
-docker run --rm -p 7860:7860 -e KH_DEMO_MODE=true kotaemon:lite
-docker run --rm -p 7860:7860 -e KH_SSO_ENABLED=true --env-file .env kotaemon:lite
-```
+---
 
-## Documentation
+## Project status
 
-- **End users:** [docs/usage.md](docs/usage.md), [docs/local_model.md](docs/local_model.md)
-- **Developers:** [docs/development/](docs/development/), [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md)
-- **MkDocs site:** configure `mkdocs.yml` and run `mkdocs serve` from the repo root
+KURAGa is an active university course project. The goal is not to replace official university systems, but to demonstrate and evaluate a practical RAG assistant for university documents.
 
-## Legacy install scripts
+Current focus areas:
 
-`scripts/run_*.sh` and `scripts/run_windows.bat` target the **upstream** monorepo layout (`libs/kotaemon`). In this fork, prefer **`pip install -e .`** from the repository root instead.
+* robust guest-only chat access,
+* reliable document retrieval,
+* transparent citations/evidence,
+* local-first deployment,
+* clean project documentation,
+* evaluation-driven RAG improvements.
+
+---
+
+## License and attribution
+
+This repository is based on the open-source [Cinnamon/kotaemon](https://github.com/Cinnamon/kotaemon) project, licensed under Apache-2.0.
+
+KURAGa keeps the upstream license and retains original architecture/components where applicable, especially the internal `kotaemon` RAG library and `ktem` Gradio application layer. This fork contains substantial project-specific changes by the KU Digital Projects team for university-document retrieval, guest access, local model defaults, evaluation, and UI/documentation branding.
+
+See:
+
+* [`LICENSE.txt`](LICENSE.txt)
+* [`NOTICE.md`](NOTICE.md)
+
+---
+
+<div align="center">
+
+**KURAGa** — making university documents easier to ask, search, and verify.
+
+</div>

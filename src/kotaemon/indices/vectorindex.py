@@ -249,16 +249,90 @@ class VectorRetrieval(BaseRetrieval):
         ("grade", ("Note", "Bewertung", "Prüfungsleistung")),
         ("deadline", ("Frist", "Abgabefrist")),
         ("bachelor thesis", ("Bachelorarbeit", "Abschlussarbeit")),
+        ("bachelor's thesis", ("Bachelorarbeit", "Abschlussarbeit")),
         ("thesis", ("Bachelorarbeit", "Abschlussarbeit")),
+        (
+            "require students to produce",
+            (
+                "Selbstständige Bearbeitung",
+                "Formulierung einer Forschungsfrage",
+                "wissenschaftlich begründeten Urteils",
+                "Inhalte und Themen",
+            ),
+        ),
         ("ects points", ("ECTS-Punkte", "Leistungspunkte")),
         ("ects", ("ECTS", "Leistungspunkte")),
+        (
+            "elective compulsory area",
+            ("Wahlpflichtbereich", "Wahlpflichtmodule", "§ 6", "Leistungspunkte"),
+        ),
+        (
+            "compulsory area",
+            ("Pflichtbereich", "Pflichtmodule", "§ 6", "Leistungspunkte"),
+        ),
+        (
+            "distributed across subjects",
+            ("Verteilung", "Fächergruppen", "Leistungspunkte", "§ 6"),
+        ),
+        ("aimed at", ("Zielgruppe", "richtet sich an")),
+        (
+            "teaching and learning methods",
+            (
+                "didaktische Konzepte",
+                "Übungen",
+                "Projektarbeiten",
+                "Gruppenarbeit",
+                "Flipped Classrooms",
+            ),
+        ),
+        (
+            "foreign-language competence",
+            ("Fremdsprachenkompetenz", "fremdsprachliche Kompetenz", "Qualifikationsziel"),
+        ),
         ("attendance requirement", ("Anwesenheitspflicht", "Fehlzeiten")),
         ("attendance", ("Anwesenheit", "Anwesenheitspflicht", "Fehlzeiten")),
         ("distinction", ("mit Auszeichnung",)),
         ("deception", ("Täuschung", "fremde Hilfe")),
         ("ghostwriting", ("Täuschung", "fremde Hilfe")),
-        ("artificial intelligence", ("künstliche Intelligenz", "KI", "Täuschung")),
-        ("ai", ("künstliche Intelligenz", "KI", "Täuschung")),
+        (
+            "artificial intelligence",
+            (
+                "künstliche Intelligenz",
+                "KI",
+                "Täuschung",
+                "Ghostwriter",
+                "im Namen",
+                "nicht als Hilfsmittel",
+            ),
+        ),
+        (
+            "ai",
+            (
+                "künstliche Intelligenz",
+                "KI",
+                "Täuschung",
+                "Ghostwriter",
+                "im Namen",
+                "nicht als Hilfsmittel",
+            ),
+        ),
+        (
+            "unsupervised written assignment",
+            (
+                "Schriftliche Prüfungsleistungen, die ohne Aufsicht angefertigt werden",
+                "Verzeichnis der benutzten Hilfsmittel",
+                "wörtlich oder sinngemäß",
+                "kenntlich zu machen",
+            ),
+        ),
+        (
+            "aids or sources",
+            (
+                "Hilfsmittel",
+                "Verzeichnis der benutzten Hilfsmittel",
+                "wörtlich oder sinngemäß",
+            ),
+        ),
         ("withdraw", ("Rücktritt", "Abmeldung")),
         (
             "retake",
@@ -320,6 +394,43 @@ class VectorRetrieval(BaseRetrieval):
         ("d3b", ("Digital & Data-Driven Business", "Studienverlaufsplan", "Studiengangsbeschreibung")),
         ("total ects", ("180 ECTS", "ECTS-Leistungspunkte", "Leistungspunkte")),
         ("study profile", ("Studienprofil", "Studienprofile")),
+        (
+            "foundations and orientation exam",
+            (
+                "Grundlagen- und Orientierungsprüfung",
+                "40 ECTS-Punkten",
+                "vorangehenden Fachsemester",
+            ),
+        ),
+        (
+            "main study areas",
+            (
+                "Informationsverarbeitende Systeme, Methoden und Konzepte",
+                "Wirtschaftswissenschaften mit einem Schwerpunkt auf der digitalen Wirtschaft",
+                "Quantitative Methoden",
+                "Sprach-, Sozial-, Kommunikations- und Handlungskompetenz",
+                "Soft Skills",
+                "Ethik",
+            ),
+        ),
+        (
+            "study abroad",
+            (
+                "Auslandsstudium",
+                "Internationalisierung",
+                "fünfte Studiensemester",
+                "erheblichem Aufwand",
+            ),
+        ),
+        (
+            "studying abroad",
+            (
+                "Auslandsstudium",
+                "Internationalisierung",
+                "fünfte Studiensemester",
+                "erheblichem Aufwand",
+            ),
+        ),
         (
             "study profiles",
             (
@@ -453,6 +564,17 @@ class VectorRetrieval(BaseRetrieval):
                 "Statistik",
             ),
         ),
+        (
+            "algorithm topics",
+            (
+                "Eigenschaften von Algorithmen",
+                "Effizienz",
+                "Komplexität",
+                "Rekursion",
+                "Datenstrukturen Array, Liste, Baum und Graph",
+                "Sortier- und Suchalgorithmen",
+            ),
+        ),
     )
 
     def _normalize_query_text(self, query: str) -> str:
@@ -541,6 +663,7 @@ class VectorRetrieval(BaseRetrieval):
                 metadata.get("semantic_title"),
                 metadata.get("table_caption"),
                 metadata.get("module_title"),
+                metadata.get("module_code"),
                 metadata.get("module_number"),
                 metadata.get("module_section"),
                 metadata.get("chunk_type"),
@@ -590,6 +713,143 @@ class VectorRetrieval(BaseRetrieval):
 
         return best
 
+    def _metadata_relevance_score(
+        self, query_variants: Sequence[str], doc: Document
+    ) -> float:
+        """Apply bounded structure/intent boosts within the retrieved candidate set."""
+
+        metadata = doc.metadata or {}
+        queries = [self._lexical_normalize(query) for query in query_variants]
+        score = 0.0
+
+        module_title = self._lexical_normalize(str(metadata.get("module_title") or ""))
+        module_title_match = bool(
+            module_title and any(module_title in query for query in queries)
+        )
+        if module_title_match:
+            score += 0.6
+
+        assessment_query = any(
+            re.search(
+                r"\b(modulnote|note|benotung|bewertung|grade|grading|assess|assessed|assessment|"
+                r"pruefungsleistung|pruefungsmodalitaet|pruefungsmodalitaeten)\b",
+                query,
+            )
+            for query in queries
+        )
+        module_section = self._lexical_normalize(
+            str(metadata.get("module_section") or "")
+        )
+        section_title = self._lexical_normalize(
+            str(metadata.get("section_title") or "")
+        )
+        section_path = self._lexical_normalize(
+            " > ".join(metadata.get("section_path") or [])
+            if isinstance(metadata.get("section_path"), list)
+            else str(metadata.get("section_path") or "")
+        )
+        section_text = " ".join((module_section, section_title, section_path))
+        if assessment_query and (
+            module_section == "assessment"
+            or "modulnote" in section_text
+            or "erlaeuterung der pruefungsmodalitaeten" in section_text
+        ):
+            score += 0.4
+
+        contents_query = any(
+            re.search(
+                r"\b(what does .{0,80}\bcover|topics?|what does .{0,80}\brequire|"
+                r"produce|algorithm(?:ic)?|inhalte|themen)\b",
+                query,
+            )
+            for query in queries
+        )
+        competencies_query = any(
+            re.search(
+                r"\b(what will i learn|abilities|competenc(?:e|es|ies|y)|"
+                r"students should be able to|kompetenzen)\b",
+                query,
+            )
+            for query in queries
+        )
+        is_contents = (
+            module_section == "contents" or "inhalte und themen" in section_text
+        )
+        is_competencies = (
+            module_section == "competencies" or "kompetenzen" in section_text
+        )
+        if (contents_query and is_contents) or (
+            competencies_query and is_competencies
+        ):
+            score += 0.4
+        elif (contents_query and is_competencies) or (
+            competencies_query and is_contents
+        ):
+            score += 0.3
+
+        overview_query = any(
+            re.search(
+                r"\b(ects|semester|responsible person|module coordinator|"
+                r"modulverantwort|turnus|faculty responsible)\b",
+                query,
+            )
+            for query in queries
+        )
+        if overview_query and module_title_match and module_section == "overview":
+            score += 0.3
+
+        program_prose_query = any(
+            re.search(
+                r"\b(aimed at|target group|zielgruppe|teaching and learning methods|"
+                r"lehr und lernformen|foreign language competence|"
+                r"fremdsprachenkompetenz|fremdsprachliche kompetenz|"
+                r"main study areas?|study abroad|auslandsstudium|internationalisierung|"
+                r"studienbereiche?)\b",
+                query,
+            )
+            for query in queries
+        )
+        if (
+            program_prose_query
+            and metadata.get("doc_type") == "study_description"
+            and metadata.get("chunk_type") != "table"
+        ):
+            score += 0.5
+
+        doc_text = self._lexical_normalize(self._lexical_doc_text(doc))
+        legal_query = any(
+            re.search(
+                r"\b(exam rules?|cheat(?:ing)?|deception|taeuschung|aids?|hilfsmittel|"
+                r"sources?|ghostwriter|artificial intelligence|kuenstliche intelligenz|"
+                r"unsupervised|ohne aufsicht|woertlich oder sinngemaess)\b",
+                query,
+            )
+            for query in queries
+        )
+        legal_doc = metadata.get("doc_type") in {
+            "exam_regulation",
+            "study_regulation",
+            "amendment",
+        }
+        if legal_query and legal_doc:
+            score += 0.2
+            legal_anchors = (
+                "taeuschung",
+                "verzeichnis der benutzten hilfsmittel",
+                "ghostwriter",
+                "kuenstliche intelligenz",
+                "woertlich oder sinngemaess",
+                "ohne aufsicht",
+                "nicht als hilfsmittel",
+            )
+            if any(
+                anchor in doc_text and any(anchor in query for query in queries)
+                for anchor in legal_anchors
+            ):
+                score += 0.4
+
+        return min(1.0, score)
+
     def _filter_docs(
         self, documents: list[RetrievedDocument], top_k: int | None = None
     ):
@@ -607,6 +867,7 @@ class VectorRetrieval(BaseRetrieval):
         rrf_k: int = 60,
         query_variants: Sequence[str] | None = None,
         lexical_weight: float = 0.025,
+        metadata_weight: float = 0.04,
     ) -> list[RetrievedDocument]:
         """Fuse dense and full-text candidates using weighted RRF ranks.
 
@@ -665,11 +926,17 @@ class VectorRetrieval(BaseRetrieval):
                 if query_variants
                 else 0.0
             )
+            metadata_score = (
+                self._metadata_relevance_score(query_variants, entry["doc"])
+                if query_variants
+                else 0.0
+            )
             entry["metadata"]["_fusion_score"] = entry["score"]
             entry["metadata"]["_lexical_score"] = lexical_score
+            entry["metadata"]["_metadata_score"] = metadata_score
             entry["metadata"]["_ranking_score"] = entry["score"] + (
                 lexical_weight * lexical_score
-            )
+            ) + (metadata_weight * metadata_score)
             entry["metadata"]["_retrieval_sources"] = entry["sources"]
             entry["metadata"]["retrieval_source"] = (
                 "both"
@@ -1070,7 +1337,10 @@ class VectorRetrieval(BaseRetrieval):
             "page_label_start": metadata.get("page_label_start") or metadata.get("page_label"),
             "page_label_end": metadata.get("page_label_end") or metadata.get("page_label"),
             "section_id": metadata.get("section_id"),
+            "section_title": metadata.get("section_title"),
             "section_path": metadata.get("section_path"),
+            "module_title": metadata.get("module_title"),
+            "module_section": metadata.get("module_section"),
             "nearest_heading": metadata.get("nearest_heading"),
             "chunk_type": metadata.get("chunk_type"),
             "paragraph_id": metadata.get("paragraph_id"),
@@ -1082,6 +1352,7 @@ class VectorRetrieval(BaseRetrieval):
             "vector_score": metadata.get("_vector_score"),
             "text_score": metadata.get("_text_score"),
             "lexical_score": metadata.get("_lexical_score"),
+            "metadata_score": metadata.get("_metadata_score"),
             "retrieval_source": metadata.get("retrieval_source")
             or metadata.get("_retrieval_sources"),
             "preview": (doc.text or "")[:500],

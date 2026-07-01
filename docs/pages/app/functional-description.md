@@ -11,7 +11,7 @@
 admin user who can do administrative tasks (e.g. creating user account in that
 user group...). The workflow for creating new user group is as follow:
 
-1. Cinnamon accesses the user group management UI.
+1. An administrator accesses the user group management UI.
 2. On "Create user group" panel, we supply:
    a. Client name: e.g. Apple.
    b. Sub-domain name: e.g. apple.
@@ -43,7 +43,7 @@ user group...). The workflow for creating new user group is as follow:
 **Description**: in the tenant management page, we can delete the selected user
 group. The user flow is as follow:
 
-1. Cinnamon accesses the user group management UI,
+1. An administrator accesses the user group management UI,
 2. View list of user groups.
 3. Next to target user group, click delete.
 4. Confirm whether to delete.
