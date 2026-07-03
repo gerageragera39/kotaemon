@@ -538,3 +538,270 @@ body,
   background-color: #ffffff !important;
   background: #ffffff !important;
 }
+
+/* Center the submit button vertically inside MultimodalTextbox */
+#chat-input button,
+#chat-input .submit-button {
+  align-self: center !important;
+  margin-top: auto !important;
+  margin-bottom: auto !important;
+}
+
+/* Guest thicker chat input styling with margins */
+body.role-guest #chat-input {
+  margin: 15px 24px 24px 24px !important;
+  border-radius: 12px !important;
+  border: 1px solid var(--border-color-primary) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05) !important;
+  background-color: #ffffff !important;
+}
+
+body.role-guest #chat-input textarea {
+  font-size: 16px !important;
+  padding: 12px 16px !important;
+  min-height: 52px !important;
+}
+
+/* Responsive Styles for Mobile */
+@media (max-width: 768px) {
+  /* Hide version label on mobile to save space */
+  #app-version-label {
+    display: none !important;
+  }
+
+  /* Mobile layout adjustments */
+  .gradio-container .row, 
+  .gradio-container .form,
+  #chat-area {
+    flex-direction: column !important;
+    height: auto !important;
+  }
+  
+  /* Make chat window consume vertical space, leaving space for the fixed input at the bottom */
+  #main-chat-bot {
+    width: 100% !important;
+    height: auto !important;
+    padding-bottom: 90px !important; /* Extra bottom padding so messages are not hidden by the sticky input bar */
+  }
+
+  .message-wrap {
+    padding: 10px 10px 40px 10px !important;
+  }
+
+  /* Mobile Sticky Bottom Input Bar (for all roles) */
+  #chat-input {
+    position: fixed !important;
+    bottom: 10px !important;
+    left: 10px !important;
+    right: 10px !important;
+    width: calc(100% - 20px) !important;
+    margin: 0 !important;
+    z-index: 1000 !important;
+    background-color: #ffffff !important;
+    border-radius: 12px !important;
+    border: 1px solid var(--border-color-primary) !important;
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  #chat-input textarea {
+    font-size: 16px !important;
+    padding: 10px 12px !important;
+    min-height: 48px !important;
+  }
+
+  /* ------------------- ROLE CONFIGS ON MOBILE ------------------- */
+
+  #global-logout-button {
+    position: absolute !important;
+    top: 85px !important;
+    right: 20px !important;
+    width: auto !important;
+    min-width: 65px !important;
+    height: 28px !important;
+    padding: 0 8px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+    z-index: 10000 !important;
+    margin: 0 !important;
+  }
+
+  /* Make header bar flex and wrap for all users on mobile */
+  .header-bar {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    padding: 10px 15px !important;
+    border-bottom: 1px solid var(--border-color-primary) !important;
+    background-color: #ffffff !important;
+  }
+
+  /* Show burger button for all users on mobile */
+  #hamburger-menu {
+    display: block !important;
+    order: 2 !important;
+  }
+
+  /* Align Logo next to burger or center-left */
+  #nav-logo {
+    order: 1 !important;
+    margin-left: 45px !important; /* Leave room for sidebar toggle button on the far left */
+  }
+
+  /* By default, hide all navigation tab buttons on mobile */
+  .header-bar > button:not(#hamburger-menu) {
+    display: none !important;
+    width: 100% !important;
+    text-align: left !important;
+    padding: 12px 20px !important;
+    border-bottom: 1px solid var(--border-color-primary) !important;
+    background: #ffffff !important;
+    order: 3 !important;
+    margin: 0 !important;
+  }
+
+  /* When burger is toggled open */
+  .header-bar.nav-open > button:not(#hamburger-menu) {
+    display: block !important;
+  }
+
+  /* Slide-out Drawer Sidebar (#conv-settings-panel) */
+  #conv-settings-panel {
+    position: fixed !important;
+    left: -300px !important;
+    top: 60px !important; /* Just below the header */
+    width: 280px !important;
+    height: calc(100vh - 60px) !important;
+    background-color: #ffffff !important;
+    z-index: 9999 !important;
+    transition: left 0.3s ease !important;
+    box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1) !important;
+    border-right: 1px solid var(--border-color-primary) !important;
+    overflow-y: auto !important;
+  }
+
+  /* Show drawer when expanded (min-width is not 0px) */
+  #conv-settings-panel:not([style*="min-width: 0px"]) {
+    left: 0px !important;
+  }
+
+  /* Fixed left sidebar toggle button */
+  #chat-expand-button {
+    position: fixed !important;
+    top: 12px !important;
+    left: 10px !important;
+    z-index: 10000 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 38px !important;
+    height: 38px !important;
+    padding: 0 !important;
+    background-color: rgb(35, 47, 102) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    border-radius: 8px !important;
+    box-shadow: 0 4px 10px rgba(35, 47, 102, 0.35) !important;
+    transition: transform 0.2s ease, background-color 0.2s ease !important;
+  }
+  
+  #chat-expand-button svg {
+    fill: #ffffff !important;
+    stroke: #ffffff !important;
+    width: 18px !important;
+    height: 18px !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  #chat-expand-button:hover {
+    background-color: rgb(25, 37, 82) !important;
+    transform: scale(1.05) !important;
+  }
+}
+
+/* ------------------- HELP & LEGAL PAGE STYLES ------------------- */
+.legal-container {
+  max-width: 1200px;
+  margin: 40px auto;
+  padding: 30px;
+  background: #ffffff;
+  border: 1px solid var(--border-color-primary);
+  border-radius: 8px;
+}
+
+.legal-header {
+  border-bottom: 2px solid rgb(35, 47, 102);
+  padding-bottom: 20px;
+  margin-bottom: 30px;
+}
+
+.legal-header h1 {
+  font-size: 30px;
+  font-weight: 700;
+  color: rgb(35, 47, 102) !important;
+  margin: 0 0 8px 0;
+}
+
+.legal-header p {
+  font-size: 15px;
+  color: #666666;
+  margin: 0;
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+
+@media (max-width: 900px) {
+  .legal-layout {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+}
+
+.legal-column {
+  display: flex;
+  flex-direction: column;
+}
+
+.legal-section-header {
+  border-bottom: 1px solid var(--border-color-primary);
+  padding-bottom: 10px;
+  margin-bottom: 20px;
+}
+
+.legal-section-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: rgb(35, 47, 102) !important;
+  margin: 0;
+}
+
+.legal-item {
+  margin-bottom: 25px;
+}
+
+.legal-item h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111111 !important;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.legal-item p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #444444 !important;
+  margin: 0;
+}
+
+.legal-item a {
+  color: rgb(35, 47, 102);
+  text-decoration: underline;
+}
+
+.legal-item a:hover {
+  color: rgb(25, 37, 82);
+}

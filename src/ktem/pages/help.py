@@ -1,119 +1,62 @@
-from importlib.metadata import version
-from pathlib import Path
-
 import gradio as gr
-import requests
-from decouple import config
-from theflow.settings import settings
-
-KH_DEMO_MODE = getattr(settings, "KH_DEMO_MODE", False)
-HF_SPACE_URL = config("HF_SPACE_URL", default="")
-
-
-def get_remote_doc(url: str) -> str:
-    try:
-        res = requests.get(url)
-        res.raise_for_status()
-        return res.text
-    except Exception as e:
-        print(f"Failed to fetch document from {url}: {e}")
-        return ""
-
-
-def download_changelogs(release_url: str) -> str:
-    try:
-        res = requests.get(release_url).json()
-        changelogs = res.get("body", "")
-
-        return changelogs
-    except Exception as e:
-        print(f"Failed to fetch changelogs from {release_url}: {e}")
-        return ""
-
 
 class HelpPage:
-    def __init__(
-        self,
-        app,
-        doc_dir: str = settings.KH_DOC_DIR,
-        remote_content_url: str = "https://raw.githubusercontent.com/Cinnamon/kotaemon",
-        app_version: str | None = settings.KH_APP_VERSION,
-        changelogs_cache_dir: str
-        | Path = (Path(settings.KH_APP_DATA_DIR) / "changelogs"),
-    ):
+    def __init__(self, app):
         self._app = app
-        self.doc_dir = Path(doc_dir)
-        self.remote_content_url = remote_content_url
-        self.app_version = app_version
-        self.changelogs_cache_dir = Path(changelogs_cache_dir)
 
-        self.changelogs_cache_dir.mkdir(parents=True, exist_ok=True)
+        help_html = """
+        <div class="legal-container">
+          <div class="legal-header">
+            <h1>Help & Legal Center</h1>
 
-        about_md_dir = self.doc_dir / "about.md"
-        if about_md_dir.exists():
-            with (self.doc_dir / "about.md").open(encoding="utf-8") as fi:
-                about_md = fi.read()
-        else:  # fetch from remote
-            about_md = get_remote_doc(
-                f"{self.remote_content_url}/v{self.app_version}/docs/about.md"
-            )
-        if about_md:
-            with gr.Accordion("About"):
-                if self.app_version:
-                    about_md = f"Version: {self.app_version}\n\n{about_md}"
-                gr.Markdown(about_md)
-
-        if KH_DEMO_MODE:
-            with gr.Accordion("Create Your Own Space"):
-                gr.Markdown(
-                    "This is a demo with limited functionality. "
-                    "Use **Create space** button to install Kotaemon "
-                    "in your own space with all features "
-                    "(including upload and manage your private "
-                    "documents securely)."
-                )
-                gr.Button(
-                    value="Create Your Own Space",
-                    link=HF_SPACE_URL,
-                    variant="primary",
-                    size="lg",
-                )
-
-        user_guide_md_dir = self.doc_dir / "usage.md"
-        if user_guide_md_dir.exists():
-            with (self.doc_dir / "usage.md").open(encoding="utf-8") as fi:
-                user_guide_md = fi.read()
-        else:  # fetch from remote
-            user_guide_md = get_remote_doc(
-                f"{self.remote_content_url}/v{self.app_version}/docs/usage.md"
-            )
-        if user_guide_md:
-            with gr.Accordion("User Guide", open=not KH_DEMO_MODE):
-                gr.Markdown(user_guide_md)
-
-        if self.app_version:
-            # try retrieve from cache
-            changelogs = ""
-
-            if (self.changelogs_cache_dir / f"{version}.md").exists():
-                with open(self.changelogs_cache_dir / f"{version}.md", "r") as fi:
-                    changelogs = fi.read()
-            else:
-                release_url_base = (
-                    "https://api.github.com/repos/Cinnamon/kotaemon/releases"
-                )
-                changelogs = download_changelogs(
-                    release_url=f"{release_url_base}/tags/v{self.app_version}"
-                )
-
-                # cache the changelogs
-                if not self.changelogs_cache_dir.exists():
-                    self.changelogs_cache_dir.mkdir(parents=True, exist_ok=True)
-                with open(
-                    self.changelogs_cache_dir / f"{self.app_version}.md", "w"
-                ) as fi:
-                    fi.write(changelogs)
-
-            if changelogs:
-                with gr.Accordion(f"Changelogs (v{self.app_version})"):
-                    gr.Markdown(changelogs)
+          </div>
+          
+          <div class="legal-layout">
+            <!-- Left Column: Help & FAQs -->
+            <div class="legal-column">
+              <div class="legal-section-header">
+                <h2>Help & FAQ</h2>
+              </div>
+              
+              <div class="legal-item">
+                <h3>What is the primary function of this assistant?</h3>
+                <p>This platform is configured to assist students and academic advisors with queries related to the D3B Study program. It utilizes Retrieval-Augmented Generation (RAG) to query academic regulations, module descriptions, and schedules.</p>
+              </div>
+              
+              <div class="legal-item">
+                <h3>How do I query specific documents?</h3>
+                <p>You can upload PDF or text files via the "File Collection" tab. In the Chat tab, expand the left sidebar and select the specific files you want to use as context for your questions. Choosing "Search All" will query all uploaded files in your database.</p>
+              </div>
+              
+              <div class="legal-item">
+                <h3>How should I verify the chatbot's answers?</h3>
+                <p>You can check the "Information panel" on the right side of the chat screen. It displays the retrieved text passages, source document names, and relevance scores used to generate the response.</p>
+              </div>
+            </div>
+            
+            <!-- Right Column: Legal Notices -->
+            <div class="legal-column">
+              <div class="legal-section-header">
+                <h2>Legal & Compliance</h2>
+              </div>
+              
+              <div class="legal-item">
+                <h3>1. Accuracy and Disclaimer</h3>
+                <p>The information provided by this assistant is generated automatically. The university does not warrant the completeness or correctness of the replies. For legally binding academic decisions, students must refer to the official D3B Examination Regulations (Prüfungsordnung) or contact the student administration office.</p>
+              </div>
+              
+              <div class="legal-item">
+                <h3>2. Data Privacy & Local Processing</h3>
+                <p>All input questions, chat history, and uploaded files are processed and stored exclusively on secure local servers managed by the university. No data is sent to external cloud providers or third-party AI companies.</p>
+              </div>
+              
+              <div class="legal-item">
+                <h3>3. Contact and IT Support</h3>
+                <p>For administrative assistance, technical system issues, or data deletion requests, contact the IT support desk via the official email: <a href="mailto:support@ku.de">support@ku.de</a>.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        """
+        
+        gr.HTML(help_html)

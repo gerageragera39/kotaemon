@@ -15,28 +15,61 @@ function run() {
   forceLightObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
   forceLightObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
-  let main_parent = document.getElementById("chat-tab").parentNode;
+  const setupHeader = () => {
+    let chatTab = document.getElementById("chat-tab");
+    if (!chatTab) return;
+    let main_parent = chatTab.parentNode;
+    if (main_parent) {
+      const header_bar = document.querySelector(".tab-nav") || (main_parent.childNodes && main_parent.childNodes[0]);
+      if (header_bar) {
+        header_bar.classList.add("header-bar");
+        let logo_img = document.getElementById("nav-logo");
+        if (!logo_img) {
+          logo_img = document.createElement("img");
+          logo_img.src = "/file=src/ktem/assets/img/logo.jpg";
+          logo_img.id = "nav-logo";
+          logo_img.style = "height: 40px; margin-right: 20px; display: inline-block; vertical-align: middle; padding: 2px;";
+        }
+        if (logo_img.parentNode !== header_bar) {
+          header_bar.insertBefore(logo_img, header_bar.firstChild);
+        }
 
-  if (main_parent && main_parent.childNodes && main_parent.childNodes[0]) {
-    main_parent.childNodes[0].classList.add("header-bar");
-    const header_bar = main_parent.childNodes[0];
-    if (!document.getElementById("nav-logo")) {
-      const logo_img = document.createElement("img");
-      logo_img.src = "/file=src/ktem/assets/img/logo.jpg";
-      logo_img.id = "nav-logo";
-      logo_img.style = "height: 40px; margin-right: 20px; display: inline-block; vertical-align: middle; padding: 2px;";
-      header_bar.insertBefore(logo_img, header_bar.firstChild);
+        let burger = document.getElementById("hamburger-menu");
+        if (!burger) {
+          burger = document.createElement("button");
+          burger.id = "hamburger-menu";
+          burger.innerHTML = "☰";
+          burger.setAttribute("style", "display: none; background: none; border: none; font-size: 28px; cursor: pointer; color: rgb(35, 47, 102); padding: 5px 15px; margin-left: auto;");
+          burger.addEventListener("click", () => {
+            header_bar.classList.toggle("nav-open");
+          });
+        }
+        if (burger.parentNode !== header_bar) {
+          header_bar.appendChild(burger);
+        }
+      }
+    }
+  };
+  setupHeader();
+  setInterval(setupHeader, 1000);
+  let chatTab = document.getElementById("chat-tab");
+  if (chatTab) {
+    let main_parent = chatTab.parentNode;
+    if (main_parent) {
+      main_parent.style = "padding: 0; margin: 0";
+      if (main_parent.parentNode) {
+        main_parent.parentNode.style = "gap: 0";
+        if (main_parent.parentNode.parentNode) {
+          main_parent.parentNode.parentNode.style = "padding: 0";
+        }
+      }
+      const version_node = document.createElement("p");
+      version_node.innerHTML = "version: KH_APP_VERSION";
+      version_node.id = "app-version-label";
+      version_node.style = "position: fixed; top: 10px; right: 10px;";
+      main_parent.appendChild(version_node);
     }
   }
-  main_parent.style = "padding: 0; margin: 0";
-  main_parent.parentNode.style = "gap: 0";
-  main_parent.parentNode.parentNode.style = "padding: 0";
-
-  const version_node = document.createElement("p");
-  version_node.innerHTML = "version: KH_APP_VERSION";
-  version_node.id = "app-version-label";
-  version_node.style = "position: fixed; top: 10px; right: 10px;";
-  main_parent.appendChild(version_node);
 
   // add favicon
   const favicon = document.createElement("link");
@@ -48,15 +81,19 @@ function run() {
 
   // setup conversation dropdown placeholder
   let conv_dropdown = document.querySelector("#conversation-dropdown input");
-  conv_dropdown.placeholder = "Browse conversation";
+  if (conv_dropdown) {
+    conv_dropdown.placeholder = "Browse conversation";
+  }
 
   // move info-expand-button
   let info_expand_button = document.getElementById("info-expand-button");
   let chat_info_panel = document.getElementById("info-expand");
-  chat_info_panel.insertBefore(
-    info_expand_button,
-    chat_info_panel.childNodes[2]
-  );
+  if (info_expand_button && chat_info_panel) {
+    chat_info_panel.insertBefore(
+      info_expand_button,
+      chat_info_panel.childNodes[2]
+    );
+  }
 
   // move toggle-side-bar button
   let chat_expand_button = document.getElementById("chat-expand-button");
@@ -66,14 +103,23 @@ function run() {
   // move setting close button
   let setting_tab_nav_bar = document.querySelector("#settings-tab .tab-nav");
   let setting_close_button = document.getElementById("save-setting-btn");
-  if (setting_close_button) {
+  if (setting_close_button && setting_tab_nav_bar) {
     setting_tab_nav_bar.appendChild(setting_close_button);
   }
 
   let default_conv_column_min_width = "min(300px, 100%)";
-  conv_column.style.minWidth = default_conv_column_min_width;
+  if (conv_column) {
+    if (window.innerWidth <= 768) {
+      conv_column.style.flexGrow = "0";
+      conv_column.style.minWidth = "0px";
+    } else {
+      conv_column.style.flexGrow = "1";
+      conv_column.style.minWidth = default_conv_column_min_width;
+    }
+  }
 
   globalThis.toggleChatColumn = () => {
+    if (!conv_column) return;
     /* get flex-grow value of chat_column */
     let flex_grow = conv_column.style.flexGrow;
     if (flex_grow == "0") {
@@ -85,36 +131,43 @@ function run() {
     }
   };
 
-  chat_column.insertBefore(chat_expand_button, chat_column.firstChild);
+  if (chat_column && chat_expand_button) {
+    chat_column.insertBefore(chat_expand_button, chat_column.firstChild);
+  }
 
   // move use mind-map checkbox
   let mindmap_checkbox = document.getElementById("use-mindmap-checkbox");
   let citation_dropdown = document.getElementById("citation-dropdown");
   let chat_setting_panel = document.getElementById("chat-settings-expand");
-  chat_setting_panel.insertBefore(
-    mindmap_checkbox,
-    chat_setting_panel.childNodes[2]
-  );
-  chat_setting_panel.insertBefore(citation_dropdown, mindmap_checkbox);
+  if (mindmap_checkbox && citation_dropdown && chat_setting_panel) {
+    chat_setting_panel.insertBefore(
+      mindmap_checkbox,
+      chat_setting_panel.childNodes[2]
+    );
+    chat_setting_panel.insertBefore(citation_dropdown, mindmap_checkbox);
+  }
 
   // move share conv checkbox
   let report_div = document.querySelector(
     "#report-accordion > div:nth-child(3) > div:nth-child(1)"
   );
   let share_conv_checkbox = document.getElementById("is-public-checkbox");
-  if (share_conv_checkbox) {
+  if (share_conv_checkbox && report_div) {
     report_div.insertBefore(share_conv_checkbox, report_div.querySelector("button"));
   }
 
   // create slider toggle
   const is_public_checkbox = document.getElementById("suggest-chat-checkbox");
-  const label_element = is_public_checkbox.getElementsByTagName("label")[0];
-  const checkbox_span = is_public_checkbox.getElementsByTagName("span")[0];
-  new_div = document.createElement("div");
-
-  label_element.classList.add("switch");
-  is_public_checkbox.appendChild(checkbox_span);
-  label_element.appendChild(new_div);
+  if (is_public_checkbox) {
+    const label_element = is_public_checkbox.getElementsByTagName("label")[0];
+    const checkbox_span = is_public_checkbox.getElementsByTagName("span")[0];
+    if (label_element && checkbox_span) {
+      new_div = document.createElement("div");
+      label_element.classList.add("switch");
+      is_public_checkbox.appendChild(checkbox_span);
+      label_element.appendChild(new_div);
+    }
+  }
 
   // clpse
   globalThis.clpseFn = (id) => {
@@ -312,11 +365,14 @@ function run() {
   };
 
   const updateRoleClasses = () => {
-    const username = localStorage.getItem('username');
-    if (username === 'guest') {
-      document.body.classList.add('role-guest');
-    } else {
-      document.body.classList.remove('role-guest');
+    const chatTab = document.getElementById("chat-tab");
+    if (chatTab) {
+      const isUser = document.querySelector(".tab-nav") !== null;
+      if (isUser) {
+        document.body.classList.remove('role-guest');
+      } else {
+        document.body.classList.add('role-guest');
+      }
     }
   };
   updateRoleClasses();

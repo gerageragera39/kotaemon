@@ -13,11 +13,18 @@ from ...utils.conversation import sync_retrieval_n_message
 from .chat_suggestion import ChatSuggestion
 from .common import STATE
 
+from pathlib import Path
+
 logger = logging.getLogger(__name__)
 
 KH_DEMO_MODE = getattr(flowsettings, "KH_DEMO_MODE", False)
 KH_SSO_ENABLED = getattr(flowsettings, "KH_SSO_ENABLED", False)
-ASSETS_DIR = os.path.abspath("src/ktem/assets/icons").replace("\\", "/")
+
+# Resolve assets directory relative to the location of this file
+_file_dir = Path(__file__).resolve().parent
+ASSETS_DIR = (_file_dir / ".." / ".." / "assets" / "icons").resolve().as_posix()
+if not os.path.isdir(ASSETS_DIR):
+    ASSETS_DIR = os.path.abspath("src/ktem/assets/icons").replace("\\", "/")
 if not os.path.isdir(ASSETS_DIR):
     ASSETS_DIR = os.path.abspath("assets/icons").replace("\\", "/")
 if not os.path.isdir(ASSETS_DIR):

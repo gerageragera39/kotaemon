@@ -41,9 +41,10 @@ COPY ${REQUIREMENTS_FILE} /app/${REQUIREMENTS_FILE}
 COPY pyproject.toml /app/pyproject.toml
 COPY src /app/src
 
-RUN python -m venv .venv \
-    && .venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel \
-    && .venv/bin/pip install --no-cache-dir -r "${REQUIREMENTS_FILE}"
+RUN --mount=type=cache,target=/root/.cache/pip \
+    python -m venv .venv \
+    && .venv/bin/pip install --timeout 120 --retries 10 --upgrade pip setuptools wheel \
+    && .venv/bin/pip install --timeout 120 --retries 10 -r "${REQUIREMENTS_FILE}" --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Application source and config
 COPY . /app
@@ -75,13 +76,14 @@ RUN apt-get update -qqy && \
     apt-get autoremove && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # PyTorch is not pinned in requirements_gerageragera39.txt; install for unstructured
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
-        .venv/bin/pip install --no-cache-dir \
+RUN --mount=type=cache,target=/root/.cache/pip \
+    if [ "$TARGETARCH" = "amd64" ]; then \
+        .venv/bin/pip install --timeout 120 --retries 10 \
             torch torchvision torchaudio \
             --index-url "${TORCH_INDEX_URL}" \
             --extra-index-url https://pypi.org/simple; \
     else \
-        .venv/bin/pip install --no-cache-dir torch torchvision torchaudio; \
+        .venv/bin/pip install --timeout 120 --retries 10 torch torchvision torchaudio; \
     fi
 
 ENV USE_LIGHTRAG=true

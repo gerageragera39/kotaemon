@@ -40,6 +40,7 @@ services:
     volumes:
       # Bind mount: data on host (default, easy backup). See compose.override.example.yml for named volume.
       - ${KOTAEMON_DATA_DIR:-./ktem_app_data}:/app/ktem_app_data
+      - ./src:/app/src
     healthcheck:
       test:
         [
