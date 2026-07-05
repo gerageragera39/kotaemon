@@ -510,5 +510,252 @@
       "Transportoptimierung",
       "Problem des kürzesten Weges"
     ]
+  },
+  {
+    "id": "po_d3b_09",
+    "question": "When is the Bachelor examination considered passed in the D3B program?",
+    "ground_truth": "The Bachelor examination is passed if the student has passed the foundations and orientation exam, completed all modules by the end of the eighth semester with at least 'sufficient' or 'passed', and earned a total of 180 ECTS credits.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      2
+    ],
+    "required_phrases": [
+      "die Grundlagen- und Orientierungsprüfung bestanden",
+      "bis zum Ende des achten Fachsemesters",
+      "insgesamt 180 ECTS-Punkte erworben"
+    ]
+  },
+  {
+    "id": "po_d3b_10",
+    "question": "How is the overall Bachelor grade calculated in the D3B examination regulations?",
+    "ground_truth": "The overall grade is calculated as a weighted arithmetic mean of all module grades and the Bachelor thesis grade, weighted according to the number of ECTS credits. The result is calculated to one decimal place, and all further decimal places are cut off without rounding.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      2,
+      3
+    ],
+    "required_phrases": [
+      "gewichtetes arithmetisches Mittel",
+      "anhand der Anzahl der vergebenen ECTS-Punkte",
+      "auf eine Stelle nach dem Komma",
+      "ohne Rundung gestrichen"
+    ]
+  },
+  {
+    "id": "po_d3b_11",
+    "question": "How many ECTS credits must students complete in the elective area according to the D3B PO?",
+    "ground_truth": "Students must successfully complete 25 ECTS credits in the elective area from the entire teaching program of the Faculty of Business and Economics or comparable modules at universities in Germany or abroad.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3
+    ],
+    "required_phrases": [
+      "Im Wahlbereich",
+      "25 ECTS-Punkte",
+      "gesamten Lehrprogramm der WWF",
+      "vergleichbaren Modulen an in- und ausländischen Hochschulen"
+    ]
+  },
+  {
+    "id": "po_d3b_12",
+    "question": "Which study profiles are usually offered according to the D3B PO?",
+    "ground_truth": "The D3B PO usually offers the study profiles Accounting, Controlling & Taxation; Finance & Economics; Marketing, Organization, Innovation; Supply Chain Management & Logistics; and Sustainability in Business and Economics.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      3,
+      4
+    ],
+    "required_phrases": [
+      "Accounting, Controlling & Taxation",
+      "Finance & Economics",
+      "Marketing, Organization, Innovation",
+      "Supply Chain Management & Logistics",
+      "Sustainability in Business and Economics"
+    ]
+  },
+  {
+    "id": "po_d3b_13",
+    "question": "What exam formats are listed for compulsory Information Management modules in the D3B PO appendix?",
+    "ground_truth": "The appendix lists Data Mining and Business Analytics with a 90-minute written exam, Basics of Information Systems with a written exam of 60 to 120 minutes or an oral exam of 20 to 30 minutes, Software Tools for Simulation and Optimization with a 60-minute written exam plus portfolio team work and presentation, and Software Engineering and Programming with a 90-minute written exam.",
+    "source_file": "PO_BSc_Digital_Data-Driven_Business_4.Aenderung_Senat_15.1.25.pdf",
+    "expected_pages": [
+      7
+    ],
+    "required_phrases": [
+      "Data Mining and Business Analytics",
+      "Grundlagen von Informationssystemen",
+      "Software Tools for Simulation and Optimization",
+      "Software Engineering and Programming"
+    ]
+  },
+  {
+    "id": "study_desc_09",
+    "question": "What are the admission requirements for the D3B Bachelor program according to the program description?",
+    "ground_truth": "Admission requires a general or subject-specific university entrance qualification. In addition, the same or a substantively comparable degree program must not have been definitively failed.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      6
+    ],
+    "required_phrases": [
+      "allgemeine oder fachgebundene Hochschulreife",
+      "inhaltlich vergleichbarer Studiengang",
+      "nicht endgültig nicht bestanden"
+    ]
+  },
+  {
+    "id": "study_desc_10",
+    "question": "Which further qualification opportunities does the D3B program prepare students for?",
+    "ground_truth": "The program prepares graduates for further Master's studies in areas such as business informatics or business administration, and with suitable module choices also economics and other fields. At WFI, a Master's in Business Administration or Taxation is possible.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      7
+    ],
+    "required_phrases": [
+      "weiterführenden Masterstudium",
+      "Wirtschaftsinformatik oder Betriebswirtschaftslehre",
+      "bei geeigneter Modulwahl auch der Volkswirtschaftslehre",
+      "Studiengang „Taxation“"
+    ]
+  },
+  {
+    "id": "study_desc_11",
+    "question": "What can students use the elective area for according to the D3B program description?",
+    "ground_truth": "The elective area can be used to gain competencies beyond the foundation and digital or data-driven elective program, deepen a study profile, learn additional foreign languages and intercultural skills, broaden economics or business knowledge, or take modules useful for a later subject-specific Master's program.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      11
+    ],
+    "required_phrases": [
+      "Wahlbereich dient zur Gewinnung",
+      "bestimmen Studienprofil",
+      "zusätzliche Fremdsprachen und interkulturelle Kompetenzen",
+      "weiterführendes fachspezifisches Masterstudium"
+    ]
+  },
+  {
+    "id": "study_desc_12",
+    "question": "How does the D3B program description support practical experience and internships?",
+    "ground_truth": "The program emphasizes practice orientation through the Digital Project, similar offers in the elective and elective compulsory program, enough flexibility for internships during lecture-free periods, two exam periods per semester for many module exams, guest lecturers and practical projects with companies.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      12
+    ],
+    "required_phrases": [
+      "Praxisbezug ist ein wesentlicher",
+      "Digital Project",
+      "Praktika in den vorlesungsfreien Zeiten",
+      "zwei Zeiträumen je Semester"
+    ]
+  },
+  {
+    "id": "study_desc_13",
+    "question": "Which internationalization options are described for the D3B program?",
+    "ground_truth": "The program includes a Business Language and Management Skills area worth 10 ECTS, the option to take another business language in later semesters, the possibility to study abroad especially in the fifth semester, English-language courses, international guest professors, and participation in international research projects through the Digital Project.",
+    "source_file": "Studiengangsbeschreibung_BA_D3B.pdf",
+    "expected_pages": [
+      13
+    ],
+    "required_phrases": [
+      "Business Language and Management Skills",
+      "zwei Modulen (10 ECTS)",
+      "fünfte Studiensemester",
+      "englischsprachiges Studienangebot",
+      "internationale Gastprofessorinnen und –professoren"
+    ]
+  },
+  {
+    "id": "mod_catalog_15",
+    "question": "What does the Betriebliches Rechnungswesen module teach and how is it assessed?",
+    "ground_truth": "The module teaches basic business understanding of bookkeeping and cost accounting. It covers bookkeeping topics such as booking techniques, goods transactions and closing entries, as well as cost accounting topics such as cost-type, cost-center and cost-object accounting. It is assessed by a 90-minute written exam.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      5,
+      6
+    ],
+    "required_phrases": [
+      "Buchführung und Kostenrechnung",
+      "Grundlagen der Buchungstechnik",
+      "Kostenartenrechnung",
+      "Klausur (90 Minuten)"
+    ]
+  },
+  {
+    "id": "mod_catalog_16",
+    "question": "What prior recommendation is given for Einführung in die VWL and how is the module assessed?",
+    "ground_truth": "For Einführung in die VWL, it is recommended to attend the Mathematics lecture in parallel. The module is assessed by a 90-minute written exam.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      8,
+      9
+    ],
+    "required_phrases": [
+      "Paralleler Besuch der Mathematik-Vorlesung empfohlen",
+      "Klausur (90 Minuten)",
+      "150 h = Arbeitsaufwand gesamt"
+    ]
+  },
+  {
+    "id": "mod_catalog_17",
+    "question": "Which topics are covered in Mathematik für Wirtschaftswissenschaftler?",
+    "ground_truth": "The module covers propositional logic, basic topics of linear algebra, the Gaussian algorithm, differential and integral calculus of several variables, constrained optimization problems and difference equations.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      16,
+      17
+    ],
+    "required_phrases": [
+      "Aussagenlogik",
+      "Grundthemen der linearen Algebra",
+      "Gauß-Algorithmus",
+      "Differential- und Integralrechnung",
+      "Differenzengleichungen"
+    ]
+  },
+  {
+    "id": "mod_catalog_18",
+    "question": "What topics are included in Descriptive Statistics and Probability Theory?",
+    "ground_truth": "The module includes descriptive statistics, including index calculation and concentration measurement, and probability theory, including axioms, conditional probability, Bayes' theorem, discrete and continuous univariate and multivariate distributions, and limit theorems.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      19,
+      20
+    ],
+    "required_phrases": [
+      "Deskriptive Statistik",
+      "bedingte Wahrscheinlichkeit und Satz von Bayes",
+      "Diskrete univariate Verteilungen",
+      "Stetige multivariate Verteilungen",
+      "Grenzwertsätze"
+    ]
+  },
+  {
+    "id": "mod_catalog_19",
+    "question": "What are the main content parts of Digital Business Strategies, Organization and Innovation?",
+    "ground_truth": "The module is organized into three main parts: leadership and organization, innovation and digital business models including structures and processes, and strategic management for digital business fields.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      22
+    ],
+    "required_phrases": [
+      "Teil I: Führung & Organisation",
+      "Innovation & Digitale Geschäftsmodelle",
+      "Strategisches Management für digitale Geschäftsfelder"
+    ]
+  },
+  {
+    "id": "mod_catalog_20",
+    "question": "How is the Data Analytics Lab module graded?",
+    "ground_truth": "The Data Analytics Lab module is graded through a portfolio. The grade consists of presentations worth 40 percent, including interim and final presentations of about 30 minutes each, and a written report worth 60 percent, consisting of 5 to 10 pages per participant plus code.",
+    "source_file": "Modulkatalog_Bachelor_D3B_DE.pdf",
+    "expected_pages": [
+      67,
+      68
+    ],
+    "required_phrases": [
+      "Leistungsnachweis (Portfolio)",
+      "Präsentation (40 %)",
+      "Ausarbeitung (60 %)",
+      "5–10 Seiten pro Teilnehmer zzgl. Code"
+    ]
   }
 ]
