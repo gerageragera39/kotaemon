@@ -29,6 +29,55 @@ Instead of asking a language model to answer from memory, KURAGa first retrieves
 
 ---
 
+## Project Team
+
+KURAGa was developed as a team project for the KU / WFI Digital Projects course.  
+This fork contains our project-specific work on university-document retrieval, local model setup, evaluation, guest access, and documentation.
+
+<div align="center">
+
+<table>
+  <tr>
+    <td align="center" width="140">
+      <a href="https://github.com/gerageragera39">
+        <img src="https://github.com/gerageragera39.png?size=100" width="80" height="80" alt="gerageragera39"/>
+        <br />
+        <sub><b>@gerageragera39</b></sub>
+      </a>
+    </td>
+    <td align="center" width="140">
+      <a href="https://github.com/Woldemar32">
+        <img src="https://github.com/Woldemar32.png?size=100" width="80" height="80" alt="Woldemar32"/>
+        <br />
+        <sub><b>@Woldemar32</b></sub>
+      </a>
+    </td>
+    <td align="center" width="140">
+      <a href="https://github.com/Luca122001">
+        <img src="https://github.com/Luca122001.png?size=100" width="80" height="80" alt="Luca122001"/>
+        <br />
+        <sub><b>@Luca122001</b></sub>
+      </a>
+    </td>
+    <td align="center" width="140">
+      <a href="https://github.com/alamkazitowhida">
+        <img src="https://github.com/alamkazitowhida.png?size=100" width="80" height="80" alt="alamkazitowhida"/>
+        <br />
+        <sub><b>@alamkazitowhida</b></sub>
+      </a>
+    </td>
+    <td align="center" width="140">
+      <a href="https://github.com/Guriewski">
+        <img src="https://github.com/Guriewski.png?size=100" width="80" height="80" alt="Guriewski"/>
+        <br />
+        <sub><b>@Guriewski</b></sub>
+      </a>
+    </td>
+  </tr>
+</table>
+
+</div>
+
 ## Why this project exists
 
 University information is often distributed across many documents, formats, languages, and update cycles. A normal chatbot can easily hallucinate. A plain keyword search can miss relevant passages. KURAGa combines both approaches:
