@@ -151,8 +151,6 @@ At a high level:
 > [!NOTE]
 > Internal Python package names still use `kotaemon` and `ktem` for compatibility with the upstream architecture. User-facing branding uses **KURAGa**.
 
-Each important source folder now has a focused `README.md` with change notes and verification commands for that subsystem.
-
 ---
 
 ## Quick start
