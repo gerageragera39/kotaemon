@@ -31,7 +31,7 @@ Instead of asking a language model to answer from memory, KURAGa first retrieves
 
 ## Project Team
 
-KURAGa was developed as a team project for the KU / WFI Digital Projects course.  
+KURAGa was developed as a team project for the KU / WFI Digital Projects course.
 This fork contains our project-specific work on university-document retrieval, local model setup, evaluation, guest access, and documentation.
 
 <div align="center">
@@ -137,19 +137,21 @@ At a high level:
 
 ## Repository structure
 
-| Path              | Purpose                                                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/ktem/`       | Gradio application layer: UI pages, chat, login/guest access, settings, evaluation, file index UI.                                               |
-| `src/kotaemon/`   | Reusable RAG components inherited/adapted from Kotaemon: loaders, splitters, stores, retrievers, LLMs, embeddings, rerankers, QA/citation logic. |
-| `flowsettings.py` | Main runtime configuration: app name, model defaults, stores, index definitions, feature flags.                                                  |
-| `docs/`           | Project documentation, including in-app guest documentation.                                                                                     |
-| `scripts/`        | Docker helpers, evaluation utilities, retrieval/chunking debugging tools, and project scripts.                                                   |
-| `dataset/`        | Course/evaluation documents and curated question sets where applicable.                                                                          |
-| `tests/`          | Project tests, including guest access/search-scope behavior.                                                                                     |
-| `ktem_app_data/`  | Runtime data directory created by the app. Contains uploads, SQLite DBs, vector stores, caches. Do not commit it.                                |
+| Path                                      | Purpose                                                                                                                                          |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [`src/ktem/`](src/ktem/README.md)         | Gradio application layer: UI pages, chat, login/guest access, settings, evaluation, file index UI.                                               |
+| [`src/kotaemon/`](src/kotaemon/README.md) | Reusable RAG components inherited/adapted from Kotaemon: loaders, splitters, stores, retrievers, LLMs, embeddings, rerankers, QA/citation logic. |
+| `flowsettings.py`                         | Main runtime configuration: app name, model defaults, stores, index definitions, feature flags.                                                  |
+| [`docs/`](docs/README.md)                 | Project documentation, including in-app guest documentation.                                                                                     |
+| [`scripts/`](scripts/README.md)           | Docker helpers, evaluation utilities, retrieval/chunking debugging tools, and project scripts.                                                   |
+| [`dataset/`](dataset/README.md)           | Course/evaluation documents and curated question sets where applicable.                                                                          |
+| [`tests/`](tests/README.md)               | Project tests, including guest access/search-scope behavior.                                                                                     |
+| `ktem_app_data/`                          | Runtime data directory created by the app. Contains uploads, SQLite DBs, vector stores, caches. Do not commit it.                                |
 
 > [!NOTE]
 > Internal Python package names still use `kotaemon` and `ktem` for compatibility with the upstream architecture. User-facing branding uses **KURAGa**.
+
+Each important source folder now has a focused `README.md` with change notes and verification commands for that subsystem.
 
 ---
 
@@ -158,9 +160,8 @@ At a high level:
 ### 1. Clone the repository
 
 ```bash
-git clone https://github.com/gerageragera39/kotaemon.git
-cd kotaemon
-git checkout kuraga
+git clone https://github.com/gerageragera39/KURAGa.git
+cd KURAGa
 ```
 
 ### 2. Create a Python environment

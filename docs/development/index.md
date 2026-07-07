@@ -12,7 +12,7 @@ This section is for contributors and integrators working on **`kotaemon`** (libr
 | `app.py`          | —          | Inserts `src/` on `sys.path`, launches Gradio                     |
 | `tests/`          | —          | pytest from **repository root**                                   |
 
-Read [`PROJECT_CONTEXT.md`](../../PROJECT_CONTEXT.md) for architecture, data flow, and configuration. [`AI_GUIDE.md`](../../AI_GUIDE.md) lists task → file mappings for agents.
+Read [`PROJECT_CONTEXT.md`](../../PROJECT_CONTEXT.md) for architecture, data flow, and configuration. Folder READMEs under [`../../src`](../../src/README.md), [`../../scripts`](../../scripts/README.md), and [`../../tests`](../../tests/README.md) list practical task-to-file mappings for contributors.
 
 ## Setup
 
